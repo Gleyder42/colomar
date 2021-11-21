@@ -1,0 +1,11 @@
+const DELAY = 0.25
+
+#ifdef DEBUG
+rule "This is a debug rule" OngoingGlobal
+#endif
+
+rule "Rule Name" OngoingPlayer(Team2, Slot6)
+if (isGameInProgress()) {
+    Wait(DELAY)
+    setAbility1Enabled(true)
+}
