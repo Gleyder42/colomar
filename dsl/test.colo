@@ -1,6 +1,7 @@
-rule "Rule Name" OngoingPlayer(Team2, Slot6) {
-    condition game.inProgress()
+workshop struct Player {
+    workshop func setAbility1Enabled(enabled: bool)
+}
 
-    player.setAbility1Enabled(true)
-    killAllPlayers()
+workshop struct Game {
+    condition func inProgress(inProgress: bool)
 }

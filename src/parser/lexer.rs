@@ -2,27 +2,28 @@ use std::fs::{File, read};
 use std::io::{BufRead, BufReader, Error, Read};
 use std::iter::Peekable;
 use core::slice::Iter;
+use std::fmt::{Display, Formatter};
 use std::process::id;
 use crate::lexer::Token::Comma;
+use strum_macros::Display;
 
-const STRING_OPERATOR: char = '\"';
-const OPEN_PARENTHESES: char = '(';
-const CLOSED_PARENTHESES: char = ')';
-const OPEN_BRACE: char = '{';
-const CLOSED_BRACE: char = '}';
-const COMMA: char = ',';
-const DOT: char = '.';
-const CONDITION: &'static str = "condition";
-const WHITESPACE: char = ' ';
-const LINE_BREAK: char = '\n';
+pub const STRING_OPERATOR: char = '\"';
+pub const OPEN_PARENTHESES: char = '(';
+pub const CLOSED_PARENTHESES: char = ')';
+pub const OPEN_BRACE: char = '{';
+pub const CLOSED_BRACE: char = '}';
+pub const COMMA: char = ',';
+pub const DOT: char = '.';
+pub const CONDITION: &'static str = "condition";
+pub const WHITESPACE: char = ' ';
+pub const LINE_BREAK: char = '\n';
+pub const COLON: char = ':';
 
-pub struct Lexer {
-    state: State,
-}
+pub struct Lexer;
 
 impl Lexer {
     pub fn new() -> Lexer {
-        Lexer { state: State::RootLevel }
+        Lexer { }
     }
 
     pub fn lex(&mut self, reader: &mut BufReader<File>) -> Vec<Token> {
@@ -83,9 +84,20 @@ impl Lexer {
                     reader.next();
                     tokens.push(Token::Comma);
                 }
+                COLON => {
+                    reader.next();
+                    tokens.push(Token::Colon)
+                }
                 _ => {
                     let ident = self.read_ident(&mut reader);
-                    tokens.push(Token::Ident(ident));
+                    let token = match ident.as_str() {
+                        "struct" => Token::Struct,
+                        "rule" => Token::Rule,
+                        "workshop" => Token::Workshop,
+                        "func" => Token::Func,
+                        _ => Token::Ident(ident)
+                    };
+                    tokens.push(token);
                 }
             }
         }
@@ -137,10 +149,11 @@ impl Lexer {
             || char == DOT
             || char == STRING_OPERATOR
             || char == LINE_BREAK
+            || char == COLON
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Display)]
 pub enum Token {
     Ident(String),
     StringLiteral(String),
@@ -151,15 +164,11 @@ pub enum Token {
     ClosedBrace,
     Dot,
     Comma,
-}
-
-#[derive(Eq, PartialEq)]
-enum State {
-    RootLevel,
-    StringLiteral,
-    NumberLiteral,
-    RuleType,
-    RuleBlock,
+    Colon,
+    Struct,
+    Workshop,
+    Rule,
+    Func,
 }
 
 enum TokenType {

@@ -1,0 +1,3 @@
+[functions]
+setAbility1Enabled = "Set Ability 1 Enabled({player}, {enabled})"
+inProgress = "Is Game In Progress == {inProgress}"
