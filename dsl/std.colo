@@ -1,0 +1,14 @@
+workshop struct Player {
+
+    workshop func setAbility1Enabled(enabled: bool) {
+        Set Ability 1 Enabled({player}, {enabled})
+    }
+}
+
+workshop struct Game {
+
+    workshop condition func inProgress(inProgress: bool) {
+        Is Game In Progress == {inProgress}
+    }
+
+}

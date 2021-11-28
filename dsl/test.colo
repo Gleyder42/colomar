@@ -1,0 +1,6 @@
+rule "Rule Name" OngoingPlayer(Team2, Slot6) {
+    condition game.inProgress()
+
+    player.setAbility1Enabled(true)
+    killAllPlayers()
+}

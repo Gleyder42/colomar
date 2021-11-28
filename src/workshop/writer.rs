@@ -8,36 +8,48 @@ pub fn write_to_string(tree: &WorkshopTree) -> String {
         writer.write_def(&format!("rule(\"{}\")", rule.name));
         writer.write_opening_brace();
 
-        let event = &rule.event;
-        writer.write_def("event");
-        writer.write_opening_brace();
-        writer.write_statement(event.event_type.workshop_name());
-        writer.write_statement(event.team.workshop_name());
-        writer.write_statement(&event.slot.workshop_name());
-        writer.write_closing_brace();
+        write_event(&mut writer, &rule);
 
-        let conditions = &rule.conditions;
-        writer.write_space();
-        writer.write_def("conditions");
-        writer.write_opening_brace();
-        for condition in conditions {
-            writer.write_statement(&condition.workshop_name());
-        }
-        writer.write_closing_brace();
+        write_conditions(&mut writer, &rule);
 
-        let actions = &rule.actions;
-        writer.write_space();
-        writer.write_def("actions");
-        writer.write_opening_brace();
-        for action in actions {
-            writer.write_statement(&action.workshop_name());
-        }
-        writer.write_closing_brace();
+        write_actions(&mut writer, &rule);
 
         writer.write_closing_brace();
     }
 
     output
+}
+
+fn write_actions(writer: &mut WorkshopWriter, rule: &&WorkshopRule) {
+    let actions = &rule.actions;
+    writer.write_space();
+    writer.write_def("actions");
+    writer.write_opening_brace();
+    for action in actions {
+        writer.write_statement(&action.workshop_name());
+    }
+    writer.write_closing_brace();
+}
+
+fn write_conditions(writer: &mut WorkshopWriter, rule: &&WorkshopRule) {
+    let conditions = &rule.conditions;
+    writer.write_space();
+    writer.write_def("conditions");
+    writer.write_opening_brace();
+    for condition in conditions {
+        writer.write_statement(&condition.workshop_name());
+    }
+    writer.write_closing_brace();
+}
+
+fn write_event(writer: &mut WorkshopWriter, rule: &&WorkshopRule) {
+    let event = &rule.event;
+    writer.write_def("event");
+    writer.write_opening_brace();
+    writer.write_statement(event.event_type.workshop_name());
+    writer.write_statement(event.team.workshop_name());
+    writer.write_statement(&event.slot.workshop_name());
+    writer.write_closing_brace();
 }
 
 struct WorkshopWriter<'a> {
