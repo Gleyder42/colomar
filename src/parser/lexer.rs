@@ -26,18 +26,13 @@ impl Lexer {
         Lexer { }
     }
 
-    pub fn lex(&mut self, reader: &mut BufReader<File>) -> Vec<Token> {
+    pub fn lex(&mut self, reader: BufReader<File>) -> Vec<Token> {
         let mut tokens = Vec::new();
-
-        let mut char_reader: Vec<char> = reader.lines()
-            .flat_map(|line|
-                {
-                    Self::line_to_char(line)
-                }
-            )
+        let mut chars: Vec<char> = reader.lines()
+            .flat_map(|line| Lexer::line_to_chars(line))
             .collect();
 
-        let mut reader = char_reader.iter().peekable();
+        let mut reader = chars.iter().peekable();
         loop {
             let peek = reader.peek();
             if peek.is_none() {
@@ -104,14 +99,6 @@ impl Lexer {
         tokens
     }
 
-    fn line_to_char(line: Result<String, Error>) -> Vec<char> {
-        let mut vec = line.expect("lines failed")
-            .chars()
-            .collect::<Vec<char>>();
-        vec.push('\n');
-        vec
-    }
-
     fn read_string_literal(&self, reader: &mut Peekable<Iter<char>>) -> String {
         self.read_text(reader, |char| char == STRING_OPERATOR)
     }
@@ -120,7 +107,7 @@ impl Lexer {
         self.read_text(reader, |char| self.has_ident_reached_end(char))
     }
 
-    fn read_text<F>(&self, reader: &mut Peekable<Iter<char>>, func: F) -> String
+    fn read_text<F>(&self, reader: &mut Peekable<Iter<char>>, has_reached_end: F) -> String
         where F: Fn(char) -> bool
     {
         let mut string = String::new();
@@ -128,7 +115,7 @@ impl Lexer {
             let option = reader.peek();
             if let Some(char) = option {
                 let char = **char;
-                if func(char) {
+                if has_reached_end(char) {
                     break;
                 } else {
                     reader.next();
@@ -151,12 +138,21 @@ impl Lexer {
             || char == LINE_BREAK
             || char == COLON
     }
+
+    fn line_to_chars(line: Result<String, Error>) -> Vec<char> {
+        let mut vec = line.expect("lines failed")
+            .chars()
+            .collect::<Vec<char>>();
+        vec.push('\n');
+        vec
+    }
 }
 
 #[derive(Debug, PartialEq, Display)]
 pub enum Token {
     Ident(String),
     StringLiteral(String),
+    NumberLiteral(f64),
     LineBreak,
     OpenParentheses,
     ClosedParentheses,
@@ -171,9 +167,24 @@ pub enum Token {
     Func,
 }
 
-enum TokenType {
-    Keyword,
-    Identifier,
-    Literal,
-    Syntax,
+impl Token {
+    pub fn display(&self) -> String {
+        match self {
+            Token::Ident(name) => name.clone(),
+            Token::StringLiteral(name) => name.clone(),
+            Token::NumberLiteral(number) => number.to_string(),
+            Token::LineBreak => String::from("\n"),
+            Token::OpenParentheses => String::from("("),
+            Token::ClosedParentheses => String::from(")"),
+            Token::OpenBrace => String::from("{"),
+            Token::ClosedBrace => String::from("}"),
+            Token::Dot => String::from("."),
+            Token::Comma => String::from(","),
+            Token::Colon => String::from(":"),
+            Token::Struct => String::from("struct"),
+            Token::Workshop => String::from("workshop"),
+            Token::Rule => String::from("rule"),
+            Token::Func => String::from("func")
+        }
+    }
 }

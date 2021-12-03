@@ -1,11 +1,20 @@
 workshop struct Player {
-    workshop func setAbility1Enabled(enabled: bool) {
-        Set Ability 1 Enabled({player}, {enabled})
-    }
+    workshop func setAbility1Enabled(enabled: bool)
 }
 
 workshop struct Game {
-    workshop condition func inProgress(inProgress: bool) {
-        Is Game In Progress == {inProgress}
-    }
+    condition func inProgress(inProgress: bool)
+}
+
+struct Normal {
+    func sayHello()
+}
+
+const hello = 10
+
+rule "Rule Name" OngoingPlayer(Team2, Slot6) {
+    condition game.inProgress()
+
+    player.setAbility1Enabled(true)
+    killAllPlayers()
 }
