@@ -1,7 +1,7 @@
 workshop struct Player {
-    workshop func setAbility1Enabled(enabled: bool)
+    workshop func setAbility1Enabled()
 }
 
 workshop struct Game {
-    condition func inProgress(inProgress: bool)
+    workshop func inProgress()
 }

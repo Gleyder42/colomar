@@ -11,7 +11,7 @@ use crate::rule::{WorkshopEventType, WorkshopRule, WorkshopTree};
 use crate::workshop::*;
 use crate::writer::write_to_string;
 use crate::parser::lexer;
-
+use crate::parser::parser::Parser;
 
 fn main() {
     lexer_test();
@@ -19,11 +19,14 @@ fn main() {
 
 fn lexer_test() {
     let mut lexer = Lexer::new();
-    let file = File::open("dsl/std.colo").expect("cannot open file");
+    let file = File::open("dsl/test.colo").expect("cannot open file");
     let mut reader = BufReader::new(file);
     let mut tokens = lexer.lex(reader);
 
-    println!("{:#?}", tokens);
+    let mut parser = Parser::new(tokens);
+    let result = parser.parse();
+
+    println!("{:#?}", result);
 }
 
 fn test() {

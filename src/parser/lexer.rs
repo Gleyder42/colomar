@@ -90,6 +90,7 @@ impl Lexer {
                         "rule" => Token::Rule,
                         "workshop" => Token::Workshop,
                         "func" => Token::Func,
+                        "condition" => Token::Condition,
                         _ => Token::Ident(ident)
                     };
                     tokens.push(token);
@@ -153,6 +154,7 @@ pub enum Token {
     Ident(String),
     StringLiteral(String),
     NumberLiteral(f64),
+    Condition,
     LineBreak,
     OpenParentheses,
     ClosedParentheses,
@@ -184,7 +186,8 @@ impl Token {
             Token::Struct => String::from("struct"),
             Token::Workshop => String::from("workshop"),
             Token::Rule => String::from("rule"),
-            Token::Func => String::from("func")
+            Token::Func => String::from("func"),
+            Token::Condition => String::from("condition")
         }
     }
 }
