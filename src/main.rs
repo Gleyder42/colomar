@@ -26,7 +26,10 @@ fn lexer_test() {
     let mut parser = Parser::new(tokens);
     let result = parser.parse();
 
-    println!("{:#?}", result);
+    match result {
+        Ok(node) => println!("{:#?}", node),
+        Err(error) => println!("{}", error)
+    }
 }
 
 fn test() {

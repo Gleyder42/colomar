@@ -175,7 +175,7 @@ impl Token {
             Token::Ident(name) => name.clone(),
             Token::StringLiteral(name) => name.clone(),
             Token::NumberLiteral(number) => number.to_string(),
-            Token::LineBreak => String::from("\n"),
+            Token::LineBreak => String::from("LineBreak"),
             Token::OpenParentheses => String::from("("),
             Token::ClosedParentheses => String::from(")"),
             Token::OpenBrace => String::from("{"),

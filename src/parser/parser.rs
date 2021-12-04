@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fmt::format;
+use std::fmt::{Display, format, Formatter, write};
 use std::fs::read;
 use std::io::Read;
 use std::iter::Peekable;
@@ -24,7 +24,7 @@ macro_rules! impl_parse_token_fn {
                 let token = self.tokens.next();
                 if token.is_none() {
                     return Err(ParseError::new(format!(
-                        "Expected {} token but got nothing near {}", stringify!($func_name), current_tokens
+                        "Expected \"{}\" token but got nothing near \"{}\"", stringify!($func_name), current_tokens
                     )));
                 }
                 let token = token.unwrap();
@@ -32,7 +32,7 @@ macro_rules! impl_parse_token_fn {
                     Ok(token)
                 } else {
                     Err(ParseError::new(format!(
-                        "Expected {} token but got {} near {}", stringify!($func_name), token, current_tokens
+                        "Expected \"{}\" token but got \"{}\" near \"{}\"", stringify!($func_name), token, current_tokens
                     )))
                 }
             }
@@ -45,7 +45,7 @@ macro_rules! impl_check_token_fn {
                 let token = self.tokens.next();
                 if token.is_none() {
                     return Err(ParseError::new(format!(
-                        "Expected {} token but got nothing near \"{}\"", $expression, current_tokens
+                        "Expected \"{}\" token but got nothing near \"{}\"", $expression, current_tokens
                     )));
                 }
                 let token = token.unwrap();
@@ -71,13 +71,13 @@ pub struct ParseError {
     error: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum ParseTreeNode {
     Node(NodeType, Vec<Box<ParseTreeNode>>),
     Leaf(Token),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum NodeType {
     FuncDef,
     Root,
@@ -140,7 +140,7 @@ impl Parser {
                     }
                     Token::ClosedBrace => break,
                     _ => return parse_error!(
-                        "Expected workshop or condition token, but got {} near \"{}\"",
+                        "Expected workshop or condition token, but got \"{}\" near \"{}\"",
                         next, current_tokens
                     )
                 }
@@ -162,7 +162,9 @@ impl Parser {
         let mut nodes = Vec::new();
         let current_tokens = self.peek_context();
         let workshop_token = self.parse_workshop_token(&current_tokens)?;
+
         let func_token = self.parse_func_token(&current_tokens)?;
+
         let func_name = self.parse_ident_token(&current_tokens)?;
         let open_parentheses_token = self.parse_open_parentheses_token(&current_tokens)?;
         let close_parentheses_token = self.parse_closed_parentheses_token(&current_tokens)?;
@@ -205,7 +207,7 @@ impl Parser {
     }
 
     fn peek_context(&mut self) -> String {
-        self.tokens.peek_amount(6).iter()
+        self.tokens.peek_amount(5).iter()
             .filter_map(|token| {
                 if let Option::Some(token) = token {
                     Some(token.display())
@@ -218,10 +220,15 @@ impl Parser {
     }
 }
 
-
 impl ParseError {
     fn new(msg: String) -> ParseError {
         ParseError { error: msg }
+    }
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.error)
     }
 }
 
