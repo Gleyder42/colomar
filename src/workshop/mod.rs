@@ -1,5 +1,6 @@
 use std::fs;
-use crate::Rule;
+
+use crate::language::parser::Rule;
 
 pub struct WorkshopPrinter {
     rule_template: String,
