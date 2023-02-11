@@ -1,7 +1,0 @@
-workshop struct Player {
-    workshop func setAbility1Enabled()
-}
-
-workshop struct Game {
-    workshop func inProgress()
-}

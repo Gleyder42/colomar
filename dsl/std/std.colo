@@ -1,0 +1,80 @@
+native struct Player {
+	native var ability1Enabled: Bool
+	native var hero: Hero
+	native var isFiringSecondary: Bool
+
+    native func heal(amount: number, healer: Player = null)
+
+    native func applyImpulse(direction: Vector, speed: Number, relative: Relative, motion: Motion)
+}
+
+native func raycast(position: Locatable, direction: Vector, maxDistance: Number): Bool
+
+native struct Vector {
+	native var x: number
+	native var y: number
+	native var z: number
+
+	native static func zero(): Vector
+}
+
+native enum Relative {
+	ToWorld,
+	ToPlayer
+}
+
+native enum Slot {
+    Slot0,
+    Slot1,
+    Slot2,
+    Slot3,
+    Slot4,
+    Slot5,
+    Slot6,
+    Slot7,
+    Slot8,
+    Slot9,
+    Slot10,
+    Slot11
+}
+
+native enum Team {
+    Team1, Team2
+}
+
+native event PlayerDealtFinalBlow(Team, Slot)
+
+native enum Hero {
+    Reaper,
+    Tracer,
+    Mercy,
+    Hanzo,
+    Torbjörn,
+    Reinhardt,
+    Pharah,
+    Winston,
+    Widowmaker,
+    Bastion,
+    Symmetra,
+    Zenyatta,
+    Genji,
+    Roadhog,
+    Cassidy,
+    Junkrat,
+    Zarya,
+    Soldier76,
+    Lucio,
+    Dva,
+    Mei,
+    Sombra,
+    Doomfist,
+    Ana,
+    Orisa,
+    Brigitte,
+    Moria,
+    WreckingBall,
+    Ashe,
+    Echo,
+    Baptise,
+    Sigma
+}

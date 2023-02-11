@@ -1,0 +1,13 @@
+rule "Hello World" ongoingPlayer(Team.Team1, Slot.Slot1) {
+    cond player.hero == Hero.Orisa
+
+    player.ability1Enabled = true
+}
+
+rule func Backfire(hero: Hero, speed: Number) {
+    cond player.hero = hero
+    cond player.isBackfiring
+    cond player.isFiringSecondary
+
+    player.applyImpulse(speed)
+}
