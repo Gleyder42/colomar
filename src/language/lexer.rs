@@ -48,3 +48,51 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .padded()
         .repeated()
 }
+
+#[cfg(test)]
+mod tests {
+    use chumsky::Parser;
+    use crate::language::lexer::{lexer, Token};
+    use crate::test_assert::assert_into_iter;
+
+    #[test]
+    fn test_number_lexer() {
+        let code = "1 5 1.2 123.321";
+
+        let actual = lexer().parse(code).unwrap();
+        let expected = vec![
+            Token::Num("1".to_string()),
+            Token::Num("5".to_string()),
+            Token::Num("1.2".to_string()),
+            Token::Num("123.321".to_string())
+        ];
+
+        assert_into_iter(actual.into_iter().map(|i| i.0),expected);
+    }
+
+    #[test]
+    fn test_string_lexer() {
+        let code = "\"Hello\" \"Hello World\"";
+
+        let actual = lexer().parse(code).unwrap();
+        let expected = vec![
+            Token::String("Hello".to_string()),
+            Token::String("Hello World".to_string()),
+        ];
+
+        assert_into_iter(actual.into_iter().map(|i| i.0),expected);
+    }
+
+    #[test]
+    fn test_keyword_lexer() {
+        let code = "rule cond";
+
+        let actual = lexer().parse(code).unwrap();
+        let expected = vec![
+            Token::Rule,
+            Token::Cond,
+        ];
+
+        assert_into_iter(actual.into_iter().map(|i| i.0),expected);
+    }
+}

@@ -4,6 +4,7 @@ use std::fmt::{Debug};
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::lexer::Token;
+use crate::test_assert::compare_vec;
 
 pub type Action = CallChain;
 pub type Condition = CallChain;
@@ -100,10 +101,6 @@ pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error = Simple<Token>> {
         .then_ignore(end())
 }
 
-fn compare_vec<T: PartialEq>(a: &Vec<T>, b: &Vec<T>) -> bool {
-    let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
-    matching == a.len() && matching == b.len()
-}
 
 #[cfg(test)]
 mod tests {
@@ -111,7 +108,8 @@ mod tests {
     use std::fs::{read_to_string};
     use once_cell::sync::Lazy;
     use crate::language::lexer::lexer;
-    use crate::language::parser::{compare_vec, Rule, rule_parser};
+    use crate::language::parser::{Rule, rule_parser};
+    use crate::test_assert::compare_vec;
 
     static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_header.colo").unwrap());
 
@@ -162,6 +160,4 @@ mod tests {
                            "Test if {:?} is equal to {:?}", actual.actions, expected.actions);
             })
     }
-
-
 }
