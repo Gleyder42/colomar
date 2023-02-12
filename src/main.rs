@@ -9,8 +9,8 @@ use crate::workshop::WorkshopPrinter;
 
 pub type Span = std::ops::Range<usize>;
 
-mod workshop;
-mod language;
+pub mod workshop;
+pub mod language;
 
 fn main() {
     let source = fs::read_to_string("dsl/rule.colo")

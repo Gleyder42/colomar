@@ -10,7 +10,7 @@ pub struct WorkshopPrinter {
 
 impl WorkshopPrinter {
     pub fn new() -> WorkshopPrinter {
-        let rule_template = fs::read_to_string("workshop/rule.ws").unwrap();
+        let rule_template = fs::read_to_string("workshop/rule.ows").unwrap();
         WorkshopPrinter { output: String::new(), rule_template, all: "All".to_string() }
     }
 

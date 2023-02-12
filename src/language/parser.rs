@@ -28,7 +28,14 @@ pub struct CallChain {
     pub idents: Vec<Call>
 }
 
-#[derive(Debug)]
+impl PartialEq for CallChain {
+
+    fn eq(&self, other: &Self) -> bool {
+        compare_vec(&self.idents, &other.idents)
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Call {
     Fn(String, Vec<String>),
     Var(String)
@@ -91,4 +98,70 @@ pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error = Simple<Token>> {
 
     rule.repeated()
         .then_ignore(end())
+}
+
+fn compare_vec<T: PartialEq>(a: &Vec<T>, b: &Vec<T>) -> bool {
+    let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
+    matching == a.len() && matching == b.len()
+}
+
+#[cfg(test)]
+mod tests {
+    use chumsky::{Parser, Stream};
+    use std::fs::{read_to_string};
+    use once_cell::sync::Lazy;
+    use crate::language::lexer::lexer;
+    use crate::language::parser::{compare_vec, Rule, rule_parser};
+
+    static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_header.colo").unwrap());
+
+    #[test]
+    fn test_rule_header() {
+        let tokens = lexer().parse(RULE_HEADER.as_str()).unwrap();
+        let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
+        let rules = rule_parser().parse(stream).unwrap();
+
+        let expected: Vec<Rule> = vec![
+            Rule {
+                name: "Heal on Kill".to_string(),
+                event: "OngoingPlayer".to_string(),
+                args: Vec::new(),
+                conditions: Vec::new(),
+                actions: Vec::new()
+            },
+            Rule {
+                name: "Test".to_string(),
+                event: "MyEvent".to_string(),
+                args: vec!["Hello".to_string(), "World".to_string()],
+                conditions: Vec::new(),
+                actions: Vec::new()
+            },
+            Rule {
+                name: "Heal on Kill".to_string(),
+                event: "PlayerDealtFinalBlow".to_string(),
+                args: vec!["Team1".to_string(), "Slot1".to_string()],
+                conditions: Vec::new(),
+                actions: Vec::new()
+            }
+        ];
+
+        assert_eq!(rules.len(), expected.len());
+
+        rules.into_iter()
+            .zip(expected)
+            .for_each(|(actual, expected)| {
+                assert_eq!(actual.name, expected.name,
+                           "Test if {:?} is equal to {:?}", actual.name, expected.name);
+                assert_eq!(actual.event, expected.event,
+                           "Test if {:?} is equal to {:?}", actual.event, expected.event);
+                assert!(compare_vec(&actual.args, &expected.args),
+                           "Test if {:?} is equal to {:?}", actual.args, expected.args);
+                assert!(compare_vec(&actual.conditions, &expected.conditions),
+                           "Test if {:?} is equal to {:?}", actual.conditions, expected.conditions);
+                assert!(compare_vec(&actual.actions, &expected.actions),
+                           "Test if {:?} is equal to {:?}", actual.actions, expected.actions);
+            })
+    }
+
+
 }
