@@ -3,3 +3,5 @@ rule "Heal on Kill" OngoingPlayer() { }
 rule "Test" MyEvent(Hello, World) { }
 
 rule "Heal on Kill" PlayerDealtFinalBlow(Team1, Slot1) { }
+
+rule "Heal on Kill" PlayerDealtFinalBlow(Team.Team1(ident()), Hero.Ana) { }

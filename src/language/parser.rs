@@ -1,6 +1,7 @@
 extern crate core;
 
 use std::fmt::{Debug};
+use std::process::id;
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::lexer::Token;
@@ -15,34 +16,33 @@ pub struct Rule {
     pub event: String,
     pub args: Vec<String>,
     pub conditions: Vec<Condition>,
-    pub actions: Vec<Action>
+    pub actions: Vec<Action>,
 }
 
 #[derive(Debug)]
 pub struct Block {
     pub actions: Vec<Action>,
-    pub conditions: Vec<Condition>
+    pub conditions: Vec<Condition>,
 }
 
 #[derive(Debug)]
 pub struct CallChain {
-    pub idents: Vec<Call>
+    pub idents: Vec<Expr>,
 }
 
 impl PartialEq for CallChain {
-
     fn eq(&self, other: &Self) -> bool {
         compare_vec(&self.idents, &other.idents)
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Call {
-    Fn(String, Vec<String>),
-    Var(String)
+pub enum Expr {
+    Fn(String, Vec<Box<Expr>>),
+    Var(String),
 }
 
-pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error = Simple<Token>> {
+pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error=Simple<Token>> {
     let rule_name = filter_map(|span, token| match token {
         Token::String(ident) => Ok(ident.clone()),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
@@ -53,21 +53,23 @@ pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error = Simple<Token>> {
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     });
 
-    let args = ident
+    let mut ident_chain = Recursive::<_, Box<Expr>,_>::declare();
+
+    let args = ident_chain
         .clone()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
         .delimited_by(Token::Ctrl('('), Token::Ctrl(')'))
         .labelled("function args");
 
-    let ident_chain = ident
-        .clone()
-        .then(args.clone().repeated().at_most(1).map(|mut o| o.pop()))
-        .separated_by(just(Token::Ctrl('.')))
-        .map(|o| o.into_iter().map(|i| match i {
-            (name, Some(args)) => Call::Fn(name, args),
-            (name, None) => Call::Var(name)
-        }).collect::<Vec<Call>>());
+    ident_chain.define(
+        ident
+            .then(args.or_not())
+            .separated_by(just(Token::Ctrl('.')))
+            .map(|o| o.into_iter().map(|i| match i {
+                (name, Some(args)) => Expr::Fn(name, args),
+                (name, None) => Expr::Var(name)
+            }).collect::<Vec<Expr>>()));
 
     let cond = just(Token::Cond)
         .ignore_then(ident_chain.clone())
@@ -89,12 +91,12 @@ pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error = Simple<Token>> {
         .then(ident)
         .then(args.clone())
         .then(block)
-        .map(|(((rule_name, ident),args), block)| Rule {
+        .map(|(((rule_name, ident), args), block)| Rule {
             conditions: block.conditions,
             actions: block.actions,
             name: rule_name,
             event: ident,
-            args
+            args,
         });
 
     rule.repeated()
@@ -125,22 +127,22 @@ mod tests {
                 event: "OngoingPlayer".to_string(),
                 args: Vec::new(),
                 conditions: Vec::new(),
-                actions: Vec::new()
+                actions: Vec::new(),
             },
             Rule {
                 name: "Test".to_string(),
                 event: "MyEvent".to_string(),
                 args: vec!["Hello".to_string(), "World".to_string()],
                 conditions: Vec::new(),
-                actions: Vec::new()
+                actions: Vec::new(),
             },
             Rule {
                 name: "Heal on Kill".to_string(),
                 event: "PlayerDealtFinalBlow".to_string(),
                 args: vec!["Team1".to_string(), "Slot1".to_string()],
                 conditions: Vec::new(),
-                actions: Vec::new()
-            }
+                actions: Vec::new(),
+            },
         ];
 
         assert_eq!(rules.len(), expected.len());
@@ -153,11 +155,11 @@ mod tests {
                 assert_eq!(actual.event, expected.event,
                            "Test if {:?} is equal to {:?}", actual.event, expected.event);
                 assert!(compare_vec(&actual.args, &expected.args),
-                           "Test if {:?} is equal to {:?}", actual.args, expected.args);
+                        "Test if {:?} is equal to {:?}", actual.args, expected.args);
                 assert!(compare_vec(&actual.conditions, &expected.conditions),
-                           "Test if {:?} is equal to {:?}", actual.conditions, expected.conditions);
+                        "Test if {:?} is equal to {:?}", actual.conditions, expected.conditions);
                 assert!(compare_vec(&actual.actions, &expected.actions),
-                           "Test if {:?} is equal to {:?}", actual.actions, expected.actions);
+                        "Test if {:?} is equal to {:?}", actual.actions, expected.actions);
             })
     }
 }
