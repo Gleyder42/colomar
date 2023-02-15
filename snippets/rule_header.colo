@@ -4,4 +4,8 @@ rule "Test" MyEvent(Hello, World) { }
 
 rule "Heal on Kill" PlayerDealtFinalBlow(Team1, Slot1) { }
 
-rule "Heal on Kill" PlayerDealtFinalBlow(Team.Team1(ident()), Hero.Ana) { }
+rule "Heal on Kill" PlayerDealtFinalBlow(Team1(), Slot1()) { }
+
+rule "Do something" HelloWorld(test(Team1), foo(Slot1)) { }
+
+rule "Complex" HelloWorld(foo.bar(hello).nice, fn(e, o).foo(x, p)) { }

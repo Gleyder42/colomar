@@ -35,11 +35,8 @@ rule "Heal on kill" PlayerDealtFinalBlow(Team.Team1, HeroSlot.Slot1) {
 event PlayerWeaponReloading(heroSlot: HeroSlot) by OngoingEachPlayer(Team.All, hero) {
     val player = by.player
     
-    rule {
-        cond player.isReloading
-    
-        self()
-    }
+    cond player.isReloading
+    self()
 }
 
 rule "On Weapon Reload" WeaponReload(HeroSlot.Ana) {

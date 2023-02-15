@@ -1,0 +1,61 @@
+struct PlayerStats {
+    pub var attack_damage = 0;
+    pub var crit_multiplier = 0;
+
+    fn add_attack_damage(attack_damage: Number) {
+        self.attack_damage = attack_damage;
+    }
+
+    // The compiler decides if this function should be a subroutine or not
+    fn reset() {
+        self.attack_damage = 0;
+    }
+
+    static fn value test() {
+
+    }
+}
+
+val WS_DAMAGE_DELTA = 0.01;
+val NORM_DAMAGE_DELTA = WS_DAMAGE_DELTA / 100;
+
+open struct Player {
+    val stats = PlayerStats { };
+    val heroDesc: HeroDesc;
+    val hasPellets: Boolean;
+}
+
+rule "On Damage" OnDamageDealt() {
+    if !is_internal_damage {
+        val heroDesc = rule.attacker.heroDesc
+        val scale = match rule.eventAbility {
+            Button.PrimaryFire => heroDesc.baseDesc.primary,
+            Button.SecondaryFire => heroDesc.baseDesc.secondary,
+            Button.Ability1 => heroDesc.baseDesc.ability1,
+            Button.Ability2 => heroDesc.ability2,
+            Button.Ultimate => heroDesc.ult
+        };
+
+        var pelletHit: Number;
+        if (attacker.hasPellets && scale.falloff.hasFalloff()) {
+            inline val distance = distance_between(attacker.eye_position, victim.eye_position);
+            inline val raw_damage = scale.falloff.damage(distance);
+            val damage_per_pellet = raw_damage * NORM_DAMAGE_DELTA;
+            pelletHit = round_to_integer(eventDamage / damage_per_pellet, Rounding.Nearest);
+        } else {
+            pelletHit = 1;
+        }
+
+        val damage = (attacker.playerStats.get_attack_damage() * scale.attackDamageScale + scale.base)
+                * pelletHit
+                * (eventWasCriticalHit ? attacker.playerStats.get_crit_multiplier() : 1);
+        set_damage_dealt(attacker, 100);
+        damage(victim, attacker, damage);
+        set_damage_dealt(attacker, WS_DAMAGE_DELTA);
+        if damage != 0 {
+            victim.isInternalDamage = true;
+        }
+    } else {
+        victim.is_internal_damage = false;
+    }
+}
