@@ -10,6 +10,32 @@ pub type Condition = Box<Call>;
 pub type Args = Vec<Box<Call>>;
 
 #[derive(Debug)]
+pub enum TopLevelDecl {
+    Event(Event),
+    Rule(Rule)
+}
+
+#[derive(Debug)]
+pub struct Event {
+    event: String,
+    by: Option<String>,
+    args: Vec<DeclaredArgument>
+}
+
+impl Event {
+
+    pub fn is_native(&self) -> bool {
+        self.by.is_some()
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct DeclaredArgument {
+    name: String,
+    types: Vec<String>
+}
+
+#[derive(Debug)]
 pub struct Rule {
     pub name: String,
     pub event: String,
@@ -76,19 +102,42 @@ pub trait CallName {
     fn name(&self) -> &String;
 }
 
-pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error=Simple<Token>> {
-    let rule_name = filter_map(|span, token| match token {
-        Token::String(ident) => Ok(ident.clone()),
-        _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
-    });
-
-    let ident = filter_map(|span, token| match token {
+pub fn ident_parser() -> impl Parser<Token, String, Error=Simple<Token>>  + Clone {
+    filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(ident.clone()),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
-    });
+    })
+}
 
+fn event_parser(
+    ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static,
+    block: impl Parser<Token, Block, Error=Simple<Token>>  + Clone + 'static
+) -> impl Parser<Token, Event, Error=Simple<Token>> + Clone {
+
+    let declare_args = ident.clone()
+        .then_ignore(just(Token::Ctrl(':')))
+        .then(ident.clone().separated_by(just(Token::Ctrl('|'))))
+        .map(|(name, types)| DeclaredArgument { name, types })
+        .separated_by(just(Token::Ctrl(',')))
+        .delimited_by(Token::Ctrl('('), Token::Ctrl(')'));
+
+    just(Token::Native)
+        .ignore_then(just(Token::Event))
+        .ignore_then(ident.clone())
+        .then(declare_args)
+        .then(block)
+        .map(|((event, args), block)| Event {
+            event, args, by: None
+        })
+}
+
+fn ident_chain_parser(
+    ident: impl Parser<Token, String, Error=Simple<Token>> + 'static
+) -> (
+    impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone,
+    impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone
+) {
     let mut ident_chain = Recursive::<_, Box<Call>, _>::declare();
-
     let args = ident_chain
         .clone()
         .separated_by(just(Token::Ctrl(',')))
@@ -108,12 +157,18 @@ pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error=Simple<Token>> {
                 return Some(Box::new(call));
             }).expect("Cannot have call chain with no calls")));
 
+    (ident_chain, args)
+}
+
+fn block_parser(
+    ident_chain: impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone + 'static
+) -> impl Parser<Token, Block, Error=Simple<Token>> + Clone + 'static {
     let cond = just(Token::Cond)
         .ignore_then(ident_chain.clone())
         .then_ignore(just(Token::Ctrl(';')))
         .map(|o| o);
 
-    let block = just(Token::Ctrl('{'))
+    just(Token::Ctrl('{'))
         .ignore_then(cond.repeated())
         .then(ident_chain.clone()
             .then_ignore(just(Token::Ctrl(';')))
@@ -121,9 +176,20 @@ pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error=Simple<Token>> {
             .repeated()
         )
         .then_ignore(just(Token::Ctrl('}')))
-        .map(|o| Block { actions: o.0, conditions: o.1 });
+        .map(|o| Block { actions: o.0, conditions: o.1 })
+}
 
-    let rule = just(Token::Rule)
+pub fn rule_parser(
+    ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static,
+    block: impl Parser<Token, Block, Error=Simple<Token>> + Clone+ 'static,
+    args: impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone + 'static
+) -> impl Parser<Token, Rule, Error=Simple<Token>> + Clone {
+    let rule_name = filter_map(|span, token| match token {
+        Token::String(ident) => Ok(ident.clone()),
+        _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
+    });
+
+   just(Token::Rule)
         .ignore_then(rule_name)
         .then(ident)
         .then(args.clone())
@@ -134,9 +200,20 @@ pub fn rule_parser() -> impl Parser<Token, Vec<Rule>, Error=Simple<Token>> {
             name: rule_name,
             event: ident,
             args,
-        });
+        })
+}
 
-    rule.repeated()
+pub fn parser() -> impl Parser<Token, Vec<TopLevelDecl>, Error=Simple<Token>> {
+    let ident = ident_parser();
+    let (ident_chain, args) = ident_chain_parser(ident.clone());
+    let block = block_parser(ident_chain);
+    let rule_parser = rule_parser(ident.clone(), block.clone(), args.clone());
+    let event_parser = event_parser(ident, block);
+
+    rule_parser
+        .map(TopLevelDecl::Rule)
+        .or(event_parser.map(TopLevelDecl::Event))
+        .repeated()
         .then_ignore(end())
 }
 
@@ -146,17 +223,60 @@ mod tests {
     use std::fs::{read_to_string};
     use once_cell::sync::Lazy;
     use crate::language::lexer::lexer;
-    use crate::language::parser::{Call, Rule, rule_parser};
-    use crate::test_assert::compare_vec;
+    use crate::language::parser::{Call, DeclaredArgument, Event, parser, Rule, TopLevelDecl};
+    use crate::test_assert::{compare_vec};
 
     static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_header.colo").unwrap());
+    static EVENT_DECL_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_decl.colo").unwrap());
 
+    fn read(file: &Lazy<String>) -> Vec<TopLevelDecl> {
+        let tokens = lexer().parse(file.as_str()).unwrap();
+        let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
+        parser().parse(stream).unwrap()
+    }
+
+    #[test]
+    fn test_event_decl() {
+        let actual_events: Vec<_> = read(&EVENT_DECL_HEADER).into_iter()
+            .filter_map(|o| match o {
+                TopLevelDecl::Event(event) => Some(event),
+                _ => None,
+            })
+            .collect();
+
+        let expected: Vec<Event> = vec![
+            Event {
+                event: "OngoingEachPlayer".to_string(),
+                by: None,
+                args: vec![
+                    DeclaredArgument {
+                        name: "team".to_string(),
+                        types: vec!["Team".to_string()]
+                    },
+                    DeclaredArgument {
+                        name: "heroSlot".to_string(),
+                        types: vec!["Hero".to_string(), "Slot".to_string()]
+                    }
+                ]
+            }
+        ];
+
+        assert_eq!(actual_events.len(), expected.len(),
+                   "Test if actual rules length is equal to expected length");
+
+        actual_events.into_iter()
+            .zip(expected)
+            .for_each(|(actual, expected)| {
+                assert_eq!(actual.event, expected.event);
+                assert_eq!(actual.by, expected.by);
+                assert!(compare_vec(&actual.args, &expected.args));
+            })
+
+    }
 
     #[test]
     fn test_rule_header() {
-        let tokens = lexer().parse(RULE_HEADER.as_str()).unwrap();
-        let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
-        let rules = rule_parser().parse(stream).unwrap();
+        let actual_rules = read(&RULE_HEADER);
 
         let expected: Vec<Rule> = vec![
             Rule {
@@ -238,22 +358,28 @@ mod tests {
             },
         ];
 
-        assert_eq!(rules.len(), expected.len(),
+        assert_eq!(actual_rules.len(), expected.len(),
                    "Test if actual rules length is equal to expected length");
 
-        rules.into_iter()
+        actual_rules.into_iter()
             .zip(expected)
             .for_each(|(actual, expected)| {
-                assert_eq!(actual.name, expected.name,
-                           "Test if {:?} is equal to {:?}", actual.name, expected.name);
-                assert_eq!(actual.event, expected.event,
-                           "Test if {:?} is equal to {:?}", actual.event, expected.event);
-                assert!(compare_vec(&actual.args, &expected.args),
-                        "Test if {:?} is equal to {:?}", actual.args, expected.args);
-                assert!(compare_vec(&actual.conditions, &expected.conditions),
-                        "Test if {:?} is equal to {:?}", actual.conditions, expected.conditions);
-                assert!(compare_vec(&actual.actions, &expected.actions),
-                        "Test if {:?} is equal to {:?}", actual.actions, expected.actions);
+                match actual {
+                    TopLevelDecl::Rule(actual) => {
+                        assert_eq!(actual.name, expected.name,
+                                   "Test if {:?} is equal to {:?}", actual.name, expected.name);
+                        assert_eq!(actual.event, expected.event,
+                                   "Test if {:?} is equal to {:?}", actual.event, expected.event);
+                        assert!(compare_vec(&actual.args, &expected.args),
+                                "Test if {:?} is equal to {:?}", actual.args, expected.args);
+                        assert!(compare_vec(&actual.conditions, &expected.conditions),
+                                "Test if {:?} is equal to {:?}", actual.conditions, expected.conditions);
+                        assert!(compare_vec(&actual.actions, &expected.actions),
+                                "Test if {:?} is equal to {:?}", actual.actions, expected.actions);
+                    },
+                    _ => assert!(false, "{:?} and {:?} do not have the same type", actual, expected)
+                }
+
             })
     }
 }

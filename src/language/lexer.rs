@@ -9,7 +9,9 @@ pub type Span = std::ops::Range<usize>;
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
     Rule,
+    Event,
     Cond,
+    Native,
     Ident(String),
     String(String),
     Num(String),
@@ -28,12 +30,14 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .collect::<String>()
         .map(Token::String);
 
-    let ctrl = one_of("(){},.:;".chars())
+    let ctrl = one_of("(){},.:;|".chars())
         .map(|c| Token::Ctrl(c));
 
     let ident = text::ident().map(|ident: String| match ident.as_str() {
         "rule" => Token::Rule,
         "cond" => Token::Cond,
+        "native" => Token::Native,
+        "event" => Token::Event,
         _ => Token::Ident(ident),
     });
 
@@ -85,12 +89,14 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond";
+        let code = "rule cond native event";
 
         let actual = lexer().parse(code).unwrap();
         let expected = vec![
             Token::Rule,
             Token::Cond,
+            Token::Native,
+            Token::Event
         ];
 
         assert_into_iter(actual.into_iter().map(|i| i.0),expected);

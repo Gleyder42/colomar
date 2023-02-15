@@ -1,0 +1,1 @@
+native event OngoingEachPlayer(team: Team, heroSlot: Hero | Slot) { }
