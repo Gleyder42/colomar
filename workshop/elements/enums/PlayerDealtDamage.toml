@@ -1,0 +1,6 @@
+name = "PlayerDealtDamage"
+
+[variables]
+player = "EventPlayer()"
+attacker = "Attacker()"
+victim = "Victim()"

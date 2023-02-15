@@ -8,10 +8,13 @@ pub type Span = std::ops::Range<usize>;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
+    ContextAssigment,
     Rule,
     Event,
     Cond,
-    Native,
+    Workshop,
+    Enum,
+    By,
     Ident(String),
     String(String),
     Num(String),
@@ -30,14 +33,17 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .collect::<String>()
         .map(Token::String);
 
-    let ctrl = one_of("(){},.:;|".chars())
+    let ctrl = one_of("(){},.:;|=")
         .map(|c| Token::Ctrl(c));
 
     let ident = text::ident().map(|ident: String| match ident.as_str() {
         "rule" => Token::Rule,
         "cond" => Token::Cond,
-        "native" => Token::Native,
+        "workshop" => Token::Workshop,
         "event" => Token::Event,
+        "enum" => Token::Enum,
+        "<-" => Token::ContextAssigment,
+        "by" => Token::By,
         _ => Token::Ident(ident),
     });
 
@@ -57,7 +63,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
 mod tests {
     use chumsky::Parser;
     use crate::language::lexer::{lexer, Token};
-    use crate::test_assert::assert_into_iter;
+    use crate::test_assert::assert_vec;
 
     #[test]
     fn test_number_lexer() {
@@ -71,7 +77,7 @@ mod tests {
             Token::Num("123.321".to_string())
         ];
 
-        assert_into_iter(actual.into_iter().map(|i| i.0),expected);
+        assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
     }
 
     #[test]
@@ -84,21 +90,24 @@ mod tests {
             Token::String("Hello World".to_string()),
         ];
 
-        assert_into_iter(actual.into_iter().map(|i| i.0),expected);
+        assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
     }
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond native event";
+        let code = "rule cond workshop event enum <- by";
 
         let actual = lexer().parse(code).unwrap();
         let expected = vec![
             Token::Rule,
             Token::Cond,
-            Token::Native,
-            Token::Event
+            Token::Workshop,
+            Token::Event,
+            Token::Enum,
+            Token::ContextAssigment,
+            Token::By
         ];
 
-        assert_into_iter(actual.into_iter().map(|i| i.0),expected);
+        assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
     }
 }

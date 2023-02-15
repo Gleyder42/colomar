@@ -1,0 +1,4 @@
+name = "Ongoing - EachPlayer"
+
+[variables]
+player = "EventPlayer()"

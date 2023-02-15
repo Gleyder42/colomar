@@ -1,1 +1,1 @@
-native event OngoingEachPlayer(team: Team, heroSlot: Hero | Slot) { }
+workshop event OngoingEachPlayer(team: Team, heroSlot: Hero | Slot) { }

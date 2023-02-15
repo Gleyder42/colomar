@@ -1,38 +1,49 @@
 extern crate core;
 
 use std::fmt::{Debug};
+use std::process::id;
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::lexer::Token;
 
 pub type Action = Box<Call>;
 pub type Condition = Box<Call>;
-pub type Args = Vec<Box<Call>>;
+pub type CallArgs = Vec<Box<Call>>;
+
 
 #[derive(Debug)]
 pub enum TopLevelDecl {
     Event(Event),
-    Rule(Rule)
+    Rule(Rule),
+    Enum(Enum)
 }
 
 #[derive(Debug)]
 pub struct Event {
     event: String,
-    by: Option<String>,
+    by: Option<(String, Vec<Box<Call>>)>,
     args: Vec<DeclaredArgument>
+}
+
+#[derive(Debug)]
+pub struct Enum {
+    is_native: bool,
+    name: String,
+    constants: Vec<String>
 }
 
 impl Event {
 
     pub fn is_native(&self) -> bool {
-        self.by.is_some()
+        self.by.is_none()
     }
 }
 
 #[derive(Debug, PartialEq)]
 struct DeclaredArgument {
     name: String,
-    types: Vec<String>
+    types: Vec<String>,
+    default_value: Option<Box<Call>>
 }
 
 #[derive(Debug)]
@@ -54,7 +65,7 @@ pub struct Block {
 pub enum Call {
     Fn {
         name: String,
-        args: Args,
+        args: CallArgs,
         next: Option<Box<Call>>,
     },
     Var {
@@ -80,11 +91,11 @@ impl Call {
         Box::new(Call::Fn { name: name.into(), args: Vec::new(), next: Some(next) })
     }
 
-    pub fn new_fn_args(name: impl Into<String>, args: Args) -> Box<Self> {
+    pub fn new_fn_args(name: impl Into<String>, args: CallArgs) -> Box<Self> {
         Box::new(Call::Fn { name: name.into(), args, next: None })
     }
 
-    pub fn new_fn_args_next(name: impl Into<String>, args: Args, next: Box<Call>) -> Box<Self> {
+    pub fn new_fn_args_next(name: impl Into<String>, args: CallArgs, next: Box<Call>) -> Box<Self> {
         Box::new(Call::Fn { name: name.into(), args, next: Some(next) })
     }
 }
@@ -111,24 +122,45 @@ pub fn ident_parser() -> impl Parser<Token, String, Error=Simple<Token>>  + Clon
 
 fn event_parser(
     ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static,
-    block: impl Parser<Token, Block, Error=Simple<Token>>  + Clone + 'static
+    ident_chain: impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone + 'static,
+    args: impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone + 'static
 ) -> impl Parser<Token, Event, Error=Simple<Token>> + Clone {
-
     let declare_args = ident.clone()
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident.clone().separated_by(just(Token::Ctrl('|'))))
-        .map(|(name, types)| DeclaredArgument { name, types })
+        .then(just(Token::Ctrl('=')).ignore_then(ident_chain).or_not())
+        .map(|((name, types), default_value)| DeclaredArgument { name, types, default_value })
         .separated_by(just(Token::Ctrl(',')))
-        .delimited_by(Token::Ctrl('('), Token::Ctrl(')'));
+        .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')));
 
-    just(Token::Native)
-        .ignore_then(just(Token::Event))
-        .ignore_then(ident.clone())
+    just(Token::Workshop)
+        .or_not()
+        .map(|o| o.is_some())
+        .then_ignore(just(Token::Event))
+        .then(ident.clone())
         .then(declare_args)
-        .then(block)
-        .map(|((event, args), block)| Event {
-            event, args, by: None
+        .then(just(Token::By).ignore_then(ident).then(args).or_not())
+        .then_ignore(just(Token::Ctrl('{')))
+        .then_ignore(just(Token::Ctrl('}')))
+        .map(|(((is_native, event), decl_args), by) | Event {
+            event, by, args: decl_args
         })
+}
+
+fn enum_parser(
+    ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static
+) -> impl Parser<Token, Enum, Error=Simple<Token>> + Clone {
+    let constants = ident.clone()
+        .separated_by(just(Token::Ctrl(',')))
+        .allow_trailing();
+
+    just(Token::Workshop)
+        .or_not()
+        .map(|o| o.is_some())
+        .then_ignore(just(Token::Enum))
+        .then(ident.clone())
+        .then(constants.delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))))
+        .map(|((is_native, name), constants)| Enum { name, is_native, constants })
 }
 
 fn ident_chain_parser(
@@ -142,7 +174,7 @@ fn ident_chain_parser(
         .clone()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
-        .delimited_by(Token::Ctrl('('), Token::Ctrl(')'))
+        .delimited_by(just(Token::Ctrl('('),), just(Token::Ctrl(')')))
         .labelled("function args");
 
     ident_chain.define(
@@ -206,13 +238,16 @@ pub fn rule_parser(
 pub fn parser() -> impl Parser<Token, Vec<TopLevelDecl>, Error=Simple<Token>> {
     let ident = ident_parser();
     let (ident_chain, args) = ident_chain_parser(ident.clone());
-    let block = block_parser(ident_chain);
-    let rule_parser = rule_parser(ident.clone(), block.clone(), args.clone());
-    let event_parser = event_parser(ident, block);
+    let block = block_parser(ident_chain.clone());
 
-    rule_parser
-        .map(TopLevelDecl::Rule)
-        .or(event_parser.map(TopLevelDecl::Event))
+    let rule_parser = rule_parser(ident.clone(), block.clone(), args.clone())
+        .map(TopLevelDecl::Rule);
+    let event_parser = event_parser(ident.clone(), ident_chain.clone(), args)
+        .map(TopLevelDecl::Event);
+    let enum_parser = enum_parser(ident.clone())
+        .map(TopLevelDecl::Enum);
+
+    choice((rule_parser, event_parser, enum_parser))
         .repeated()
         .then_ignore(end())
 }
@@ -223,16 +258,54 @@ mod tests {
     use std::fs::{read_to_string};
     use once_cell::sync::Lazy;
     use crate::language::lexer::lexer;
-    use crate::language::parser::{Call, DeclaredArgument, Event, parser, Rule, TopLevelDecl};
-    use crate::test_assert::{compare_vec};
+    use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, TopLevelDecl};
+    use crate::test_assert::{assert_vec, compare_vec};
 
     static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_header.colo").unwrap());
     static EVENT_DECL_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_decl.colo").unwrap());
+    static ENUM: Lazy<String> = Lazy::new(|| read_to_string("snippets/enum.colo").unwrap());
 
     fn read(file: &Lazy<String>) -> Vec<TopLevelDecl> {
         let tokens = lexer().parse(file.as_str()).unwrap();
         let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
         parser().parse(stream).unwrap()
+    }
+
+    #[test]
+    fn test_enum() {
+        let actual_enums: Vec<_> = read(&ENUM).into_iter()
+            .filter_map(|decl| match decl {
+                TopLevelDecl::Enum(myEnum) => Some(myEnum),
+                _ => None
+            }).collect();
+
+        let expected: Vec<Enum> = vec![
+            Enum {
+                is_native: true,
+                name: "Hero".to_string(),
+                constants: vec![
+                    "Reaper".to_string(),
+                    "Tracer".to_string(),
+                    "Mercy".to_string()
+                ]
+            },
+            Enum {
+                is_native: false,
+                name: "MyEnum".to_string(),
+                constants: vec![
+                    "First".to_string(),
+                    "Second".to_string()
+                ]
+            }
+        ];
+
+        actual_enums.into_iter()
+            .zip(expected)
+            .for_each(|(actual, expected)| {
+                assert_eq!(actual.name, expected.name);
+                assert_eq!(actual.is_native, expected.is_native);
+                assert_vec(&actual.constants, &expected.constants);
+            })
     }
 
     #[test]
@@ -251,11 +324,13 @@ mod tests {
                 args: vec![
                     DeclaredArgument {
                         name: "team".to_string(),
-                        types: vec!["Team".to_string()]
+                        types: vec!["Team".to_string()],
+                        default_value : None
                     },
                     DeclaredArgument {
                         name: "heroSlot".to_string(),
-                        types: vec!["Hero".to_string(), "Slot".to_string()]
+                        types: vec!["Hero".to_string(), "Slot".to_string()],
+                        default_value: None
                     }
                 ]
             }
@@ -269,7 +344,7 @@ mod tests {
             .for_each(|(actual, expected)| {
                 assert_eq!(actual.event, expected.event);
                 assert_eq!(actual.by, expected.by);
-                assert!(compare_vec(&actual.args, &expected.args));
+                assert_vec(&actual.args, &expected.args);
             })
 
     }

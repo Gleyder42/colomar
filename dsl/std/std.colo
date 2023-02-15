@@ -1,29 +1,45 @@
-native struct Player {
-	native var ability1Enabled: Bool
-	native var hero: Hero
-	native var isFiringSecondary: Bool
-
-    native func heal(amount: number, healer: Player = null)
-
-    native func applyImpulse(direction: Vector, speed: Number, relative: Relative, motion: Motion)
+workshop event OngoingEachPlayer(team: Team, heroSlot: Hero | Slot) {
+    self(player <- workshop.player)
 }
 
-native func raycast(position: Locatable, direction: Vector, maxDistance: Number): Bool
-
-native struct Vector {
-	native var x: number
-	native var y: number
-	native var z: number
-
-	native static func zero(): Vector
+workshop event OngoingGlobal() {
+    self()
 }
 
-native enum Relative {
+workshop event PlayerDealtDamage(team: Team, heroSlot: Hero | Slot) {
+    self(
+        player <- workshop.player,
+        attacker <- workshop.attacker,
+        victim <- workshop.victim
+    )
+}
+
+workshop struct Player {
+	workshop var ability1Enabled: Bool
+	workshop var hero: Hero
+	workshop var isFiringSecondary: Bool
+
+    workshop func heal(amount: number, healer: Player = null)
+
+    workshop func applyImpulse(direction: Vector, speed: Number, relative: Relative, motion: Motion)
+}
+
+workshop func raycast(position: Locatable, direction: Vector, maxDistance: Number): Bool
+
+workshop struct Vector {
+	workshop var x: number
+	workshop var y: number
+	workshop var z: number
+
+	workshop static func zero(): Vector
+}
+
+workshop enum Relative {
 	ToWorld,
 	ToPlayer
 }
 
-native enum Slot {
+workshop enum Slot {
     Slot0,
     Slot1,
     Slot2,
@@ -38,13 +54,11 @@ native enum Slot {
     Slot11
 }
 
-native enum Team {
+workshop enum Team {
     Team1, Team2
 }
 
-native event PlayerDealtFinalBlow(Team, Slot)
-
-native enum Hero {
+workshop enum Hero {
     Reaper,
     Tracer,
     Mercy,
