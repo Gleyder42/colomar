@@ -1,7 +1,6 @@
 extern crate core;
 
 use std::fmt::{Debug};
-use std::process::id;
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::lexer::Token;
@@ -9,7 +8,6 @@ use crate::language::lexer::Token;
 pub type Action = Box<Call>;
 pub type Condition = Box<Call>;
 pub type CallArgs = Vec<Box<Call>>;
-
 
 #[derive(Debug)]
 pub enum TopLevelDecl {
@@ -259,7 +257,7 @@ mod tests {
     use once_cell::sync::Lazy;
     use crate::language::lexer::lexer;
     use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, TopLevelDecl};
-    use crate::test_assert::{assert_vec, compare_vec};
+    use crate::test_assert::{assert_vec};
 
     static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_header.colo").unwrap());
     static EVENT_DECL_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_decl.colo").unwrap());
@@ -445,12 +443,9 @@ mod tests {
                                    "Test if {:?} is equal to {:?}", actual.name, expected.name);
                         assert_eq!(actual.event, expected.event,
                                    "Test if {:?} is equal to {:?}", actual.event, expected.event);
-                        assert!(compare_vec(&actual.args, &expected.args),
-                                "Test if {:?} is equal to {:?}", actual.args, expected.args);
-                        assert!(compare_vec(&actual.conditions, &expected.conditions),
-                                "Test if {:?} is equal to {:?}", actual.conditions, expected.conditions);
-                        assert!(compare_vec(&actual.actions, &expected.actions),
-                                "Test if {:?} is equal to {:?}", actual.actions, expected.actions);
+                        assert_vec(&actual.args, &expected.args);
+                        assert_vec(&actual.conditions, &expected.conditions);
+                        assert_vec(&actual.actions, &expected.actions);
                     },
                     _ => assert!(false, "{:?} and {:?} do not have the same type", actual, expected)
                 }

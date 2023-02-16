@@ -42,7 +42,6 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         "workshop" => Token::Workshop,
         "event" => Token::Event,
         "enum" => Token::Enum,
-        "<-" => Token::ContextAssigment,
         "by" => Token::By,
         _ => Token::Ident(ident),
     });
@@ -95,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond workshop event enum <- by";
+        let code = "rule cond workshop event enum by";
 
         let actual = lexer().parse(code).unwrap();
         let expected = vec![
@@ -104,7 +103,6 @@ mod tests {
             Token::Workshop,
             Token::Event,
             Token::Enum,
-            Token::ContextAssigment,
             Token::By
         ];
 
