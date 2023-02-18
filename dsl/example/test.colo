@@ -1,22 +1,20 @@
 workshop enum Slot {
-    Slot0,
-    Slot1,
-    All,
+    Slot0, Slot1, All
 }
 
 workshop enum Hero {
-    Ana,
-    Tracer,
+    Ana, Tracer
 }
 
 workshop enum Team {
-    Team1, Team2, All,
-}
-
-workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+    Team1, Team2, All
 }
 
 event WeaponReloading(team: Team = Team.All, slot: Slot = Slot.All) by OngoingEachPlayer(team, slot) {
+
+}
+
+workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
 
 }
 

@@ -1,14 +1,52 @@
-mod interpreter;
+use std::fmt::{Display, Formatter, write};
 
-struct Player(String);
+pub struct HeroSlot(String);
 
-struct Team(String);
+pub struct Team(String);
 
-struct Event(String);
+pub struct Event(String);
 
-struct Rule {
-    name: String,
-    event: Event,
-    team: Team,
-    player: Player
+pub struct Rule {
+    pub name: String,
+    pub event: Event,
+    pub team: Team,
+    pub player: HeroSlot,
+}
+
+impl Display for Event {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Display for HeroSlot {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Display for Team {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Display for Rule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f,
+               "rule({rule_name})
+                {{
+                    event
+                    {{
+                        {event_type}
+                        {team}
+                        {player}
+                    }}
+                }}",
+               rule_name = self.name,
+               event_type = self.event,
+               team = self.team,
+               player = self.player
+        )
+    }
 }

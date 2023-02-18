@@ -13,35 +13,34 @@ pub type CallArgs = Vec<Box<Call>>;
 pub enum TopLevelDecl {
     Event(Event),
     Rule(Rule),
-    Enum(Enum)
+    Enum(Enum),
 }
 
 #[derive(Debug)]
 pub struct Event {
-    event: String,
-    by: Option<(String, Vec<Box<Call>>)>,
-    args: Vec<DeclaredArgument>
+    pub event: String,
+    pub by: Option<(String, Vec<Box<Call>>)>,
+    pub args: Vec<DeclaredArgument>,
 }
 
 #[derive(Debug)]
 pub struct Enum {
-    is_native: bool,
-    name: String,
-    constants: Vec<String>
+    pub is_native: bool,
+    pub name: String,
+    pub constants: Vec<String>,
 }
 
 impl Event {
-
     pub fn is_native(&self) -> bool {
         self.by.is_none()
     }
 }
 
 #[derive(Debug, PartialEq)]
-struct DeclaredArgument {
-    name: String,
-    types: Vec<String>,
-    default_value: Option<Box<Call>>
+pub struct DeclaredArgument {
+    pub name: String,
+    pub types: Vec<String>,
+    pub default_value: Option<Box<Call>>,
 }
 
 #[derive(Debug)]
@@ -111,7 +110,7 @@ pub trait CallName {
     fn name(&self) -> &String;
 }
 
-pub fn ident_parser() -> impl Parser<Token, String, Error=Simple<Token>>  + Clone {
+pub fn ident_parser() -> impl Parser<Token, String, Error=Simple<Token>> + Clone {
     filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(ident.clone()),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
@@ -121,7 +120,7 @@ pub fn ident_parser() -> impl Parser<Token, String, Error=Simple<Token>>  + Clon
 fn event_parser(
     ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static,
     ident_chain: impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone + 'static,
-    args: impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone + 'static
+    args: impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone + 'static,
 ) -> impl Parser<Token, Event, Error=Simple<Token>> + Clone {
     let declare_args = ident.clone()
         .then_ignore(just(Token::Ctrl(':')))
@@ -140,8 +139,10 @@ fn event_parser(
         .then(just(Token::By).ignore_then(ident).then(args).or_not())
         .then_ignore(just(Token::Ctrl('{')))
         .then_ignore(just(Token::Ctrl('}')))
-        .map(|(((is_native, event), decl_args), by) | Event {
-            event, by, args: decl_args
+        .map(|(((is_native, event), decl_args), by)| Event {
+            event,
+            by,
+            args: decl_args,
         })
 }
 
@@ -172,7 +173,7 @@ fn ident_chain_parser(
         .clone()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
-        .delimited_by(just(Token::Ctrl('('),), just(Token::Ctrl(')')))
+        .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
         .labelled("function args");
 
     ident_chain.define(
@@ -211,15 +212,15 @@ fn block_parser(
 
 pub fn rule_parser(
     ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static,
-    block: impl Parser<Token, Block, Error=Simple<Token>> + Clone+ 'static,
-    args: impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone + 'static
+    block: impl Parser<Token, Block, Error=Simple<Token>> + Clone + 'static,
+    args: impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone + 'static,
 ) -> impl Parser<Token, Rule, Error=Simple<Token>> + Clone {
     let rule_name = filter_map(|span, token| match token {
         Token::String(ident) => Ok(ident.clone()),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     });
 
-   just(Token::Rule)
+    just(Token::Rule)
         .ignore_then(rule_name)
         .then(ident)
         .then(args.clone())
@@ -273,7 +274,7 @@ mod tests {
     fn test_enum() {
         let actual_enums: Vec<_> = read(&ENUM).into_iter()
             .filter_map(|decl| match decl {
-                TopLevelDecl::Enum(myEnum) => Some(myEnum),
+                TopLevelDecl::Enum(my_enum) => Some(my_enum),
                 _ => None
             }).collect();
 
@@ -284,17 +285,17 @@ mod tests {
                 constants: vec![
                     "Reaper".to_string(),
                     "Tracer".to_string(),
-                    "Mercy".to_string()
-                ]
+                    "Mercy".to_string(),
+                ],
             },
             Enum {
                 is_native: false,
                 name: "MyEnum".to_string(),
                 constants: vec![
                     "First".to_string(),
-                    "Second".to_string()
-                ]
-            }
+                    "Second".to_string(),
+                ],
+            },
         ];
 
         actual_enums.into_iter()
@@ -323,14 +324,14 @@ mod tests {
                     DeclaredArgument {
                         name: "team".to_string(),
                         types: vec!["Team".to_string()],
-                        default_value : None
+                        default_value: None,
                     },
                     DeclaredArgument {
                         name: "heroSlot".to_string(),
                         types: vec!["Hero".to_string(), "Slot".to_string()],
-                        default_value: None
-                    }
-                ]
+                        default_value: None,
+                    },
+                ],
             }
         ];
 
@@ -344,7 +345,6 @@ mod tests {
                 assert_eq!(actual.by, expected.by);
                 assert_vec(&actual.args, &expected.args);
             })
-
     }
 
     #[test]
@@ -408,23 +408,23 @@ mod tests {
                         Call::new_fn_args_next(
                             "bar",
                             vec![Call::new_var("hello")],
-                            Call::new_var("nice")
-                        )
+                            Call::new_var("nice"),
+                        ),
                     ),
                     Call::new_fn_args_next(
                         "fn",
                         vec![
                             Call::new_var("e"),
-                            Call::new_var("o")
+                            Call::new_var("o"),
                         ],
                         Call::new_fn_args(
                             "foo",
                             vec![
                                 Call::new_var("x"),
-                                Call::new_var("p")
-                            ]
-                        )
-                    )
+                                Call::new_var("p"),
+                            ],
+                        ),
+                    ),
                 ],
                 conditions: Vec::new(),
                 actions: Vec::new(),
@@ -446,10 +446,9 @@ mod tests {
                         assert_vec(&actual.args, &expected.args);
                         assert_vec(&actual.conditions, &expected.conditions);
                         assert_vec(&actual.actions, &expected.actions);
-                    },
+                    }
                     _ => assert!(false, "{:?} and {:?} do not have the same type", actual, expected)
                 }
-
             })
     }
 }
