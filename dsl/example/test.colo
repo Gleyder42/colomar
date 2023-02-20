@@ -21,3 +21,8 @@ workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot
 rule "Test" OngoingEachPlayer() {
 
 }
+
+rule "Hello World" OngoingEachPlayer(Team.Team2, Hero.Ana) {
+
+}
+

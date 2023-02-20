@@ -11,6 +11,7 @@ pub type Span = std::ops::Range<usize>;
 pub mod workshop;
 pub mod language;
 mod test_assert;
+mod intermediate;
 
 fn main() {
     let source = fs::read_to_string("dsl/example/test.colo")

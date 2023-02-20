@@ -9,8 +9,10 @@ pub type Action = Box<Call>;
 pub type Condition = Box<Call>;
 pub type CallArgs = Vec<Box<Call>>;
 
+pub struct Ast(pub Vec<Root>);
+
 #[derive(Debug)]
-pub enum TopLevelDecl {
+pub enum Root {
     Event(Event),
     Rule(Rule),
     Enum(Enum),
@@ -234,17 +236,17 @@ pub fn rule_parser(
         })
 }
 
-pub fn parser() -> impl Parser<Token, Vec<TopLevelDecl>, Error=Simple<Token>> {
+pub fn parser() -> impl Parser<Token, Vec<Root>, Error=Simple<Token>> {
     let ident = ident_parser();
     let (ident_chain, args) = ident_chain_parser(ident.clone());
     let block = block_parser(ident_chain.clone());
 
     let rule_parser = rule_parser(ident.clone(), block.clone(), args.clone())
-        .map(TopLevelDecl::Rule);
+        .map(Root::Rule);
     let event_parser = event_parser(ident.clone(), ident_chain.clone(), args)
-        .map(TopLevelDecl::Event);
+        .map(Root::Event);
     let enum_parser = enum_parser(ident.clone())
-        .map(TopLevelDecl::Enum);
+        .map(Root::Enum);
 
     choice((rule_parser, event_parser, enum_parser))
         .repeated()
@@ -257,14 +259,14 @@ mod tests {
     use std::fs::{read_to_string};
     use once_cell::sync::Lazy;
     use crate::language::lexer::lexer;
-    use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, TopLevelDecl};
+    use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, Root};
     use crate::test_assert::{assert_vec};
 
     static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_header.colo").unwrap());
     static EVENT_DECL_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_decl.colo").unwrap());
     static ENUM: Lazy<String> = Lazy::new(|| read_to_string("snippets/enum.colo").unwrap());
 
-    fn read(file: &Lazy<String>) -> Vec<TopLevelDecl> {
+    fn read(file: &Lazy<String>) -> Vec<Root> {
         let tokens = lexer().parse(file.as_str()).unwrap();
         let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
         parser().parse(stream).unwrap()
@@ -274,7 +276,7 @@ mod tests {
     fn test_enum() {
         let actual_enums: Vec<_> = read(&ENUM).into_iter()
             .filter_map(|decl| match decl {
-                TopLevelDecl::Enum(my_enum) => Some(my_enum),
+                Root::Enum(my_enum) => Some(my_enum),
                 _ => None
             }).collect();
 
@@ -311,7 +313,7 @@ mod tests {
     fn test_event_decl() {
         let actual_events: Vec<_> = read(&EVENT_DECL_HEADER).into_iter()
             .filter_map(|o| match o {
-                TopLevelDecl::Event(event) => Some(event),
+                Root::Event(event) => Some(event),
                 _ => None,
             })
             .collect();
@@ -438,7 +440,7 @@ mod tests {
             .zip(expected)
             .for_each(|(actual, expected)| {
                 match actual {
-                    TopLevelDecl::Rule(actual) => {
+                    Root::Rule(actual) => {
                         assert_eq!(actual.name, expected.name,
                                    "Test if {:?} is equal to {:?}", actual.name, expected.name);
                         assert_eq!(actual.event, expected.event,
