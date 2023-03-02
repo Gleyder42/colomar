@@ -4,115 +4,17 @@ use std::fmt::{Debug};
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::lexer::Token;
+use crate::language::ast::*;
 
-pub type Action = Box<Call>;
-pub type Condition = Box<Call>;
-pub type CallArgs = Vec<Box<Call>>;
+type IdentParser = impl Parser<Token, String, Error=Simple<Token>> + Clone;
+type IdentChainParser = impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone;
+type ArgsParser = impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone;
+type EventParser = impl Parser<Token, Event, Error=Simple<Token>> + Clone;
+type EnumParser = impl Parser<Token, Enum, Error=Simple<Token>> + Clone;
+type BlockParser = impl Parser<Token, Block, Error=Simple<Token>> + Clone;
+type RuleParser = impl Parser<Token, Rule, Error=Simple<Token>> + Clone;
 
-pub struct Ast(pub Vec<Root>);
-
-#[derive(Debug)]
-pub enum Root {
-    Event(Event),
-    Rule(Rule),
-    Enum(Enum),
-}
-
-#[derive(Debug)]
-pub struct Event {
-    pub event: String,
-    pub by: Option<(String, Vec<Box<Call>>)>,
-    pub args: Vec<DeclaredArgument>,
-}
-
-#[derive(Debug)]
-pub struct Enum {
-    pub is_native: bool,
-    pub name: String,
-    pub constants: Vec<String>,
-}
-
-impl Event {
-    pub fn is_native(&self) -> bool {
-        self.by.is_none()
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct DeclaredArgument {
-    pub name: String,
-    pub types: Vec<String>,
-    pub default_value: Option<Box<Call>>,
-}
-
-#[derive(Debug)]
-pub struct Rule {
-    pub name: String,
-    pub event: String,
-    pub args: Vec<Box<Call>>,
-    pub conditions: Vec<Condition>,
-    pub actions: Vec<Action>,
-}
-
-#[derive(Debug)]
-pub struct Block {
-    pub actions: Vec<Action>,
-    pub conditions: Vec<Condition>,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Call {
-    Fn {
-        name: String,
-        args: CallArgs,
-        next: Option<Box<Call>>,
-    },
-    Var {
-        name: String,
-        next: Option<Box<Call>>,
-    },
-}
-
-impl Call {
-    pub fn new_var(name: impl Into<String>) -> Box<Self> {
-        Box::new(Call::Var { name: name.into(), next: None })
-    }
-
-    pub fn new_var_next(name: impl Into<String>, next: Box<Call>) -> Box<Self> {
-        Box::new(Call::Var { name: name.into(), next: Some(next) })
-    }
-
-    pub fn new_fn(name: impl Into<String>) -> Box<Self> {
-        Box::new(Call::Fn { name: name.into(), args: Vec::new(), next: None })
-    }
-
-    pub fn new_fn_next(name: impl Into<String>, next: Box<Call>) -> Box<Self> {
-        Box::new(Call::Fn { name: name.into(), args: Vec::new(), next: Some(next) })
-    }
-
-    pub fn new_fn_args(name: impl Into<String>, args: CallArgs) -> Box<Self> {
-        Box::new(Call::Fn { name: name.into(), args, next: None })
-    }
-
-    pub fn new_fn_args_next(name: impl Into<String>, args: CallArgs, next: Box<Call>) -> Box<Self> {
-        Box::new(Call::Fn { name: name.into(), args, next: Some(next) })
-    }
-}
-
-impl CallName for Call {
-    fn name(&self) -> &String {
-        match self {
-            Call::Fn { name, args: _, next: _ } => &name,
-            Call::Var { name, next: _ } => &name
-        }
-    }
-}
-
-pub trait CallName {
-    fn name(&self) -> &String;
-}
-
-pub fn ident_parser() -> impl Parser<Token, String, Error=Simple<Token>> + Clone {
+pub fn ident_parser() -> IdentParser {
     filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(ident.clone()),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
@@ -120,10 +22,10 @@ pub fn ident_parser() -> impl Parser<Token, String, Error=Simple<Token>> + Clone
 }
 
 fn event_parser(
-    ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static,
-    ident_chain: impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone + 'static,
-    args: impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone + 'static,
-) -> impl Parser<Token, Event, Error=Simple<Token>> + Clone {
+    ident: IdentParser,
+    ident_chain: IdentChainParser,
+    args: ArgsParser,
+) -> EventParser {
     let declare_args = ident.clone()
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident.clone().separated_by(just(Token::Ctrl('|'))))
@@ -141,7 +43,7 @@ fn event_parser(
         .then(just(Token::By).ignore_then(ident).then(args).or_not())
         .then_ignore(just(Token::Ctrl('{')))
         .then_ignore(just(Token::Ctrl('}')))
-        .map(|(((is_native, event), decl_args), by)| Event {
+        .map(|(((_is_native, event), decl_args), by)| Event {
             event,
             by,
             args: decl_args,
@@ -149,8 +51,8 @@ fn event_parser(
 }
 
 fn enum_parser(
-    ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static
-) -> impl Parser<Token, Enum, Error=Simple<Token>> + Clone {
+    ident: IdentParser
+) -> EnumParser {
     let constants = ident.clone()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing();
@@ -161,14 +63,14 @@ fn enum_parser(
         .then_ignore(just(Token::Enum))
         .then(ident.clone())
         .then(constants.delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))))
-        .map(|((is_native, name), constants)| Enum { name, is_native, constants })
+        .map(|((is_native, name), constants)| Enum { name, is_workshop: is_native, constants })
 }
 
 fn ident_chain_parser(
-    ident: impl Parser<Token, String, Error=Simple<Token>> + 'static
+    ident: IdentParser
 ) -> (
-    impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone,
-    impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone
+    IdentChainParser,
+    ArgsParser
 ) {
     let mut ident_chain = Recursive::<_, Box<Call>, _>::declare();
     let args = ident_chain
@@ -194,8 +96,8 @@ fn ident_chain_parser(
 }
 
 fn block_parser(
-    ident_chain: impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone + 'static
-) -> impl Parser<Token, Block, Error=Simple<Token>> + Clone + 'static {
+    ident_chain: IdentChainParser
+) -> BlockParser {
     let cond = just(Token::Cond)
         .ignore_then(ident_chain.clone())
         .then_ignore(just(Token::Ctrl(';')))
@@ -213,10 +115,10 @@ fn block_parser(
 }
 
 pub fn rule_parser(
-    ident: impl Parser<Token, String, Error=Simple<Token>> + Clone + 'static,
-    block: impl Parser<Token, Block, Error=Simple<Token>> + Clone + 'static,
-    args: impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone + 'static,
-) -> impl Parser<Token, Rule, Error=Simple<Token>> + Clone {
+    ident: IdentParser,
+    block: BlockParser,
+    args: ArgsParser,
+) -> RuleParser {
     let rule_name = filter_map(|span, token| match token {
         Token::String(ident) => Ok(ident.clone()),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
@@ -236,7 +138,7 @@ pub fn rule_parser(
         })
 }
 
-pub fn parser() -> impl Parser<Token, Vec<Root>, Error=Simple<Token>> {
+pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
     let ident = ident_parser();
     let (ident_chain, args) = ident_chain_parser(ident.clone());
     let block = block_parser(ident_chain.clone());
@@ -251,6 +153,7 @@ pub fn parser() -> impl Parser<Token, Vec<Root>, Error=Simple<Token>> {
     choice((rule_parser, event_parser, enum_parser))
         .repeated()
         .then_ignore(end())
+        .map(|p| Ast(p))
 }
 
 #[cfg(test)]
@@ -259,14 +162,14 @@ mod tests {
     use std::fs::{read_to_string};
     use once_cell::sync::Lazy;
     use crate::language::lexer::lexer;
-    use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, Root};
+    use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, Root, Ast};
     use crate::test_assert::{assert_vec};
 
     static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_header.colo").unwrap());
     static EVENT_DECL_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_decl.colo").unwrap());
     static ENUM: Lazy<String> = Lazy::new(|| read_to_string("snippets/enum.colo").unwrap());
 
-    fn read(file: &Lazy<String>) -> Vec<Root> {
+    fn read(file: &Lazy<String>) -> Ast {
         let tokens = lexer().parse(file.as_str()).unwrap();
         let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
         parser().parse(stream).unwrap()
@@ -274,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_enum() {
-        let actual_enums: Vec<_> = read(&ENUM).into_iter()
+        let actual_enums: Vec<_> = read(&ENUM).0.into_iter()
             .filter_map(|decl| match decl {
                 Root::Enum(my_enum) => Some(my_enum),
                 _ => None
@@ -282,7 +185,7 @@ mod tests {
 
         let expected: Vec<Enum> = vec![
             Enum {
-                is_native: true,
+                is_workshop: true,
                 name: "Hero".to_string(),
                 constants: vec![
                     "Reaper".to_string(),
@@ -291,7 +194,7 @@ mod tests {
                 ],
             },
             Enum {
-                is_native: false,
+                is_workshop: false,
                 name: "MyEnum".to_string(),
                 constants: vec![
                     "First".to_string(),
@@ -304,14 +207,14 @@ mod tests {
             .zip(expected)
             .for_each(|(actual, expected)| {
                 assert_eq!(actual.name, expected.name);
-                assert_eq!(actual.is_native, expected.is_native);
+                assert_eq!(actual.is_workshop, expected.is_workshop);
                 assert_vec(&actual.constants, &expected.constants);
             })
     }
 
     #[test]
     fn test_event_decl() {
-        let actual_events: Vec<_> = read(&EVENT_DECL_HEADER).into_iter()
+        let actual_events: Vec<_> = read(&EVENT_DECL_HEADER).0.into_iter()
             .filter_map(|o| match o {
                 Root::Event(event) => Some(event),
                 _ => None,
@@ -433,10 +336,10 @@ mod tests {
             },
         ];
 
-        assert_eq!(actual_rules.len(), expected.len(),
+        assert_eq!(actual_rules.0.len(), expected.len(),
                    "Test if actual rules length is equal to expected length");
 
-        actual_rules.into_iter()
+        actual_rules.0.into_iter()
             .zip(expected)
             .for_each(|(actual, expected)| {
                 match actual {

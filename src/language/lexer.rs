@@ -3,8 +3,7 @@ extern crate core;
 use std::fmt::Debug;
 use chumsky::prelude::*;
 use std::string::String;
-
-pub type Span = std::ops::Range<usize>;
+use crate::language::Span;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {

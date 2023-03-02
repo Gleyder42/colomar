@@ -16,12 +16,12 @@ workshop event PlayerDealtDamage(team: Team, heroSlot: Hero | Slot) {
 
 workshop struct Player {
 	workshop var ability1Enabled: Bool
-	workshop var hero: Hero
+	workshop val hero: Hero
 	workshop var isFiringSecondary: Bool
 
     workshop func heal(amount: number, healer: Player = null)
 
-    workshop func applyImpulse(direction: Vector, speed: Number, relative: Relative, motion: Motion)
+    workshop func applyImpulse(direction: Vector, speed: Number, relative: Relattive, motion: Motion)
 }
 
 workshop func raycast(position: Locatable, direction: Vector, maxDistance: Number): Bool

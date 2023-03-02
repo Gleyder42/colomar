@@ -1,6 +1,6 @@
-use crate::intermediate;
+use crate::language::im;
 use crate::workshop;
 
-fn compile(intermediate: intermediate::IntermediateTree) {
+fn compile(intermediate: im::IntermediateTree) {
 
 }

@@ -6,7 +6,6 @@ struct PlayerStats {
         self.attack_damage = attack_damage;
     }
 
-    // The compiler decides if this function should be a subroutine or not
     fn reset() {
         self.attack_damage = 0;
     }

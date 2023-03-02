@@ -36,7 +36,7 @@ pub struct CalledArgument {
 
 pub struct Event {
     pub name: String,
-    pub arguments: Vec<DeclaredArgument>
+    pub arguments: Vec<Rc<DeclaredArgument>>
 }
 
 pub struct CalledEvent {
@@ -48,4 +48,9 @@ pub struct DeclaredRule {
     pub title: String,
     pub event: Rc<Event>,
     pub arguments: Vec<CalledArgument>
+}
+
+pub trait Named {
+
+    fn name(&self) -> String;
 }
