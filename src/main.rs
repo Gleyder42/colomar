@@ -1,7 +1,5 @@
 #![feature(type_alias_impl_trait)]
 
-extern crate core;
-
 use std::fs;
 use chumsky::prelude::*;
 use chumsky::Stream;
@@ -12,7 +10,7 @@ pub type Span = std::ops::Range<usize>;
 
 pub mod workshop;
 pub mod language;
-mod test_assert;
+pub mod test_assert;
 
 fn main() {
     let source = fs::read_to_string("dsl/example/test.colo")

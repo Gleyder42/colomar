@@ -1,1 +1,0 @@
-Is Game In Progress -> Game.isInProgress()

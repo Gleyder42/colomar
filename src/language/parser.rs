@@ -171,9 +171,9 @@ mod tests {
     use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, Root, Ast};
     use crate::test_assert::{assert_vec};
 
-    static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_header.colo").unwrap());
-    static EVENT_DECL_HEADER: Lazy<String> = Lazy::new(|| read_to_string("snippets/rule_decl.colo").unwrap());
-    static ENUM: Lazy<String> = Lazy::new(|| read_to_string("snippets/enum.colo").unwrap());
+    static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("resources/tests/snippets/rule_header.colo").unwrap());
+    static EVENT_DECL_HEADER: Lazy<String> = Lazy::new(|| read_to_string("resources/tests/snippets/rule_decl.colo").unwrap());
+    static ENUM: Lazy<String> = Lazy::new(|| read_to_string("resources/tests/snippets/enum.colo").unwrap());
 
     fn read(file: &Lazy<String>) -> Ast {
         let tokens = lexer().parse(file.as_str()).unwrap();
