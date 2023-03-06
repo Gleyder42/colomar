@@ -43,7 +43,13 @@ fn event_parser(
         .then(just(Token::By).ignore_then(ident).then(args).or_not())
         .then_ignore(just(Token::Ctrl('{')))
         .then_ignore(just(Token::Ctrl('}')))
-        .map(|(((_is_native, event), decl_args), by)| Event {
+        .validate(|it, span, emit| {
+            if it.0.0.0 && it.1.is_some() {
+                emit(Simple::custom(span, "Workshop functions cannot have a by clause"));
+            }
+            it
+        })
+        .map(|(((_, event), decl_args), by)| Event {
             event,
             by,
             args: decl_args,

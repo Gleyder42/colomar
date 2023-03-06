@@ -1,14 +1,36 @@
+# Structs
+
+Member functions take self as a first parameter.
+They have access to private fields and functions.
+You can use extension methods to extend a closed class.
+Although you use `self` you don't have access to private fields or functions.
+
 ```
 struct Zone {
     val pos1: Vector
     val pos2: Vector
+    
+    fn is_inside(self, player: Player): bool {
+        return true
+    }
 }
 
-player {
-    val zone: ref Zone
+fn Zone.is_not_inside(self, player: Player): bool {
+    return !self.is_inside()
+}
+```
+### Open Structs
+
+Open structs are declared with the `open` keyword.
+That means you can add methods and properties to the method while having
+access to private fields.
+
+```
+open struct Handler {
+    val x: Vector
 }
 
-global {
-    val zone: Zone
+open struct Handler {
+    val y: string
 }
 ```

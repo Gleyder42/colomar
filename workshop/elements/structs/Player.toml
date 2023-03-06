@@ -2,7 +2,7 @@ self = "Event Player"
 
 [variables]
 ability1Enabled = "Set Ability 1 Enabled(%self%, %value%)"
-hero = "Hero of(%self%)"
+hero = "Hero Of(%self%)"
 
 [functions]
 heal = "Heal(%self%, %healee%, %amount%)"

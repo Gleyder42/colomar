@@ -2,7 +2,7 @@
 
 ### Description
 
-An enum is an enumeration of constants, namespaced by a name.
+An enum is an enumeration of constants.
 
 ### Declaration
 

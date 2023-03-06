@@ -40,7 +40,7 @@ event PlayerWeaponReloading(heroSlot: HeroSlot) by OngoingEachPlayer(Team.All, h
 }
 
 rule "On Weapon Reload" WeaponReload(HeroSlot.Ana) {
-    player().ability1Enabled = false
+    player.ability1Enabled = false
 }
 ```
 

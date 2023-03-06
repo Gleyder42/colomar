@@ -23,6 +23,5 @@ impl<'a, T, I> Validator<I>
                 is_conflicting = true;
             }
         }
-
     }
 }

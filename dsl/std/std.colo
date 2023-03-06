@@ -21,7 +21,7 @@ workshop struct Player {
 
     workshop func heal(amount: number, healer: Player = null)
 
-    workshop func applyImpulse(direction: Vector, speed: Number, relative: Relattive, motion: Motion)
+    workshop func applyImpulse(direction: Vector, speed: Number, relative: Relative, motion: Motion)
 }
 
 workshop func raycast(position: Locatable, direction: Vector, maxDistance: Number): Bool
