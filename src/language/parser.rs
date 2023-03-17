@@ -157,6 +157,7 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
         .map(Root::Enum);
 
     choice((rule_parser, event_parser, enum_parser))
+        .map_with_span(|it, span| (it, span))
         .repeated()
         .then_ignore(end())
         .map(|p| Ast(p))

@@ -10,7 +10,7 @@ workshop enum Team {
     Team1, Team2, All
 }
 
-event WeaponReloading(team = Team.All, slot = Slot.All) by OngoingEachPlayer(team, slot) {
+event WeaponReloading(team: Team = Team.All, slot: Slot = Slot.All) by OngoingEachPlayer(team, slot) {
 
 }
 

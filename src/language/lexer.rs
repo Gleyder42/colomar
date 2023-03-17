@@ -1,6 +1,6 @@
 extern crate core;
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter, write};
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::Span;
@@ -18,6 +18,24 @@ pub enum Token {
     String(String),
     Num(String),
     Ctrl(char)
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::ContextAssigment => write!(f, "ContextAssigment"),
+            Token::Rule => write!(f, "Rule"),
+            Token::Event => write!(f, "Event"),
+            Token::Cond => write!(f, "Cond"),
+            Token::Workshop => write!(f, "Workshop"),
+            Token::Enum => write!(f, "Enum"),
+            Token::By => write!(f, "By"),
+            Token::Ident(string) => write!(f, "Ident {string}"),
+            Token::String(string) => write!(f, "String {string}"),
+            Token::Num(string) => write!(f, "Num {string}"),
+            Token::Ctrl(ctrl) => write!(f, "Ctrl {ctrl}"),
+        }
+    }
 }
 
 pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {

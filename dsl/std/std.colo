@@ -1,3 +1,5 @@
+workshop struct num
+
 workshop event OngoingEachPlayer(team: Team, heroSlot: Hero | Slot) {
     self(player <- workshop.player)
 }

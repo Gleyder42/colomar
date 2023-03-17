@@ -1,5 +1,8 @@
+use chumsky::error::Simple;
 use crate::language::im;
 
-fn compile(intermediate: im::IntermediateTree) {
+fn compile(im: im::IntermediateTree) {
+    for root in im.0 {
 
+    }
 }

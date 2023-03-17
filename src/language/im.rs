@@ -50,7 +50,13 @@ pub struct DeclaredRule {
     pub arguments: Vec<CalledArgument>
 }
 
+impl Named for String {
+    fn name(&self) -> &str {
+        self.as_str()
+    }
+}
+
 pub trait Named {
 
-    fn name(&self) -> String;
+    fn name(&self) -> &str;
 }

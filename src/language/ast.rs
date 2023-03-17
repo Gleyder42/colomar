@@ -1,9 +1,11 @@
+use crate::Span;
+
 pub type Action = Box<Call>;
 pub type Condition = Box<Call>;
 pub type CallArgs = Vec<Box<Call>>;
 
 #[derive(Debug)]
-pub struct Ast(pub Vec<Root>);
+pub struct Ast(pub Vec<(Root, Span)>);
 
 #[derive(Debug)]
 pub enum Root {

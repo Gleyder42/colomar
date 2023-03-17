@@ -1,27 +1,56 @@
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::hash::Hash;
+use std::marker::PhantomData;
+use std::rc::Rc;
+use crate::language::ast;
 use crate::language::im::Named;
 
-struct Namespace(HashSet<String>);
+struct Namespace<'a> {
+    idents: HashSet<&'a str>,
+    parent: Option<Rc<Namespace<'a>>>,
+    label: &'a str
+}
 
-struct Validator<T>(T);
+impl<'a> Namespace<'a>  {
 
-impl<T> Validator<T> {
-    fn new(t: T) -> Self {
-        Validator(t)
+    fn new(parent: Option<Rc<Namespace<'a>>>, label: &'a str) -> Namespace<'a> {
+        Namespace { idents: HashSet::new(), parent, label }
+    }
+
+    fn add(&mut self, ident: &'a str) -> bool {
+        if self.idents.insert(ident) {
+            self.add(ident)
+        } else {
+            false
+        }
     }
 }
 
-impl<'a, T, I> Validator<I>
-    where T: 'a + Eq + PartialEq + Hash + Named,
-          I: Iterator<Item=&'a T> {
 
-    fn unique_names(self, namespace: &mut Namespace) {
-        let mut is_conflicting = false;
-        for x in self.0 {
-            if !namespace.0.insert(x.name()) {
-                is_conflicting = true;
-            }
+struct Error {
+    message: String
+}
+
+struct Validator<T> {
+    value: T,
+    errors: Vec<Error>,
+}
+
+impl<T> Validator<T> {
+    fn new(value: T) -> Self {
+        Validator { value, errors: Vec::new() }
+    }
+}
+
+impl<'a, I, T> Validator<I>
+    where
+        T: 'a + Eq + Hash + Named,
+        I: Iterator<Item=&'a T> {
+
+    fn unique_names(mut self, namespace: &'a mut Namespace<'a>) {
+        for x in self.value {
+
         }
     }
 }
