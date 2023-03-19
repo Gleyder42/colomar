@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-pub struct IntermediateTree(pub Vec<Root>);
+pub struct Im(pub Vec<Root>);
 
 pub enum Root {
     Rule(DeclaredRule),
@@ -50,13 +50,13 @@ pub struct DeclaredRule {
     pub arguments: Vec<CalledArgument>
 }
 
-impl Named for String {
-    fn name(&self) -> &str {
+impl<'a> Named<'a> for String {
+    fn name(&'a self) -> &'a str {
         self.as_str()
     }
 }
 
-pub trait Named {
+pub trait Named<'a> {
 
-    fn name(&self) -> &str;
+    fn name(&'a self) -> &'a str;
 }

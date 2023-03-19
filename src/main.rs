@@ -16,9 +16,10 @@ use chumsky::error::SimpleReason;
 pub mod workshop;
 pub mod language;
 pub mod test_assert;
+mod compiler;
 
 fn main() {
-    let path = Path::new("dsl/example/test.colo");
+    let path = Path::new("dsl/example/test2.colo");
     let mut file = fs::File::open(path).unwrap();
 
     let mut source = String::new();

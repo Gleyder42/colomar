@@ -1,0 +1,12 @@
+workshop fn eventPlayer(): &Player
+
+open struct Player {
+    var counter: Number = 0
+}
+
+rule "Say Hello" OngoingEachPlayer() {
+    cond player.isJumping
+
+    player.smallMessage("Hello World")
+    player.counter++
+}

@@ -6,7 +6,7 @@ use std::string::String;
 use crate::language::lexer::Token;
 use crate::language::ast::*;
 
-type IdentParser = impl Parser<Token, String, Error=Simple<Token>> + Clone;
+type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
 type IdentChainParser = impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone;
 type ArgsParser = impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone;
 type EventParser = impl Parser<Token, Event, Error=Simple<Token>> + Clone;
@@ -16,7 +16,7 @@ type RuleParser = impl Parser<Token, Rule, Error=Simple<Token>> + Clone;
 
 pub fn ident_parser() -> IdentParser {
     filter_map(|span, token| match token {
-        Token::Ident(ident) => Ok(ident.clone()),
+        Token::Ident(ident) => Ok(Ident(ident.clone(), span)),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     })
 }
@@ -30,7 +30,7 @@ fn event_parser(
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident.clone().separated_by(just(Token::Ctrl('|'))))
         .then(just(Token::Ctrl('=')).ignore_then(ident_chain).or_not())
-        .map(|((name, types), default_value)| DeclaredArgument { name, types, default_value })
+        .map_with_span(|((name, types), default_value), span | DeclaredArgument { name, types, default_value, span })
         .separated_by(just(Token::Ctrl(',')))
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')));
 
@@ -49,10 +49,11 @@ fn event_parser(
             }
             it
         })
-        .map(|(((_, event), decl_args), by)| Event {
+        .map_with_span(|(((_, event), decl_args), by), span| Event {
             event,
             by,
             args: decl_args,
+            span
         })
 }
 
@@ -69,7 +70,7 @@ fn enum_parser(
         .then_ignore(just(Token::Enum))
         .then(ident.clone())
         .then(constants.delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))))
-        .map(|((is_native, name), constants)| Enum { name, is_workshop: is_native, constants })
+        .map_with_span(|((is_native, name), constants), span| Enum { name, is_workshop: is_native, constants, span })
 }
 
 fn ident_chain_parser(
@@ -90,9 +91,9 @@ fn ident_chain_parser(
         ident.then(args.clone().or_not())
             .separated_by(just(Token::Ctrl('.')))
             .at_least(1)
-            .map(|o| o.into_iter().rfold::<Option<Box<Call>>, _>(None, |acc, element| {
+            .map_with_span(|o, span| o.into_iter().rfold::<Option<Box<Call>>, _>(None, |acc, element| {
                 let call = match element {
-                    (name, Some(args)) => Call::Fn { name, args, next: acc },
+                    (name, Some(args)) => Call::Fn { name, args, next: acc, span: span.clone() },
                     (name, None) => Call::Var { name, next: acc }
                 };
                 return Some(Box::new(call));
@@ -117,7 +118,7 @@ fn block_parser(
             .repeated()
         )
         .then_ignore(just(Token::Ctrl('}')))
-        .map(|o| Block { actions: o.0, conditions: o.1 })
+        .map_with_span(|o, span| Block { actions: o.0, conditions: o.1, span })
 }
 
 pub fn rule_parser(
@@ -126,7 +127,7 @@ pub fn rule_parser(
     args: ArgsParser,
 ) -> RuleParser {
     let rule_name = filter_map(|span, token| match token {
-        Token::String(ident) => Ok(ident.clone()),
+        Token::String(string) => Ok((string.clone(), span)),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     });
 
@@ -135,12 +136,13 @@ pub fn rule_parser(
         .then(ident)
         .then(args.clone())
         .then(block)
-        .map(|(((rule_name, ident), args), block)| Rule {
+        .map_with_span(|(((rule_name, ident), args), block), span| Rule {
             conditions: block.conditions,
             actions: block.actions,
             name: rule_name,
             event: ident,
             args,
+            span
         })
 }
 
@@ -157,7 +159,6 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
         .map(Root::Enum);
 
     choice((rule_parser, event_parser, enum_parser))
-        .map_with_span(|it, span| (it, span))
         .repeated()
         .then_ignore(end())
         .map(|p| Ast(p))
@@ -168,6 +169,7 @@ mod tests {
     use chumsky::{Parser, Stream};
     use std::fs::{read_to_string};
     use once_cell::sync::Lazy;
+    use crate::language::ast::Ident;
     use crate::language::lexer::lexer;
     use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, Root, Ast};
     use crate::test_assert::{assert_vec};
@@ -193,20 +195,22 @@ mod tests {
         let expected: Vec<Enum> = vec![
             Enum {
                 is_workshop: true,
-                name: "Hero".to_string(),
+                name: Ident("Hero".to_string(), 14..18),
                 constants: vec![
-                    "Reaper".to_string(),
-                    "Tracer".to_string(),
-                    "Mercy".to_string(),
+                    Ident("Reaper".to_string(), 26..32),
+                    Ident("Tracer".to_string(), 39..45),
+                    Ident("Mercy".to_string(), 52..57),
                 ],
+                span: 0..60
             },
             Enum {
                 is_workshop: false,
-                name: "MyEnum".to_string(),
+                name: Ident("MyEnum".to_string(), 69..75),
                 constants: vec![
-                    "First".to_string(),
-                    "Second".to_string(),
+                    Ident("First".to_string(), 83..88),
+                    Ident("Second".to_string(), 90..96),
                 ],
+                span: 64..99
             },
         ];
 
@@ -215,6 +219,7 @@ mod tests {
             .for_each(|(actual, expected)| {
                 assert_eq!(actual.name, expected.name);
                 assert_eq!(actual.is_workshop, expected.is_workshop);
+                assert_eq!(actual.span, expected.span);
                 assert_vec(&actual.constants, &expected.constants);
             })
     }
@@ -230,18 +235,30 @@ mod tests {
 
         let expected: Vec<Event> = vec![
             Event {
-                event: "OngoingEachPlayer".to_string(),
+                event: Ident("OngoingEachPlayer".to_string(), 15..32),
                 by: None,
+                span: 0..71,
                 args: vec![
                     DeclaredArgument {
-                        name: "team".to_string(),
-                        types: vec!["Team".to_string()],
+                        name: Ident("team".to_string(), 33..37),
+                        types: vec![Ident("Team".to_string(), 39..43)],
                         default_value: None,
+                        span: 33..43
                     },
                     DeclaredArgument {
-                        name: "heroSlot".to_string(),
-                        types: vec!["Hero".to_string(), "Slot".to_string()],
+                        name: Ident(
+                            "heroSlot".to_string(),
+                            45..53,
+                        ),
+                        types: vec![Ident(
+                                    "Hero".to_string(),
+                                    55..59,
+                                ), Ident(
+                            "Slot".to_string(),
+                            62..66,
+                        )],
                         default_value: None,
+                        span: 45..66,
                     },
                 ],
             }
@@ -255,6 +272,7 @@ mod tests {
             .for_each(|(actual, expected)| {
                 assert_eq!(actual.event, expected.event);
                 assert_eq!(actual.by, expected.by);
+                assert_eq!(actual.span, expected.span);
                 assert_vec(&actual.args, &expected.args);
             })
     }
@@ -265,75 +283,92 @@ mod tests {
 
         let expected: Vec<Rule> = vec![
             Rule {
-                name: "Heal on Kill".to_string(),
-                event: "OngoingPlayer".to_string(),
+                name: ("Heal on Kill".to_string(), 5..19),
+                event: Ident("OngoingPlayer".to_string(), 20..33),
                 args: Vec::new(),
                 conditions: Vec::new(),
                 actions: Vec::new(),
+                span: 0..39
             },
             Rule {
-                name: "Test".to_string(),
-                event: "MyEvent".to_string(),
+                name: ("Test".to_string(), 48..54),
+                event: Ident("MyEvent".to_string(), 55..62),
                 args: vec![
-                    Call::new_var("Hello"),
-                    Call::new_var("World"),
+                    Call::new_var(Ident("Hello".to_string(), 63..68)),
+                    Call::new_var(Ident("World".to_string(), 70..75)),
+                ],
+                conditions: Vec::new(),
+                actions: Vec::new(),
+                span: 43..80
+            },
+            Rule {
+                name: ("Heal on Kill".to_string(), 89..103),
+                event: Ident("PlayerDealtFinalBlow".to_string(), 104..124),
+                args: vec![
+                    Call::new_var(Ident("Team1".to_string(), 125..130)),
+                    Call::new_var(Ident("Slot1".to_string(), 132..137)),
+                ],
+                conditions: Vec::new(),
+                actions: Vec::new(),
+                span: 84..142
+            },
+            Rule {
+                name: ("Heal on Kill".to_string(), 151..165),
+                event: Ident("PlayerDealtFinalBlow".to_string(), 166..186),
+                args: vec![
+                    Call::new_fn(Ident("Team1".to_string(), 187..192), 187..194),
+                    Call::new_fn(Ident("Slot1".to_string(), 196..201), 196..203),
+                ],
+                conditions: Vec::new(),
+                actions: Vec::new(),
+                span: 146..208
+            },
+            Rule {
+                name: ("Do something".to_string(), 217..231),
+                span: 212..271,
+                event: Ident("HelloWorld".to_string(), 232..242),
+                args: vec![
+                    Call::new_fn_args(
+                        Ident("test".to_string(), 243..247),
+                        243..254,
+                        vec![Call::new_var(Ident("Team1".to_string(), 248..253))]
+                    ),
+                    Call::new_fn_args(
+                        Ident("foo".to_string(), 256..259),
+                        256..266,
+                        vec![Call::new_var(Ident("Slot1".to_string(), 260..265))]
+                    ),
                 ],
                 conditions: Vec::new(),
                 actions: Vec::new(),
             },
             Rule {
-                name: "Heal on Kill".to_string(),
-                event: "PlayerDealtFinalBlow".to_string(),
-                args: vec![
-                    Call::new_var("Team1"),
-                    Call::new_var("Slot1"),
-                ],
-                conditions: Vec::new(),
-                actions: Vec::new(),
-            },
-            Rule {
-                name: "Heal on Kill".to_string(),
-                event: "PlayerDealtFinalBlow".to_string(),
-                args: vec![
-                    Call::new_fn("Team1"),
-                    Call::new_fn("Slot1"),
-                ],
-                conditions: Vec::new(),
-                actions: Vec::new(),
-            },
-            Rule {
-                name: "Do something".to_string(),
-                event: "HelloWorld".to_string(),
-                args: vec![
-                    Call::new_fn_args("test", vec![Call::new_var("Team1")]),
-                    Call::new_fn_args("foo", vec![Call::new_var("Slot1")]),
-                ],
-                conditions: Vec::new(),
-                actions: Vec::new(),
-            },
-            Rule {
-                name: "Complex".to_string(),
-                event: "HelloWorld".to_string(),
+                name: ("Complex".to_string(), 280..289),
+                span: 275..345,
+                event: Ident("HelloWorld".to_string(), 290..300),
                 args: vec![
                     Call::new_var_next(
-                        "foo",
+                        Ident("foo".to_string(), 301..304),
                         Call::new_fn_args_next(
-                            "bar",
-                            vec![Call::new_var("hello")],
-                            Call::new_var("nice"),
+                            Ident("bar".to_string(), 305..308),
+                            301..320,
+                            vec![Call::new_var(Ident("hello".to_string(), 309..314))],
+                            Call::new_var(Ident("nice".to_string(), 316..320)),
                         ),
                     ),
                     Call::new_fn_args_next(
-                        "fn",
+                        Ident("fn".to_string(), 322..324),
+                        322..340,
                         vec![
-                            Call::new_var("e"),
-                            Call::new_var("o"),
+                            Call::new_var(Ident("e".to_string(), 325..326)),
+                            Call::new_var(Ident("o".to_string(), 328..329)),
                         ],
                         Call::new_fn_args(
-                            "foo",
+                            Ident("foo".to_string(), 331..334),
+                            322..340,
                             vec![
-                                Call::new_var("x"),
-                                Call::new_var("p"),
+                                Call::new_var(Ident("x".to_string(), 335..336)),
+                                Call::new_var(Ident("p".to_string(), 338..339, )),
                             ],
                         ),
                     ),
@@ -355,6 +390,7 @@ mod tests {
                                    "Test if {:?} is equal to {:?}", actual.name, expected.name);
                         assert_eq!(actual.event, expected.event,
                                    "Test if {:?} is equal to {:?}", actual.event, expected.event);
+                        assert_eq!(actual.span, expected.span);
                         assert_vec(&actual.args, &expected.args);
                         assert_vec(&actual.conditions, &expected.conditions);
                         assert_vec(&actual.actions, &expected.actions);
