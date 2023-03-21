@@ -10,7 +10,7 @@ workshop enum Team {
     Team1, Team2, All
 }
 
-event WeaponReloading(team: Team = Team.All, slot: Slot = Slot.All) by OngoingEachPlayer(team, slot) {
+rule "Hello World" WeaponReloading() {
 
 }
 
@@ -19,9 +19,17 @@ workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot
 }
 
 rule "Test" OngoingEachPlayer() {
+    val test = 10
 
+    if true {
+        val test = 20
+    }
 }
 
 rule "Hello World" OngoingEachPlayer(Team.Team2, Hero.Ana) {
+
+}
+
+event WeaponReloading(team: Team = Team.All, slot: Slot = Slot.All) by OngoingEachPlayer(team, slot) {
 
 }

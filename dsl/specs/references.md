@@ -3,7 +3,7 @@
 References point to an existing variable
 
 ```
-var score: &num // global scope
+var score: &'global num // global scope
 
 fn test() {
     var test = 10

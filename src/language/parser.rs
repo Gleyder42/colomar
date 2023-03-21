@@ -66,11 +66,11 @@ fn enum_parser(
 
     just(Token::Workshop)
         .or_not()
-        .map(|o| o.is_some())
+        .map_with_span(|o, span| Spanned(o.is_some(), span))
         .then_ignore(just(Token::Enum))
         .then(ident.clone())
         .then(constants.delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))))
-        .map_with_span(|((is_native, name), constants), span| Enum { name, is_workshop: is_native, constants, span })
+        .map_with_span(|((is_workshop, name), constants), span| Enum { name, is_workshop, constants, span })
 }
 
 fn ident_chain_parser(
@@ -127,7 +127,7 @@ pub fn rule_parser(
     args: ArgsParser,
 ) -> RuleParser {
     let rule_name = filter_map(|span, token| match token {
-        Token::String(string) => Ok((string.clone(), span)),
+        Token::String(string) => Ok(Spanned(string.clone(), span)),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     });
 
@@ -169,7 +169,7 @@ mod tests {
     use chumsky::{Parser, Stream};
     use std::fs::{read_to_string};
     use once_cell::sync::Lazy;
-    use crate::language::ast::Ident;
+    use crate::language::ast::{Ident, Spanned};
     use crate::language::lexer::lexer;
     use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, Root, Ast};
     use crate::test_assert::{assert_vec};
@@ -194,7 +194,7 @@ mod tests {
 
         let expected: Vec<Enum> = vec![
             Enum {
-                is_workshop: true,
+                is_workshop: Spanned(true, 0..8),
                 name: Ident("Hero".to_string(), 14..18),
                 constants: vec![
                     Ident("Reaper".to_string(), 26..32),
@@ -204,7 +204,7 @@ mod tests {
                 span: 0..60
             },
             Enum {
-                is_workshop: false,
+                is_workshop: Spanned(false, 64..68),
                 name: Ident("MyEnum".to_string(), 69..75),
                 constants: vec![
                     Ident("First".to_string(), 83..88),
@@ -283,7 +283,7 @@ mod tests {
 
         let expected: Vec<Rule> = vec![
             Rule {
-                name: ("Heal on Kill".to_string(), 5..19),
+                name: Spanned("Heal on Kill".to_string(), 5..19),
                 event: Ident("OngoingPlayer".to_string(), 20..33),
                 args: Vec::new(),
                 conditions: Vec::new(),
@@ -291,7 +291,7 @@ mod tests {
                 span: 0..39
             },
             Rule {
-                name: ("Test".to_string(), 48..54),
+                name: Spanned("Test".to_string(), 48..54),
                 event: Ident("MyEvent".to_string(), 55..62),
                 args: vec![
                     Call::new_var(Ident("Hello".to_string(), 63..68)),
@@ -302,7 +302,7 @@ mod tests {
                 span: 43..80
             },
             Rule {
-                name: ("Heal on Kill".to_string(), 89..103),
+                name: Spanned("Heal on Kill".to_string(), 89..103),
                 event: Ident("PlayerDealtFinalBlow".to_string(), 104..124),
                 args: vec![
                     Call::new_var(Ident("Team1".to_string(), 125..130)),
@@ -313,7 +313,7 @@ mod tests {
                 span: 84..142
             },
             Rule {
-                name: ("Heal on Kill".to_string(), 151..165),
+                name: Spanned("Heal on Kill".to_string(), 151..165),
                 event: Ident("PlayerDealtFinalBlow".to_string(), 166..186),
                 args: vec![
                     Call::new_fn(Ident("Team1".to_string(), 187..192), 187..194),
@@ -324,7 +324,7 @@ mod tests {
                 span: 146..208
             },
             Rule {
-                name: ("Do something".to_string(), 217..231),
+                name: Spanned("Do something".to_string(), 217..231),
                 span: 212..271,
                 event: Ident("HelloWorld".to_string(), 232..242),
                 args: vec![
@@ -343,7 +343,7 @@ mod tests {
                 actions: Vec::new(),
             },
             Rule {
-                name: ("Complex".to_string(), 280..289),
+                name: Spanned("Complex".to_string(), 280..289),
                 span: 275..345,
                 event: Ident("HelloWorld".to_string(), 290..300),
                 args: vec![

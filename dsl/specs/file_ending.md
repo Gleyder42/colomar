@@ -1,4 +1,4 @@
 # File Ending
 
 - Workshop Code -> .ws
-- Colomar -> .colo
+- Colomar -> .colo .mar

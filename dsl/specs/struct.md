@@ -10,13 +10,13 @@ struct Zone {
     val pos1: Vector
     val pos2: Vector
     
-    fn is_inside(self, player: Player): bool {
+    fn is_inside(player: &Player): bool {
         return true
     }
 }
 
-fn Zone.is_not_inside(self, player: Player): bool {
-    return !self.is_inside()
+fn Zone.is_not_inside(player: &Player): bool {
+    return !is_inside()
 }
 ```
 ### Open Structs

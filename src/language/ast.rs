@@ -5,6 +5,9 @@ pub type Action = Box<Call>;
 pub type Condition = Box<Call>;
 pub type CallArgs = Vec<Box<Call>>;
 
+#[derive(Debug, PartialEq)]
+pub struct Spanned<T>(pub T, pub Span);
+
 #[derive(Debug)]
 pub struct Ast(pub Vec<Root>);
 
@@ -35,7 +38,7 @@ pub struct Event {
 
 #[derive(Debug)]
 pub struct Enum {
-    pub is_workshop: bool,
+    pub is_workshop: Spanned<bool>,
     pub name: Ident,
     pub constants: Vec<Ident>,
     pub span: Span
@@ -51,7 +54,7 @@ pub struct DeclaredArgument {
 
 #[derive(Debug)]
 pub struct Rule {
-    pub name: (String, Span),
+    pub name: Spanned<String>,
     pub event: Ident,
     pub args: Vec<Box<Call>>,
     pub conditions: Vec<Condition>,

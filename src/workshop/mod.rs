@@ -1,4 +1,6 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, write};
+
+pub struct WorkshopTree(pub Vec<Rule>);
 
 pub struct HeroSlot(String);
 
@@ -28,6 +30,17 @@ impl Display for HeroSlot {
 impl Display for Team {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl Display for WorkshopTree {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let string = self.0.iter()
+            .map(|it| it.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        write!(f, "{string}")
     }
 }
 

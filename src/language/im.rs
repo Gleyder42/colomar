@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use crate::Span;
 
 pub struct Im(pub Vec<Root>);
 
@@ -14,7 +15,7 @@ pub struct EnumConstant {
 
 pub struct Enum {
     pub is_workshop: bool,
-    pub constants: Vec<Rc<EnumConstant>>
+    pub constants: Vec<Rc<EnumConstant>>,
 }
 
 pub enum StaticValue {
