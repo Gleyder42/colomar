@@ -1,10 +1,11 @@
 # Types
 
-There are four primitives.
-
 ```
-Str
-Num
-Bool
-Any
+string
+str
+num
+bool
+any
+int
+double
 ```

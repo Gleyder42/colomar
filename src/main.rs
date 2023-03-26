@@ -1,5 +1,7 @@
 #![feature(type_alias_impl_trait)]
 
+extern crate core;
+
 use std::fs;
 use std::io::Read;
 use std::ops::Range;
@@ -17,9 +19,10 @@ pub mod workshop;
 pub mod language;
 pub mod test_assert;
 mod compiler;
+mod multimap;
 
 fn main() {
-    let path = Path::new("dsl/example/test2.colo");
+    let path = Path::new("dsl/example/test.colo");
     let mut file = fs::File::open(path).unwrap();
 
     let mut source = String::new();

@@ -5,7 +5,7 @@ Functions can have parameters.
 Parameters can have default arguments.
 
 ```
-fn calculate(player: &Player, hero: Hero, message: &String) -> Num {
+fn calculate(player: Player, hero: Hero, message: String) -> Num {
 
 }
 ```

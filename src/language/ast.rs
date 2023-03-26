@@ -5,7 +5,7 @@ pub type Action = Box<Call>;
 pub type Condition = Box<Call>;
 pub type CallArgs = Vec<Box<Call>>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Spanned<T>(pub T, pub Span);
 
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub enum Root {
     Enum(Enum),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident(pub String, pub Span);
 
 impl<'a> Named<'a> for Ident {
@@ -28,7 +28,7 @@ impl<'a> Named<'a> for Ident {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Event {
     pub event: Ident,
     pub by: Option<(Ident, Vec<Box<Call>>)>,
@@ -36,7 +36,7 @@ pub struct Event {
     pub span: Span
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Enum {
     pub is_workshop: Spanned<bool>,
     pub name: Ident,
@@ -44,7 +44,7 @@ pub struct Enum {
     pub span: Span
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct DeclaredArgument {
     pub name: Ident,
     pub types: Vec<Ident>,
@@ -69,7 +69,7 @@ pub struct Block {
     pub span: Span
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub enum Call {
     Fn {
         name: Ident,

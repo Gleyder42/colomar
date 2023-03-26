@@ -7,7 +7,7 @@ use std::rc::Rc;
 use crate::language::ast;
 use crate::language::im::Named;
 
-struct Namespace<'a> {
+pub struct Namespace<'a> {
     idents: HashSet<&'a str>,
     parent: Option<Rc<Namespace<'a>>>,
     label: &'a str
@@ -15,7 +15,7 @@ struct Namespace<'a> {
 
 impl<'a> Namespace<'a>  {
 
-    fn new(parent: Option<Rc<Namespace<'a>>>, label: &'a str) -> Namespace<'a> {
+    pub fn new(parent: Option<Rc<Namespace<'a>>>, label: &'a str) -> Namespace<'a> {
         Namespace { idents: HashSet::new(), parent, label }
     }
 
@@ -48,14 +48,18 @@ struct Error {
     message: String
 }
 
-struct Validator<T> {
+impl<T> Validator<Vec<T>> {
+
+}
+
+pub struct Validator<T> {
     value: T,
     errors: Vec<Error>,
 }
 
 impl<T> Validator<T> {
 
-    fn new(value: T) -> Self {
+    pub fn new(value: T) -> Self {
         Validator { value, errors: Vec::new() }
     }
 }
@@ -65,7 +69,7 @@ impl<'a, I, T> Validator<I>
         T: 'a + Eq + Hash + Named<'a>,
         I: Iterator<Item=&'a T> {
 
-    fn unique_names(mut self, namespace: &'a mut Namespace<'a>) {
+    pub fn unique_names(mut self, namespace: &'a mut Namespace<'a>) {
         let duplicates = self.value.into_iter()
             .filter_map(|it| if namespace.add(it.name()) {
                 Some(it.name())
@@ -75,6 +79,6 @@ impl<'a, I, T> Validator<I>
             .collect::<Vec<_>>()
             .join(", ");
 
-        self.errors.push(Error { message: format!("{duplicates} already exits") })
+        self.errors.push(Error { message: format!("{} already exits", duplicates)});
     }
 }

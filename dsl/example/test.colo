@@ -1,3 +1,7 @@
+workshop event OngoingEachPlayer(team: team = Team.All, slot: Slot | Hero = Slot.All) {
+
+}
+
 workshop enum Slot {
     Slot0, Slot1, All
 }
@@ -14,20 +18,11 @@ rule "Hello World" WeaponReloading() {
 
 }
 
-workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
-
-}
-
 rule "Test" OngoingEachPlayer() {
-    val test = 10
 
-    if true {
-        val test = 20
-    }
 }
 
 rule "Hello World" OngoingEachPlayer(Team.Team2, Hero.Ana) {
-
 }
 
 event WeaponReloading(team: Team = Team.All, slot: Slot = Slot.All) by OngoingEachPlayer(team, slot) {

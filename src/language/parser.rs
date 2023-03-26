@@ -5,6 +5,7 @@ use chumsky::prelude::*;
 use std::string::String;
 use crate::language::lexer::Token;
 use crate::language::ast::*;
+use crate::language::Span;
 
 type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
 type IdentChainParser = impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone;
@@ -43,11 +44,11 @@ fn event_parser(
         .then(just(Token::By).ignore_then(ident).then(args).or_not())
         .then_ignore(just(Token::Ctrl('{')))
         .then_ignore(just(Token::Ctrl('}')))
-        .validate(|it, span, emit| {
-            if it.0.0.0 && it.1.is_some() {
+        .validate(|(((is_workshop, event), decl_args), by), span, emit| {
+            if is_workshop && by.is_some() {
                 emit(Simple::custom(span, "Workshop functions cannot have a by clause"));
             }
-            it
+            (((is_workshop, event), decl_args), by)
         })
         .map_with_span(|(((_, event), decl_args), by), span| Event {
             event,

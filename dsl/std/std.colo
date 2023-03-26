@@ -1,40 +1,29 @@
-workshop struct num
-
 workshop event OngoingEachPlayer(team: Team, heroSlot: Hero | Slot) {
-    self(player <- workshop.player)
+    val player: Player
 }
 
-workshop event OngoingGlobal() {
-    self()
+workshop event OngoingGlobal(team: Team, heroSlot: Hero | Slot) { }
+
+workshop open struct Player {
+	workshop getval hero: Hero
+
+	workshop setvar ability1Enabled: bool
+	workshop setvar isFiringSecondary: bool
+	workshop setvar damageDealt: num
+
+    workshop fn heal(amount: num, healer: Player = null)
+
+    workshop fn applyImpulse(direction: Vector, speed: num, relative: Relative, motion: Motion)
+
+    workshop fn raycast(position: Location, direction: Vector, maxDistance: num): bool
 }
-
-workshop event PlayerDealtDamage(team: Team, heroSlot: Hero | Slot) {
-    self(
-        player <- workshop.player,
-        attacker <- workshop.attacker,
-        victim <- workshop.victim
-    )
-}
-
-workshop struct Player {
-	workshop var ability1Enabled: bool
-	workshop val hero: Hero
-	workshop var isFiringSecondary: bool
-	workshop var damageDealt: num
-
-    workshop fn heal(amount: number, healer: Player = null)
-
-    workshop fn applyImpulse(direction: Vector, speed: Number, relative: Relative, motion: Motion)
-}
-
-workshop func raycast(position: Locatable, direction: Vector, maxDistance: Number): Bool
 
 workshop struct Vector {
-	workshop var x: number
-	workshop var y: number
-	workshop var z: number
+	workshop var x: num
+	workshop var y: num
+	workshop var z: num
 
-	workshop static func zero(): Vector
+	workshop static const ZERO: Vector
 }
 
 workshop enum Relative {

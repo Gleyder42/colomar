@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use crate::language::ast::Spanned;
 use crate::Span;
 
 pub struct Im(pub Vec<Root>);
@@ -13,8 +14,9 @@ pub struct EnumConstant {
     pub name: String
 }
 
+#[derive(Clone)]
 pub struct Enum {
-    pub is_workshop: bool,
+    pub is_workshop: Spanned<bool>,
     pub constants: Vec<Rc<EnumConstant>>,
 }
 
@@ -22,7 +24,8 @@ pub enum StaticValue {
     EnumConstant(Rc<EnumConstant>)
 }
 
-pub struct Type(String);
+#[derive(Clone)]
+pub struct Type(pub String);
 
 pub struct DeclaredArgument {
     pub name: String,
@@ -35,8 +38,9 @@ pub struct CalledArgument {
     pub value: StaticValue
 }
 
+#[derive(Clone)]
 pub struct Event {
-    pub name: String,
+    pub name: Spanned<String>,
     pub arguments: Vec<Rc<DeclaredArgument>>
 }
 
