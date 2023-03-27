@@ -6,6 +6,7 @@ workshop event OngoingGlobal(team: Team, heroSlot: Hero | Slot) { }
 
 workshop open struct Player {
 	workshop getval hero: Hero
+	workshop getval isReloading: bool
 
 	workshop setvar ability1Enabled: bool
 	workshop setvar isFiringSecondary: bool

@@ -23,11 +23,11 @@ A rule consists of multiple elements.
 
 ```
 rule "Heal on kill" PlayerDealtFinalBlow(Team.Team1, HeroSlot.Slot1) { 
-    #[condition]
-    if player.isReloading {
-        player.heal(100)
-    }
+    cond player.isReloading
+        
+    player.heal(100)
 }
+
 ```
 
 ### Declaring Custom Events

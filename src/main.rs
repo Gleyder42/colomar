@@ -22,7 +22,7 @@ mod compiler;
 mod multimap;
 
 fn main() {
-    let path = Path::new("dsl/example/test.colo");
+    let path = Path::new("dsl/example/test2.colo");
     let mut file = fs::File::open(path).unwrap();
 
     let mut source = String::new();
@@ -31,9 +31,16 @@ fn main() {
     let (tokens, _) = lexer().parse_recovery(source.as_str());
 
     if let Some(tokens) = tokens {
-        let (rule, errors) = parser().parse_recovery(Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter()));
-        println!("{:#?}", rule);
+        let (ast, errors) = parser().parse_recovery(Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter()));
+        println!("{:#?}", ast);
         println!("{:#?}", errors);
+
+        if let Some(ast) = ast {
+            let im = language::converter::convert(ast);
+
+            println!("{:#?}", im);
+        }
+
 
         for error in errors.into_iter().map(|e| e.map(|it| format!("{}", it))) {
             let report = Report::build(ReportKind::Error, (), error.span().start);

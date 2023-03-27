@@ -1,11 +1,11 @@
 extern crate core;
 
-use std::fmt::{Debug};
+use std::fmt::Debug;
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::lexer::Token;
 use crate::language::ast::*;
-use crate::language::Span;
+use crate::language::{Ident, Span};
 
 type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
 type IdentChainParser = impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone;
@@ -51,7 +51,7 @@ fn event_parser(
             (((is_workshop, event), decl_args), by)
         })
         .map_with_span(|(((_, event), decl_args), by), span| Event {
-            event,
+            name: event,
             by,
             args: decl_args,
             span
@@ -168,12 +168,13 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
 #[cfg(test)]
 mod tests {
     use chumsky::{Parser, Stream};
-    use std::fs::{read_to_string};
+    use std::fs::read_to_string;
     use once_cell::sync::Lazy;
-    use crate::language::ast::{Ident, Spanned};
+    use crate::language::ast::Spanned;
+    use crate::language::Ident;
     use crate::language::lexer::lexer;
-    use crate::language::parser::{Call, DeclaredArgument, Enum, Event, parser, Rule, Root, Ast};
-    use crate::test_assert::{assert_vec};
+    use crate::language::parser::{Ast, Call, DeclaredArgument, Enum, Event, parser, Root, Rule};
+    use crate::test_assert::assert_vec;
 
     static RULE_HEADER: Lazy<String> = Lazy::new(|| read_to_string("resources/tests/snippets/rule_header.colo").unwrap());
     static EVENT_DECL_HEADER: Lazy<String> = Lazy::new(|| read_to_string("resources/tests/snippets/rule_decl.colo").unwrap());
@@ -236,7 +237,7 @@ mod tests {
 
         let expected: Vec<Event> = vec![
             Event {
-                event: Ident("OngoingEachPlayer".to_string(), 15..32),
+                name: Ident("OngoingEachPlayer".to_string(), 15..32),
                 by: None,
                 span: 0..71,
                 args: vec![
@@ -271,7 +272,7 @@ mod tests {
         actual_events.into_iter()
             .zip(expected)
             .for_each(|(actual, expected)| {
-                assert_eq!(actual.event, expected.event);
+                assert_eq!(actual.name, expected.name);
                 assert_eq!(actual.by, expected.by);
                 assert_eq!(actual.span, expected.span);
                 assert_vec(&actual.args, &expected.args);

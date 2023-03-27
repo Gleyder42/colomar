@@ -1,3 +1,4 @@
+use crate::language::Ident;
 use crate::language::im::Named;
 use crate::Span;
 
@@ -19,24 +20,14 @@ pub enum Root {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct Ident(pub String, pub Span);
-
-impl<'a> Named<'a> for Ident {
-
-    fn name(&'a self) -> &'a str {
-        &self.0
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Event {
-    pub event: Ident,
+    pub name: Ident,
     pub by: Option<(Ident, Vec<Box<Call>>)>,
     pub args: Vec<DeclaredArgument>,
     pub span: Span
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Enum {
     pub is_workshop: Spanned<bool>,
     pub name: Ident,
@@ -44,7 +35,7 @@ pub struct Enum {
     pub span: Span
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct DeclaredArgument {
     pub name: Ident,
     pub types: Vec<Ident>,
@@ -69,7 +60,7 @@ pub struct Block {
     pub span: Span
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Call {
     Fn {
         name: Ident,

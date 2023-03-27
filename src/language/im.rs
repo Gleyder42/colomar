@@ -1,54 +1,65 @@
 use std::rc::Rc;
 use crate::language::ast::Spanned;
+use crate::language::Ident;
 use crate::Span;
 
+#[derive(Debug)]
 pub struct Im(pub Vec<Root>);
 
+#[derive(Debug)]
 pub enum Root {
     Rule(DeclaredRule),
-    Enum(Enum),
-    Event(Event),
+    Enum(Rc<Enum>),
+    Event(Rc<Event>),
 }
 
+#[derive(Debug)]
 pub struct EnumConstant {
     pub name: String
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Enum {
     pub is_workshop: Spanned<bool>,
     pub constants: Vec<Rc<EnumConstant>>,
 }
 
+#[derive(Debug)]
 pub enum StaticValue {
     EnumConstant(Rc<EnumConstant>)
 }
 
-#[derive(Clone)]
-pub struct Type(pub String);
+#[derive(Debug, Clone)]
+pub enum Type {
+    Enum(Rc<Enum>)
+}
 
+#[derive(Debug)]
 pub struct DeclaredArgument {
-    pub name: String,
+    pub name: Ident,
     pub types: Vec<Type>,
     pub default_values: Option<StaticValue>
 }
 
+#[derive(Debug)]
 pub struct CalledArgument {
     pub declared: Rc<DeclaredArgument>,
     pub value: StaticValue
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Event {
-    pub name: Spanned<String>,
+    pub name: Ident,
     pub arguments: Vec<Rc<DeclaredArgument>>
 }
 
+#[derive(Debug)]
 pub struct CalledEvent {
     pub declared: Rc<Event>,
     pub arguments: CalledArgument
 }
 
+#[derive(Debug)]
 pub struct DeclaredRule {
     pub title: String,
     pub event: Rc<Event>,
