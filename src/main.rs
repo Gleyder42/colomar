@@ -12,8 +12,10 @@ use crate::language::lexer::{lexer, Token};
 use crate::language::parser::parser;
 
 pub type Span = Range<usize>;
-use ariadne::{Color, ColorGenerator, Fmt, Label, Report, ReportBuilder, ReportKind, Source};
+
+use ariadne::{Color, ColorGenerator, Fmt, Label, Report, ReportBuilder, ReportKind, Source, sources};
 use chumsky::error::SimpleReason;
+use crate::language::converter::ConverterError;
 
 pub mod workshop;
 pub mod language;
@@ -36,11 +38,31 @@ fn main() {
         println!("{:#?}", errors);
 
         if let Some(ast) = ast {
-            let im = language::converter::convert(ast);
+            let (im, im_errors) = language::converter::convert(ast);
 
             println!("{:#?}", im);
-        }
+            println!("{:#?}", im_errors);
 
+            im_errors.into_iter()
+                .for_each(|it| {
+                    let report = match it {
+                        ConverterError::CannotResolveIdent(message, span) => {
+                            Report::build(ReportKind::Error, "test2.colo", span.start)
+                                .with_code(10)
+                                .with_message(message)
+                                .with_label(
+                                    Label::new(("test2.colo", span.clone()))
+                                        .with_color(Color::Red)
+                                )
+                                .finish()
+                                .print(sources(vec![
+                                    ("test2.colo", include_str!("../dsl/example/test2.colo"))
+                                ]))
+                                .unwrap();
+                        }
+                    };
+                });
+        }
 
         for error in errors.into_iter().map(|e| e.map(|it| format!("{}", it))) {
             let report = Report::build(ReportKind::Error, (), error.span().start);
@@ -79,7 +101,6 @@ fn main() {
                         if error.expected().len() == 0 {
                             "end of input".to_string()
                         } else {
-
                             error.expected()
                                 .flatten()
                                 .map(|x| x.to_string())

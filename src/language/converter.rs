@@ -2,8 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use chumsky::prelude::todo;
-use crate::language::{ast, Ident};
+use crate::language::{ast, Ident, Span};
 use crate::language::im;
 use crate::language::validator::{Namespace, Validator};
 use crate::multimap::Multimap;
@@ -11,15 +10,21 @@ use crate::multimap::Multimap;
 type Map<K, V> = HashMap<K, V>;
 type QueryCache<K, V> = HashMap<K, V>;
 
-pub fn convert(ast: ast::Ast) -> im::Im {
+#[derive(Debug)]
+pub enum ConverterError {
+    CannotResolveIdent(String, Span)
+}
+
+pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
     let mut type_cache: QueryCache<String, im::Type> = QueryCache::new();
     let mut enum_cache: QueryCache<ast::Enum, Rc<im::Enum>> = QueryCache::new();
     let mut event_cache: QueryCache<ast::Event, Rc<im::Event>> = QueryCache::new();
     let mut ident_map = build_ident_map(&ast);
 
-    let mut iter = ast.0.iter();
-    let mut vec = Vec::new();
+    let mut ast_vec = Vec::new();
+    let mut error_vec = Vec::new();
 
+    let mut iter = ast.0.iter();
     loop {
         let root = match iter.next() {
             Some(root) => root,
@@ -33,6 +38,7 @@ pub fn convert(ast: ast::Ast) -> im::Im {
                     &mut enum_cache,
                     &mut event_cache,
                     &mut ident_map,
+                    &mut error_vec,
                     event
                 );
                 im::Root::Event(im_event)
@@ -41,13 +47,13 @@ pub fn convert(ast: ast::Ast) -> im::Im {
                 let im_enum = resolve_enum(&mut enum_cache, r#enum);
                 im::Root::Enum(im_enum)
             },
-            _ => unimplemented!()
+            _ => todo!()
         };
 
-        vec.push(im_root);
+        ast_vec.push(im_root);
     };
 
-    im::Im(vec)
+    (im::Im(ast_vec), error_vec)
 }
 
 fn build_ident_map(ast: &ast::Ast) -> Map<String, &ast::Root> {
@@ -72,6 +78,7 @@ fn resolve_event(
     enum_cache: &mut QueryCache<ast::Enum, Rc<im::Enum>>,
     event_cache: &mut QueryCache<ast::Event, Rc<im::Event>>,
     ident_map: &mut Map<String, &ast::Root>,
+    errors: &mut Vec<ConverterError>,
     event: &ast::Event
 ) -> Rc<im::Event> {
     if let Some(cached) = event_cache.get(&event) {
@@ -82,7 +89,7 @@ fn resolve_event(
         .map(|decl_args| {
             im::DeclaredArgument {
                 name: decl_args.name.clone(),
-                types: decl_args.types.iter().map(|it| resolve_type(type_cache, enum_cache, ident_map, &it)).collect(),
+                types: decl_args.types.iter().filter_map(|it| resolve_type(type_cache, enum_cache, ident_map, errors, &it)).collect(),
                 default_values: None
             }
         })
@@ -99,22 +106,24 @@ fn resolve_type(
     type_cache: &mut QueryCache<String, im::Type>,
     enum_cache: &mut QueryCache<ast::Enum, Rc<im::Enum>>,
     ident_map: &mut Map<String, &ast::Root>,
+    errors: &mut Vec<ConverterError>,
     ident: &Ident,
-) -> im::Type {
+) -> Option<im::Type> {
     if let Some(cached) = type_cache.get(&ident.0) {
-        return cached.clone();
+        return Some(cached.clone());
     }
 
     if let Some(root) = ident_map.get(&ident.0) {
         let r#type = match root {
             ast::Root::Enum(r#enum) => im::Type::Enum(resolve_enum(enum_cache, r#enum)),
-            _ => unimplemented!()
+            _ => todo!()
         };
 
         type_cache.insert(ident.0.clone(), r#type.clone());
-        r#type
+        Some(r#type)
     } else {
-        panic!("Cannot find ident {}", &ident.0)
+        errors.push(ConverterError::CannotResolveIdent(format!("Cannot find type {} in global scope", ident.0), ident.1.clone()));
+        None
     }
 }
 

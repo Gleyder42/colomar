@@ -24,12 +24,12 @@ impl Display for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Token::ContextAssigment => write!(f, "ContextAssigment"),
-            Token::Rule => write!(f, "Rule"),
-            Token::Event => write!(f, "Event"),
-            Token::Cond => write!(f, "Cond"),
-            Token::Workshop => write!(f, "Workshop"),
-            Token::Enum => write!(f, "Enum"),
-            Token::By => write!(f, "By"),
+            Token::Rule => write!(f, "rule"),
+            Token::Event => write!(f, "event"),
+            Token::Cond => write!(f, "cond"),
+            Token::Workshop => write!(f, "workshop"),
+            Token::Enum => write!(f, "enum"),
+            Token::By => write!(f, "by"),
             Token::Ident(string) => write!(f, "Ident {string}"),
             Token::String(string) => write!(f, "String {string}"),
             Token::Num(string) => write!(f, "Num {string}"),
