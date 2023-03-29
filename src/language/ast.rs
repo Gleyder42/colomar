@@ -43,7 +43,7 @@ pub struct DeclaredArgument {
     pub span: Span
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Rule {
     pub name: Spanned<String>,
     pub event: Ident,

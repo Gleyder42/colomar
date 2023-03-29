@@ -47,7 +47,9 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
                 let im_enum = resolve_enum(&mut enum_cache, r#enum);
                 im::Root::Enum(im_enum)
             },
-            _ => todo!()
+            ast::Root::Rule(rule) => {
+                todo!()
+            }
         };
 
         ast_vec.push(im_root);
@@ -69,7 +71,30 @@ fn build_ident_map(ast: &ast::Ast) -> Map<String, &ast::Root> {
     ident_map
 }
 
-fn convert_rule(rule: ast::Rule) -> im::DeclaredRule {
+fn resolve_rule(
+    rule_cache: QueryCache<ast::Rule, Rc<im::DeclaredRule>>,
+    rule: ast::Rule
+) -> Rc<im::DeclaredRule> {
+    if let Some(cached) = rule_cache.get(&rule) {
+        return Rc::clone(cached);
+    }
+
+    todo!()
+}
+
+fn resolve_called_argument(
+    type_cache: &mut QueryCache<String, im::Type>,
+    enum_cache: &mut QueryCache<ast::Enum, Rc<im::Enum>>,
+    event_cache: &mut QueryCache<ast::Event, Rc<im::Event>>,
+    ident_map: &mut Map<String, &ast::Root>,
+    errors: &mut Vec<ConverterError>,
+    called_argument_cache: QueryCache<Box<ast::Call>, Vec<im::CalledArgument>>,
+    call: &Box<ast::Call>
+) -> Vec<im::CalledArgument> {
+    if let Some(cached) = called_argument_cache.get(call) {
+        return cached.clone()
+    }
+
     todo!()
 }
 
@@ -132,7 +157,6 @@ fn resolve_enum(
     r#enum: &ast::Enum
 ) -> Rc<im::Enum> {
     if let Some(cached) = cache.get(r#enum) {
-        println!("Cache Hit! {:?}", cached);
         return Rc::clone(cached);
     }
 

@@ -34,6 +34,7 @@ impl Display for Team {
 }
 
 impl Display for WorkshopTree {
+
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let string = self.0.iter()
             .map(|it| it.to_string())

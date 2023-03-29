@@ -24,7 +24,7 @@ pub struct Enum {
     pub constants: Vec<Rc<EnumConstant>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StaticValue {
     EnumConstant(Rc<EnumConstant>)
 }
@@ -41,7 +41,7 @@ pub struct DeclaredArgument {
     pub default_values: Option<StaticValue>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CalledArgument {
     pub declared: Rc<DeclaredArgument>,
     pub value: StaticValue
