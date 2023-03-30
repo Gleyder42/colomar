@@ -2,8 +2,13 @@ rule "Hello World" OngoingEachPlayer(Team.Team2, Hero.Ana) {
 
 }
 
-workshop event OngoingEachPlayer(team: team = Team.All, slot: Slot | Hero = Slot.All) {
+workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+    val test = 10
+    if test == 10 {
 
+    } else {
+
+    }
 }
 
 workshop enum Slot {
@@ -26,6 +31,6 @@ rule "Test" OngoingEachPlayer() {
 
 }
 
-event WeaponReloading(team: Team = Team.All, slot: Slot = Slot.All) by OngoingEachPlayer(team, slot) {
+event WeaponReloading(team: Team = Team.All, slot: Slot | Hero = Slot.All) by OngoingEachPlayer(team, slot) {
 
 }

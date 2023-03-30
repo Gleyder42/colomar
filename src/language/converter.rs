@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use crate::language::{ast, Ident, Span};
-use crate::language::im;
+use crate::language::imt;
 use crate::language::validator::{Namespace, Validator};
 use crate::multimap::Multimap;
 
@@ -15,10 +15,10 @@ pub enum ConverterError {
     CannotResolveIdent(String, Span)
 }
 
-pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
-    let mut type_cache: QueryCache<String, im::Type> = QueryCache::new();
-    let mut enum_cache: QueryCache<ast::Enum, Rc<im::Enum>> = QueryCache::new();
-    let mut event_cache: QueryCache<ast::Event, Rc<im::Event>> = QueryCache::new();
+pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
+    let mut type_cache: QueryCache<String, imt::Type> = QueryCache::new();
+    let mut enum_cache: QueryCache<ast::Enum, Rc<imt::Enum>> = QueryCache::new();
+    let mut event_cache: QueryCache<ast::Event, Rc<imt::Event>> = QueryCache::new();
     let mut ident_map = build_ident_map(&ast);
 
     let mut ast_vec = Vec::new();
@@ -41,11 +41,11 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
                     &mut error_vec,
                     event
                 );
-                im::Root::Event(im_event)
+                imt::Root::Event(im_event)
             }
             ast::Root::Enum(r#enum) => {
                 let im_enum = resolve_enum(&mut enum_cache, r#enum);
-                im::Root::Enum(im_enum)
+                imt::Root::Enum(im_enum)
             },
             ast::Root::Rule(rule) => {
                 todo!()
@@ -55,7 +55,7 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
         ast_vec.push(im_root);
     };
 
-    (im::Im(ast_vec), error_vec)
+    (imt::Imt(ast_vec), error_vec)
 }
 
 fn build_ident_map(ast: &ast::Ast) -> Map<String, &ast::Root> {
@@ -72,9 +72,9 @@ fn build_ident_map(ast: &ast::Ast) -> Map<String, &ast::Root> {
 }
 
 fn resolve_rule(
-    rule_cache: QueryCache<ast::Rule, Rc<im::DeclaredRule>>,
+    rule_cache: QueryCache<ast::Rule, Rc<imt::DeclaredRule>>,
     rule: ast::Rule
-) -> Rc<im::DeclaredRule> {
+) -> Rc<imt::DeclaredRule> {
     if let Some(cached) = rule_cache.get(&rule) {
         return Rc::clone(cached);
     }
@@ -83,14 +83,14 @@ fn resolve_rule(
 }
 
 fn resolve_called_argument(
-    type_cache: &mut QueryCache<String, im::Type>,
-    enum_cache: &mut QueryCache<ast::Enum, Rc<im::Enum>>,
-    event_cache: &mut QueryCache<ast::Event, Rc<im::Event>>,
+    type_cache: &mut QueryCache<String, imt::Type>,
+    enum_cache: &mut QueryCache<ast::Enum, Rc<imt::Enum>>,
+    event_cache: &mut QueryCache<ast::Event, Rc<imt::Event>>,
     ident_map: &mut Map<String, &ast::Root>,
     errors: &mut Vec<ConverterError>,
-    called_argument_cache: QueryCache<Box<ast::Call>, Vec<im::CalledArgument>>,
+    called_argument_cache: QueryCache<Box<ast::Call>, Vec<imt::CalledArgument>>,
     call: &Box<ast::Call>
-) -> Vec<im::CalledArgument> {
+) -> Vec<imt::CalledArgument> {
     if let Some(cached) = called_argument_cache.get(call) {
         return cached.clone()
     }
@@ -99,20 +99,20 @@ fn resolve_called_argument(
 }
 
 fn resolve_event(
-    type_cache: &mut QueryCache<String, im::Type>,
-    enum_cache: &mut QueryCache<ast::Enum, Rc<im::Enum>>,
-    event_cache: &mut QueryCache<ast::Event, Rc<im::Event>>,
+    type_cache: &mut QueryCache<String, imt::Type>,
+    enum_cache: &mut QueryCache<ast::Enum, Rc<imt::Enum>>,
+    event_cache: &mut QueryCache<ast::Event, Rc<imt::Event>>,
     ident_map: &mut Map<String, &ast::Root>,
     errors: &mut Vec<ConverterError>,
     event: &ast::Event
-) -> Rc<im::Event> {
+) -> Rc<imt::Event> {
     if let Some(cached) = event_cache.get(&event) {
         return Rc::clone(cached);
     }
 
     let arguments: Vec<_> = event.args.iter()
         .map(|decl_args| {
-            im::DeclaredArgument {
+            imt::DeclaredArgument {
                 name: decl_args.name.clone(),
                 types: decl_args.types.iter().filter_map(|it| resolve_type(type_cache, enum_cache, ident_map, errors, &it)).collect(),
                 default_values: None
@@ -121,26 +121,26 @@ fn resolve_event(
         .map(|it| Rc::new(it))
         .collect();
 
-    let im_event = im::Event { name: event.name.clone(), arguments };
+    let im_event = imt::Event { name: event.name.clone(), arguments };
     let im_event = Rc::new(im_event);
     event_cache.insert(event.clone(), Rc::clone(&im_event));
     im_event
 }
 
 fn resolve_type(
-    type_cache: &mut QueryCache<String, im::Type>,
-    enum_cache: &mut QueryCache<ast::Enum, Rc<im::Enum>>,
+    type_cache: &mut QueryCache<String, imt::Type>,
+    enum_cache: &mut QueryCache<ast::Enum, Rc<imt::Enum>>,
     ident_map: &mut Map<String, &ast::Root>,
     errors: &mut Vec<ConverterError>,
     ident: &Ident,
-) -> Option<im::Type> {
+) -> Option<imt::Type> {
     if let Some(cached) = type_cache.get(&ident.0) {
         return Some(cached.clone());
     }
 
     if let Some(root) = ident_map.get(&ident.0) {
         let r#type = match root {
-            ast::Root::Enum(r#enum) => im::Type::Enum(resolve_enum(enum_cache, r#enum)),
+            ast::Root::Enum(r#enum) => imt::Type::Enum(resolve_enum(enum_cache, r#enum)),
             _ => todo!()
         };
 
@@ -153,17 +153,17 @@ fn resolve_type(
 }
 
 fn resolve_enum(
-    cache: &mut QueryCache<ast::Enum, Rc<im::Enum>>,
+    cache: &mut QueryCache<ast::Enum, Rc<imt::Enum>>,
     r#enum: &ast::Enum
-) -> Rc<im::Enum> {
+) -> Rc<imt::Enum> {
     if let Some(cached) = cache.get(r#enum) {
         return Rc::clone(cached);
     }
 
-    let im_enum = im::Enum {
+    let im_enum = imt::Enum {
         is_workshop: r#enum.is_workshop.clone(),
         constants: r#enum.constants.iter()
-            .map(|it| Rc::new(im::EnumConstant { name: it.0.clone() }))
+            .map(|it| Rc::new(imt::EnumConstant { name: it.0.clone() }))
             .collect()
     };
 

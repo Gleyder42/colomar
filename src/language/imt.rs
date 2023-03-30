@@ -3,8 +3,9 @@ use crate::language::ast::Spanned;
 use crate::language::Ident;
 use crate::Span;
 
+// Intermediate Tree
 #[derive(Debug)]
-pub struct Im(pub Vec<Root>);
+pub struct Imt(pub Vec<Root>);
 
 #[derive(Debug)]
 pub enum Root {

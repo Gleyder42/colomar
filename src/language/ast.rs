@@ -1,5 +1,5 @@
 use crate::language::Ident;
-use crate::language::im::Named;
+use crate::language::imt::Named;
 use crate::Span;
 
 pub type Action = Box<Call>;
@@ -9,6 +9,7 @@ pub type CallArgs = Vec<Box<Call>>;
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Spanned<T>(pub T, pub Span);
 
+// Abstract Syntax Tree
 #[derive(Debug)]
 pub struct Ast(pub Vec<Root>);
 

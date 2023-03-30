@@ -1,9 +1,9 @@
-use crate::language::im::Named;
+use crate::language::imt::Named;
 
 pub mod parser;
 pub mod lexer;
 pub mod ast;
-pub mod im;
+pub mod imt;
 
 mod validator;
 pub mod converter;

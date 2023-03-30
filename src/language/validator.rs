@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::process::id;
 use std::rc::Rc;
 use crate::language::ast;
-use crate::language::im::Named;
+use crate::language::imt::Named;
 
 pub struct Namespace<'a> {
     idents: HashSet<&'a str>,
