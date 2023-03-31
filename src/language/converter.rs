@@ -1,7 +1,10 @@
+use std::any::Any;
+use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use chumsky::prelude::todo;
 use crate::language::{ast, Ident, Span};
 use crate::language::imt;
 use crate::language::validator::{Namespace, Validator};
@@ -9,6 +12,62 @@ use crate::multimap::Multimap;
 
 type Map<K, V> = HashMap<K, V>;
 type QueryCache<K, V> = HashMap<K, V>;
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum Validity {
+    Complete,
+    Unresolved,
+    Invalid
+}
+
+#[derive(Hash, Eq, PartialEq)]
+enum QueryCacheKey {
+
+}
+
+#[derive(Clone)]
+enum QueryCacheValue {
+
+}
+
+
+struct QueryCacheNode<K, V>
+    where K: Hash + Eq + PartialEq,
+{
+    map: HashMap<K, V>,
+    validity: Validity,
+    dependencies: Vec<(Rc<RefCell<QueryCacheNode<QueryCacheKey, QueryCacheValue>>>, fn(&Self)->Vec<QueryCacheKey>)>
+}
+
+impl<K, V> QueryCacheNode<K, V>
+    where K: Hash + Eq + PartialEq,
+          V: Clone
+{
+
+    fn new() -> Self {
+        QueryCacheNode { map: HashMap::new(), validity: Validity::Unresolved, dependencies: Vec::new() }
+    }
+
+    fn get_cache(&mut self, k: &K) -> Option<V> {
+        match self.validity {
+            Validity::Complete => self.map.get(k).map(|it| it.clone()),
+            Validity::Unresolved => {
+                let valid = self.dependencies.iter().all(|(dependency, provider)| {
+                    provider(&self).iter().all(|it| dependency.borrow_mut().get_cache(&it).is_some())
+                });
+
+                if valid {
+                    self.validity = Validity::Complete;
+                    self.map.get(k).map(|it| it.clone())
+                } else {
+                    self.validity = Validity::Invalid;
+                    None
+                }
+            },
+            Validity::Invalid => None
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum ConverterError {
@@ -101,7 +160,7 @@ fn resolve_called_argument(
 fn resolve_event(
     type_cache: &mut QueryCache<String, imt::Type>,
     enum_cache: &mut QueryCache<ast::Enum, Rc<imt::Enum>>,
-    event_cache: &mut QueryCache<ast::Event, Rc<imt::Event>>,
+    event_cache: &mut QueryCache<(ast::Event), Rc<imt::Event>>,
     ident_map: &mut Map<String, &ast::Root>,
     errors: &mut Vec<ConverterError>,
     event: &ast::Event
