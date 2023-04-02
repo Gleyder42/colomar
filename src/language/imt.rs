@@ -9,24 +9,25 @@ pub struct Imt(pub Vec<Root>);
 
 #[derive(Debug)]
 pub enum Root {
-    Rule(DeclaredRule),
+    Rule(Rule),
     Enum(Rc<Enum>),
     Event(Rc<Event>),
 }
 
 #[derive(Debug)]
 pub struct EnumConstant {
-    pub name: String
+    pub name: Ident
 }
 
 #[derive(Debug, Clone)]
 pub struct Enum {
+    pub name: Ident,
     pub is_workshop: Spanned<bool>,
-    pub constants: Vec<Rc<EnumConstant>>,
+    pub constants: Vec<Rc<EnumConstant>>
 }
 
 #[derive(Debug, Clone)]
-pub enum StaticValue {
+pub enum ConstValue {
     EnumConstant(Rc<EnumConstant>)
 }
 
@@ -39,31 +40,25 @@ pub enum Type {
 pub struct DeclaredArgument {
     pub name: Ident,
     pub types: Vec<Type>,
-    pub default_values: Option<StaticValue>
+    pub default_values: Option<ConstValue>
 }
 
 #[derive(Debug, Clone)]
 pub struct CalledArgument {
     pub declared: Rc<DeclaredArgument>,
-    pub value: StaticValue
+    pub value: ConstValue
 }
 
 #[derive(Debug, Clone)]
 pub struct Event {
     pub name: Ident,
-    pub arguments: Vec<Rc<DeclaredArgument>>
+    pub arguments: Vec<Rc<DeclaredArgument>>,
 }
 
 #[derive(Debug)]
-pub struct CalledEvent {
-    pub declared: Rc<Event>,
-    pub arguments: CalledArgument
-}
-
-#[derive(Debug)]
-pub struct DeclaredRule {
+pub struct Rule {
     pub title: String,
-    pub event: Rc<Event>,
+    pub event: Option<Rc<Event>>,
     pub arguments: Vec<CalledArgument>
 }
 

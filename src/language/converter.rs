@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use chumsky::prelude::todo;
+use petgraph::prelude::*;
 use crate::language::{ast, Ident, Span};
 use crate::language::imt;
 use crate::language::validator::{Namespace, Validator};
@@ -13,69 +14,12 @@ use crate::multimap::Multimap;
 type Map<K, V> = HashMap<K, V>;
 type QueryCache<K, V> = HashMap<K, V>;
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-enum Validity {
-    Complete,
-    Unresolved,
-    Invalid
-}
-
-#[derive(Hash, Eq, PartialEq)]
-enum QueryCacheKey {
-
-}
-
-#[derive(Clone)]
-enum QueryCacheValue {
-
-}
-
-
-struct QueryCacheNode<K, V>
-    where K: Hash + Eq + PartialEq,
-{
-    map: HashMap<K, V>,
-    validity: Validity,
-    dependencies: Vec<(Rc<RefCell<QueryCacheNode<QueryCacheKey, QueryCacheValue>>>, fn(&Self)->Vec<QueryCacheKey>)>
-}
-
-impl<K, V> QueryCacheNode<K, V>
-    where K: Hash + Eq + PartialEq,
-          V: Clone
-{
-
-    fn new() -> Self {
-        QueryCacheNode { map: HashMap::new(), validity: Validity::Unresolved, dependencies: Vec::new() }
-    }
-
-    fn get_cache(&mut self, k: &K) -> Option<V> {
-        match self.validity {
-            Validity::Complete => self.map.get(k).map(|it| it.clone()),
-            Validity::Unresolved => {
-                let valid = self.dependencies.iter().all(|(dependency, provider)| {
-                    provider(&self).iter().all(|it| dependency.borrow_mut().get_cache(&it).is_some())
-                });
-
-                if valid {
-                    self.validity = Validity::Complete;
-                    self.map.get(k).map(|it| it.clone())
-                } else {
-                    self.validity = Validity::Invalid;
-                    None
-                }
-            },
-            Validity::Invalid => None
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum ConverterError {
     CannotResolveIdent(String, Span)
 }
 
 pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
-    let mut type_cache: QueryCache<String, imt::Type> = QueryCache::new();
     let mut enum_cache: QueryCache<ast::Enum, Rc<imt::Enum>> = QueryCache::new();
     let mut event_cache: QueryCache<ast::Event, Rc<imt::Event>> = QueryCache::new();
     let mut ident_map = build_ident_map(&ast);
@@ -93,7 +37,6 @@ pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
         let im_root = match root {
             ast::Root::Event(event) => {
                 let im_event = resolve_event(
-                    &mut type_cache,
                     &mut enum_cache,
                     &mut event_cache,
                     &mut ident_map,
@@ -131,9 +74,9 @@ fn build_ident_map(ast: &ast::Ast) -> Map<String, &ast::Root> {
 }
 
 fn resolve_rule(
-    rule_cache: QueryCache<ast::Rule, Rc<imt::DeclaredRule>>,
+    rule_cache: QueryCache<ast::Rule, Rc<imt::Rule>>,
     rule: ast::Rule
-) -> Rc<imt::DeclaredRule> {
+) -> Rc<imt::Rule> {
     if let Some(cached) = rule_cache.get(&rule) {
         return Rc::clone(cached);
     }
@@ -158,7 +101,6 @@ fn resolve_called_argument(
 }
 
 fn resolve_event(
-    type_cache: &mut QueryCache<String, imt::Type>,
     enum_cache: &mut QueryCache<ast::Enum, Rc<imt::Enum>>,
     event_cache: &mut QueryCache<(ast::Event), Rc<imt::Event>>,
     ident_map: &mut Map<String, &ast::Root>,
@@ -173,7 +115,7 @@ fn resolve_event(
         .map(|decl_args| {
             imt::DeclaredArgument {
                 name: decl_args.name.clone(),
-                types: decl_args.types.iter().filter_map(|it| resolve_type(type_cache, enum_cache, ident_map, errors, &it)).collect(),
+                types: decl_args.types.iter().filter_map(|it| resolve_type(enum_cache, errors, ident_map, &it)).collect(),
                 default_values: None
             }
         })
@@ -187,23 +129,17 @@ fn resolve_event(
 }
 
 fn resolve_type(
-    type_cache: &mut QueryCache<String, imt::Type>,
     enum_cache: &mut QueryCache<ast::Enum, Rc<imt::Enum>>,
-    ident_map: &mut Map<String, &ast::Root>,
     errors: &mut Vec<ConverterError>,
+    ident_map: &mut Map<String, &ast::Root>,
     ident: &Ident,
 ) -> Option<imt::Type> {
-    if let Some(cached) = type_cache.get(&ident.0) {
-        return Some(cached.clone());
-    }
-
     if let Some(root) = ident_map.get(&ident.0) {
         let r#type = match root {
             ast::Root::Enum(r#enum) => imt::Type::Enum(resolve_enum(enum_cache, r#enum)),
             _ => todo!()
         };
 
-        type_cache.insert(ident.0.clone(), r#type.clone());
         Some(r#type)
     } else {
         errors.push(ConverterError::CannotResolveIdent(format!("Cannot find type {} in global scope", ident.0), ident.1.clone()));
@@ -220,9 +156,10 @@ fn resolve_enum(
     }
 
     let im_enum = imt::Enum {
+        name: r#enum.name.clone(),
         is_workshop: r#enum.is_workshop.clone(),
         constants: r#enum.constants.iter()
-            .map(|it| Rc::new(imt::EnumConstant { name: it.0.clone() }))
+            .map(|it| Rc::new(imt::EnumConstant { name: it.clone() }))
             .collect()
     };
 
