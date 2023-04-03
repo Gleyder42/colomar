@@ -1,4 +1,5 @@
 #![feature(type_alias_impl_trait)]
+#![feature(box_patterns)]
 
 extern crate core;
 
@@ -24,7 +25,7 @@ mod compiler;
 mod multimap;
 
 fn main() {
-    let path = Path::new("dsl/example/test2.colo");
+    let path = Path::new("dsl/example/test.colo");
     let mut file = fs::File::open(path).unwrap();
 
     let mut source = String::new();
@@ -56,7 +57,25 @@ fn main() {
                                 )
                                 .finish()
                                 .print(sources(vec![
-                                    ("test2.colo", include_str!("../dsl/example/test2.colo"))
+                                    ("test2.colo", source.as_str())
+                                ]))
+                                .unwrap();
+                        },
+                        ConverterError::ResolvedIdentWrongType { message, help, called_span, referenced_span } => {
+                            Report::build(ReportKind::Error, "test2.colo", called_span.start)
+                                .with_code(2)
+                                .with_message(message)
+                                .with_label(
+                                    Label::new(("test2.colo", called_span.clone()))
+                                        .with_message("Used here")
+                                )
+                                .with_label(
+                                    Label::new(("test2.colo", referenced_span.clone()))
+                                        .with_message(help)
+                                )
+                                .finish()
+                                .print(sources(vec![
+                                    ("test2.colo", source.as_str())
                                 ]))
                                 .unwrap();
                         }
