@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn test_enum() {
-        let actual_enums: Vec<_> = read(&ENUM).0.into_iter()
+        let actual_enums: Vec<_> = read(&ENUM).into_iter()
             .filter_map(|decl| match decl {
                 Root::Enum(my_enum) => Some(my_enum),
                 _ => None
@@ -195,20 +195,20 @@ mod tests {
         let expected: Vec<Enum> = vec![
             Enum {
                 is_workshop: Spanned(true, 0..8),
-                name: Ident("Hero".to_string(), 14..18),
+                name: Ident::new("Hero".to_string(), 14..18),
                 constants: vec![
-                    Ident("Reaper".to_string(), 26..32),
-                    Ident("Tracer".to_string(), 39..45),
-                    Ident("Mercy".to_string(), 52..57),
+                    Ident::new("Reaper".to_string(), 26..32),
+                    Ident::new("Tracer".to_string(), 39..45),
+                    Ident::new("Mercy".to_string(), 52..57),
                 ],
                 span: 0..60
             },
             Enum {
                 is_workshop: Spanned(false, 64..68),
-                name: Ident("MyEnum".to_string(), 69..75),
+                name: Ident::new("MyEnum".to_string(), 69..75),
                 constants: vec![
-                    Ident("First".to_string(), 83..88),
-                    Ident("Second".to_string(), 90..96),
+                    Ident::new("First".to_string(), 83..88),
+                    Ident::new("Second".to_string(), 90..96),
                 ],
                 span: 64..99
             },
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn test_event_decl() {
-        let actual_events: Vec<_> = read(&EVENT_DECL_HEADER).0.into_iter()
+        let actual_events: Vec<_> = read(&EVENT_DECL_HEADER).into_iter()
             .filter_map(|o| match o {
                 Root::Event(event) => Some(event),
                 _ => None,
@@ -235,25 +235,25 @@ mod tests {
 
         let expected: Vec<Event> = vec![
             Event {
-                name: Ident("OngoingEachPlayer".to_string(), 15..32),
+                name: Ident::new("OngoingEachPlayer".to_string(), 15..32),
                 by: None,
                 span: 0..71,
                 args: vec![
                     DeclaredArgument {
-                        name: Ident("team".to_string(), 33..37),
-                        types: vec![Ident("Team".to_string(), 39..43)],
+                        name: Ident::new("team".to_string(), 33..37),
+                        types: vec![Ident::new("Team".to_string(), 39..43)],
                         default_value: None,
                         span: 33..43
                     },
                     DeclaredArgument {
-                        name: Ident(
+                        name: Ident::new(
                             "heroSlot".to_string(),
                             45..53,
                         ),
-                        types: vec![Ident(
+                        types: vec![Ident::new(
                                     "Hero".to_string(),
                                     55..59,
-                                ), Ident(
+                                ), Ident::new(
                             "Slot".to_string(),
                             62..66,
                         )],
@@ -284,7 +284,7 @@ mod tests {
         let expected: Vec<Rule> = vec![
             Rule {
                 name: Spanned("Heal on Kill".to_string(), 5..19),
-                event: Ident("OngoingPlayer".to_string(), 20..33),
+                event: Ident::new("OngoingPlayer".to_string(), 20..33),
                 args: Vec::new(),
                 conditions: Vec::new(),
                 actions: Vec::new(),
@@ -292,10 +292,10 @@ mod tests {
             },
             Rule {
                 name: Spanned("Test".to_string(), 48..54),
-                event: Ident("MyEvent".to_string(), 55..62),
+                event: Ident::new("MyEvent".to_string(), 55..62),
                 args: vec![
-                    Call::new_var(Ident("Hello".to_string(), 63..68)),
-                    Call::new_var(Ident("World".to_string(), 70..75)),
+                    Call::new_var(Ident::new("Hello".to_string(), 63..68)),
+                    Call::new_var(Ident::new("World".to_string(), 70..75)),
                 ],
                 conditions: Vec::new(),
                 actions: Vec::new(),
@@ -303,10 +303,10 @@ mod tests {
             },
             Rule {
                 name: Spanned("Heal on Kill".to_string(), 89..103),
-                event: Ident("PlayerDealtFinalBlow".to_string(), 104..124),
+                event: Ident::new("PlayerDealtFinalBlow".to_string(), 104..124),
                 args: vec![
-                    Call::new_var(Ident("Team1".to_string(), 125..130)),
-                    Call::new_var(Ident("Slot1".to_string(), 132..137)),
+                    Call::new_var(Ident::new("Team1".to_string(), 125..130)),
+                    Call::new_var(Ident::new("Slot1".to_string(), 132..137)),
                 ],
                 conditions: Vec::new(),
                 actions: Vec::new(),
@@ -314,10 +314,10 @@ mod tests {
             },
             Rule {
                 name: Spanned("Heal on Kill".to_string(), 151..165),
-                event: Ident("PlayerDealtFinalBlow".to_string(), 166..186),
+                event: Ident::new("PlayerDealtFinalBlow".to_string(), 166..186),
                 args: vec![
-                    Call::new_fn(Ident("Team1".to_string(), 187..192), 187..194),
-                    Call::new_fn(Ident("Slot1".to_string(), 196..201), 196..203),
+                    Call::new_fn(Ident::new("Team1".to_string(), 187..192), 187..194),
+                    Call::new_fn(Ident::new("Slot1".to_string(), 196..201), 196..203),
                 ],
                 conditions: Vec::new(),
                 actions: Vec::new(),
@@ -326,17 +326,17 @@ mod tests {
             Rule {
                 name: Spanned("Do something".to_string(), 217..231),
                 span: 212..271,
-                event: Ident("HelloWorld".to_string(), 232..242),
+                event: Ident::new("HelloWorld".to_string(), 232..242),
                 args: vec![
                     Call::new_fn_args(
-                        Ident("test".to_string(), 243..247),
+                        Ident::new("test".to_string(), 243..247),
                         243..254,
-                        vec![Call::new_var(Ident("Team1".to_string(), 248..253))]
+                        vec![Call::new_var(Ident::new("Team1".to_string(), 248..253))]
                     ),
                     Call::new_fn_args(
-                        Ident("foo".to_string(), 256..259),
+                        Ident::new("foo".to_string(), 256..259),
                         256..266,
-                        vec![Call::new_var(Ident("Slot1".to_string(), 260..265))]
+                        vec![Call::new_var(Ident::new("Slot1".to_string(), 260..265))]
                     ),
                 ],
                 conditions: Vec::new(),
@@ -345,30 +345,30 @@ mod tests {
             Rule {
                 name: Spanned("Complex".to_string(), 280..289),
                 span: 275..345,
-                event: Ident("HelloWorld".to_string(), 290..300),
+                event: Ident::new("HelloWorld".to_string(), 290..300),
                 args: vec![
                     Call::new_var_next(
-                        Ident("foo".to_string(), 301..304),
+                        Ident::new("foo".to_string(), 301..304),
                         Call::new_fn_args_next(
-                            Ident("bar".to_string(), 305..308),
+                            Ident::new("bar".to_string(), 305..308),
                             301..320,
-                            vec![Call::new_var(Ident("hello".to_string(), 309..314))],
-                            Call::new_var(Ident("nice".to_string(), 316..320)),
+                            vec![Call::new_var(Ident::new("hello".to_string(), 309..314))],
+                            Call::new_var(Ident::new("nice".to_string(), 316..320)),
                         ),
                     ),
                     Call::new_fn_args_next(
-                        Ident("fn".to_string(), 322..324),
+                        Ident::new("fn".to_string(), 322..324),
                         322..340,
                         vec![
-                            Call::new_var(Ident("e".to_string(), 325..326)),
-                            Call::new_var(Ident("o".to_string(), 328..329)),
+                            Call::new_var(Ident::new("e".to_string(), 325..326)),
+                            Call::new_var(Ident::new("o".to_string(), 328..329)),
                         ],
                         Call::new_fn_args(
-                            Ident("foo".to_string(), 331..334),
+                            Ident::new("foo".to_string(), 331..334),
                             322..340,
                             vec![
-                                Call::new_var(Ident("x".to_string(), 335..336)),
-                                Call::new_var(Ident("p".to_string(), 338..339, )),
+                                Call::new_var(Ident::new("x".to_string(), 335..336)),
+                                Call::new_var(Ident::new("p".to_string(), 338..339, )),
                             ],
                         ),
                     ),
@@ -378,10 +378,10 @@ mod tests {
             },
         ];
 
-        assert_eq!(actual_rules.0.len(), expected.len(),
+        assert_eq!(actual_rules.len(), expected.len(),
                    "Test if actual rules length is equal to expected length");
 
-        actual_rules.0.into_iter()
+        actual_rules.into_iter()
             .zip(expected)
             .for_each(|(actual, expected)| {
                 match actual {

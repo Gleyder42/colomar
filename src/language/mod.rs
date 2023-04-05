@@ -12,3 +12,10 @@ pub struct Ident {
     pub value: String,
     pub span: Span
 }
+
+impl Ident {
+
+    fn new(value: String, span: Span) -> Ident {
+        Ident { value, span }
+    }
+}
