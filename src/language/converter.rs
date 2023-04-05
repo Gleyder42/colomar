@@ -42,11 +42,26 @@ impl IdentMapExt for IdentMap {
             }
         }
     }
+
+    fn insert_unique(&mut self, ident: Ident, value: imt::Root) -> Result<(), ConverterError> {
+        if !self.contains_key(&ident.value) {
+            self.insert(ident.value.clone(), value);
+            Ok(())
+        } else {
+            let error = ConverterError::CannotResolveIdent(
+                format!("{} already exists in the current scope", ident.value),
+                ident.span.clone()
+            );
+            Err(error)
+        }
+    }
 }
 
 trait IdentMapExt {
 
     fn get_event(&self, ident: &Ident) -> Result<imt::EventRef, ConverterError>;
+
+    fn insert_unique(&mut self, ident: Ident, value: imt::Root) -> Result<(), ConverterError>;
 }
 
 pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
@@ -64,13 +79,19 @@ pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
             ast::Root::Event(event) => {
                 let event = convert_event(&mut event_cache, event);
                 let event_root = imt::Root::Event(Rc::clone(&event));
-                ident_map.insert(event.borrow().name.value.clone(), event_root.clone());
+                let result = ident_map.insert_unique(event.borrow().name.clone(), event_root.clone());
+                if let Err(error) = result {
+                    error_vec.push(error);
+                }
                 event_root
             },
             ast::Root::Enum(r#enum) => {
                 let r#enum = convert_enum(&mut enum_cache, r#enum);
                 let enum_root = imt::Root::Enum(Rc::clone(&r#enum));
-                ident_map.insert(r#enum.borrow().name.value.clone(), enum_root.clone());
+                let result = ident_map.insert_unique(r#enum.borrow().name.clone(), enum_root.clone());
+                if let Err(error) = result {
+                    error_vec.push(error);
+                }
                 enum_root
             },
             ast::Root::Rule(rule) => {
