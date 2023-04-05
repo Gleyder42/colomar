@@ -1,8 +1,48 @@
+use std::fmt::{Display, Formatter};
 use chumsky::prelude::todo;
 use crate::language::imt;
 use crate::workshop as ws;
-use crate::workshop::{Event, HeroSlot};
+use crate::workshop::{Event, HeroSlot, Team};
 
-pub fn compile(im: imt::Imt) -> ws::WorkshopTree {
-    todo!()
+impl Display for imt::EnumConstant {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name.0)
+    }
+}
+
+impl Display for imt::ConstValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            imt::ConstValue::EnumConstant(enum_constant) => write!(f, "{}", enum_constant.name.0)
+        }
+    }
+}
+
+pub fn compile(imt: imt::Imt) -> ws::WorkshopTree {
+    let mut rules = Vec::new();
+
+    for root in imt.0 {
+        match root {
+            imt::Root::Rule(rule) => {
+                let rule = rule.borrow();
+
+                let rule = ws::Rule {
+                    name: rule.title.clone(),
+                    event: Event(rule.event.bound_or_panic().borrow().name.0.clone()) ,
+                    team: Team(rule.arguments.bound_or_panic()
+                        .get(0)
+                        .map(|it| it.value.to_string())
+                        .unwrap_or("All".to_string())),
+                    player: HeroSlot(rule.arguments.bound_or_panic()
+                        .get(1)
+                        .map(|it| it.value.to_string())
+                        .unwrap_or("All".to_string()))
+                };
+                rules.push(rule);
+            }
+            _ => {}
+        }
+    }
+
+    ws::WorkshopTree(rules)
 }

@@ -2,11 +2,11 @@ use std::fmt::{Display, Formatter, write};
 
 pub struct WorkshopTree(pub Vec<Rule>);
 
-pub struct HeroSlot(String);
+pub struct HeroSlot(pub String);
 
-pub struct Team(String);
+pub struct Team(pub String);
 
-pub struct Event(String);
+pub struct Event(pub String);
 
 pub struct Rule {
     pub name: String,
@@ -48,7 +48,8 @@ impl Display for WorkshopTree {
 impl Display for Rule {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f,
-               "rule({rule_name})
+               "
+                rule({rule_name})
                 {{
                     event
                     {{

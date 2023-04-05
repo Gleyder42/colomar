@@ -16,6 +16,7 @@ pub type Span = Range<usize>;
 
 use ariadne::{Color, ColorGenerator, Fmt, Label, Report, ReportBuilder, ReportKind, Source, sources};
 use chumsky::error::SimpleReason;
+use crate::compiler::compile;
 use crate::language::converter::ConverterError;
 
 pub mod workshop;
@@ -39,10 +40,16 @@ fn main() {
         println!("{:#?}", errors);
 
         if let Some(ast) = ast {
-            let (im, im_errors) = language::converter::convert(ast);
+            let (imt, im_errors) = language::converter::convert(ast);
 
-            println!("{:#?}", im);
+
+            println!("{:#?}", imt);
             println!("{:#?}", im_errors);
+
+            if im_errors.is_empty() {
+                let tree = compile(imt);
+                println!("{}", tree);
+            }
 
             im_errors.into_iter()
                 .for_each(|it| {
