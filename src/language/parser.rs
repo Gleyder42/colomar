@@ -160,7 +160,7 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
     choice((rule_parser, event_parser, enum_parser))
         .repeated()
         .then_ignore(end())
-        .map(|p| Ast(p))
+        .map(|ast| ast)
 }
 
 #[cfg(test)]

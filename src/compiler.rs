@@ -20,7 +20,7 @@ impl Display for imt::ConstValue {
 pub fn compile(imt: imt::Imt) -> ws::WorkshopTree {
     let mut rules = Vec::new();
 
-    for root in imt.0 {
+    for root in imt {
         match root {
             imt::Root::Rule(rule) => {
                 let rule = rule.borrow();

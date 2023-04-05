@@ -9,8 +9,8 @@ pub type CallArgs = Vec<Box<Call>>;
 pub struct Spanned<T>(pub T, pub Span);
 
 // Abstract Syntax Tree
-#[derive(Debug)]
-pub struct Ast(pub Vec<Root>);
+
+pub type Ast = Vec<Root>;
 
 #[derive(Debug)]
 pub enum Root {

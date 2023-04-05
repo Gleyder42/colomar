@@ -2,22 +2,42 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 use crate::language::ast::Spanned;
-use crate::language::Ident;
+use crate::language::{Ident, Span};
 
-pub type RefRule = Rc<RefCell<Rule>>;
+pub type RuleRef = Rc<RefCell<Rule>>;
+pub type EnumRef = Rc<RefCell<Enum>>;
+pub type EventRef = Rc<RefCell<Event>>;
 
 // Intermediate Tree
-#[derive(Debug)]
-pub struct Imt(pub Vec<Root>);
+pub type Imt = Vec<Root>;
 
 #[derive(Debug, Clone)]
 pub struct IdentChain(pub Vec<Ident>);
 
 #[derive(Debug, Clone)]
 pub enum Root {
-    Rule(Rc<RefCell<Rule>>),
-    Enum(Rc<RefCell<Enum>>),
-    Event(Rc<RefCell<Event>>),
+    Rule(RuleRef),
+    Enum(EnumRef),
+    Event(EventRef),
+}
+
+impl Root {
+
+    pub fn name(&self) -> &'static str{
+        match self {
+            Root::Event(_) => "Event",
+            Root::Enum(_) => "Enum",
+            Root::Rule(_) => "Rule"
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Root::Rule(rule) => rule.borrow().span.clone(),
+            Root::Enum(r#enum) => r#enum.borrow().span.clone(),
+            Root::Event(event) => event.borrow().span.clone()
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -29,7 +49,8 @@ pub struct EnumConstant {
 pub struct Enum {
     pub name: Ident,
     pub is_workshop: Spanned<bool>,
-    pub constants: Vec<Rc<EnumConstant>>
+    pub constants: Vec<Rc<EnumConstant>>,
+    pub span: Span
 }
 
 #[derive(Debug, Clone)]
@@ -39,7 +60,7 @@ pub enum ConstValue {
 
 #[derive(Debug, Clone)]
 pub enum Type {
-    Enum(Rc<RefCell<Enum>>)
+    Enum(EnumRef)
 }
 
 #[derive(Debug, Clone)]
@@ -82,12 +103,14 @@ pub struct CalledArgument {
 #[derive(Debug, Clone)]
 pub struct Event {
     pub name: Ident,
-    pub arguments: Vec<Rc<RefCell<DeclaredArgument>>>
+    pub arguments: Vec<Rc<RefCell<DeclaredArgument>>>,
+    pub span: Span
 }
 
 #[derive(Debug)]
 pub struct Rule {
     pub title: String,
-    pub event: Link<Ident, Rc<RefCell<Event>>>,
-    pub arguments: Link<Vec<IdentChain>, Vec<CalledArgument>>
+    pub event: Link<Ident, EventRef>,
+    pub arguments: Link<Vec<IdentChain>, Vec<CalledArgument>>,
+    pub span: Span
 }
