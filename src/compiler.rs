@@ -1,19 +1,18 @@
 use std::fmt::{Display, Formatter};
-use chumsky::prelude::todo;
 use crate::language::imt;
 use crate::workshop as ws;
 use crate::workshop::{Event, HeroSlot, Team};
 
 impl Display for imt::EnumConstant {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name.0)
+        write!(f, "{}", self.name.value)
     }
 }
 
 impl Display for imt::ConstValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            imt::ConstValue::EnumConstant(enum_constant) => write!(f, "{}", enum_constant.name.0)
+            imt::ConstValue::EnumConstant(enum_constant) => write!(f, "{}", enum_constant.name.value)
         }
     }
 }
@@ -28,7 +27,7 @@ pub fn compile(imt: imt::Imt) -> ws::WorkshopTree {
 
                 let rule = ws::Rule {
                     name: rule.title.clone(),
-                    event: Event(rule.event.bound_or_panic().borrow().name.0.clone()) ,
+                    event: Event(rule.event.bound_or_panic().borrow().name.value.clone()) ,
                     team: Team(rule.arguments.bound_or_panic()
                         .get(0)
                         .map(|it| it.value.to_string())

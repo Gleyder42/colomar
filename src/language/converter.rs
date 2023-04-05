@@ -1,18 +1,10 @@
-use std::any::Any;
 use std::cell::RefCell;
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::mem::take;
 use std::rc::Rc;
-use petgraph::prelude::*;
 use crate::language::{ast, Ident, Span};
 use crate::language::imt;
 use crate::language::imt::RefRule;
-use crate::language::validator::{Namespace, Validator};
-use crate::multimap::Multimap;
 
-type Map<K, V> = HashMap<K, V>;
 type QueryCache<K, V> = HashMap<K, V>;
 
 #[derive(Debug)]
@@ -49,13 +41,13 @@ pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
             ast::Root::Event(event) => {
                 let event = convert_event(&mut event_cache, event);
                 let event_root = imt::Root::Event(Rc::clone(&event));
-                ident_map.insert(event.borrow().name.0.clone(), event_root.clone());
+                ident_map.insert(event.borrow().name.value.clone(), event_root.clone());
                 event_root
             }
             ast::Root::Enum(r#enum) => {
                 let r#enum = convert_enum(&mut enum_cache, r#enum);
                 let enum_root = imt::Root::Enum(Rc::clone(&r#enum));
-                ident_map.insert(r#enum.borrow().name.0.clone(), enum_root.clone());
+                ident_map.insert(r#enum.borrow().name.value.clone(), enum_root.clone());
                 enum_root
             }
             ast::Root::Rule(rule) => {
@@ -77,7 +69,7 @@ pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
                     continue;
                 };
 
-                match ident_map.get(&name.0) {
+                match ident_map.get(&name.value) {
                     Some(root) => {
                         match root {
                             imt::Root::Event(event) => {
@@ -90,16 +82,16 @@ pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
                             }
                             imt::Root::Enum(r#enum) => {
                                 error_vec.push(ConverterError::CannotResolveIdent(
-                                    format!("{} is an enum, but an event is required ", r#enum.borrow().name.0),
-                                    r#enum.borrow().name.1.clone(),
+                                    format!("{} is an enum, but an event is required ", r#enum.borrow().name.value),
+                                    r#enum.borrow().name.span.clone(),
                                 ))
                             }
                             imt::Root::Rule(_) => panic!("Rules have no ident")
                         }
                     }
                     None => error_vec.push(ConverterError::CannotResolveIdent(
-                        format!("Cannot find event with name {}", name.0),
-                        name.1.clone(),
+                        format!("Cannot find event with name {}", name.value),
+                        name.span.clone(),
                     ))
                 }
             }
@@ -113,7 +105,7 @@ pub fn convert(ast: ast::Ast) -> (imt::Imt, Vec<ConverterError>) {
                     x.borrow_mut().types = y;
                 }
             }
-            imt::Root::Enum(r#enum) => {
+            imt::Root::Enum(_enum) => {
                 // Rules do not need to be linked
             }
         }
@@ -131,8 +123,8 @@ fn link_ident_chain(rule: &RefRule, ident_chains: &Vec<imt::IdentChain>, ident_m
             let enum_name = &ident_chain.0[0];
             let constant_name = &ident_chain.0[1];
 
-            if let Some(imt::Root::Enum(r#enum)) = ident_map.get(&enum_name.0) {
-                let enum_constant = r#enum.borrow().constants.iter().find(|it| it.name.0 == constant_name.0).unwrap().clone();
+            if let Some(imt::Root::Enum(r#enum)) = ident_map.get(&enum_name.value) {
+                let enum_constant = r#enum.borrow().constants.iter().find(|it| it.name.value == constant_name.value).unwrap().clone();
 
                 let event = rule.borrow().event.bound_or_panic().clone();
                 vec.push(imt::CalledArgument {
@@ -140,7 +132,7 @@ fn link_ident_chain(rule: &RefRule, ident_chains: &Vec<imt::IdentChain>, ident_m
                     declared: Rc::clone(&event.borrow().arguments[counter])
                 });
             } else {
-                let error = ConverterError::CannotResolveIdent(format!("Cannot find enum {}", enum_name.0), enum_name.1.clone());
+                let error = ConverterError::CannotResolveIdent(format!("Cannot find enum {}", enum_name.value), enum_name.span.clone());
                 return Err(error)
             }
         } else {
@@ -161,7 +153,7 @@ fn link_type(
 ) -> Option<imt::Type> {
     let name = if let imt::Link::Unbound(name) = ref_type { name } else { return None; };
 
-    match ident_map.get(&name.0) {
+    match ident_map.get(&name.value) {
         Some(root) => {
             match root {
                 imt::Root::Enum(r#enum) => {
@@ -170,9 +162,9 @@ fn link_type(
                 imt::Root::Event(event) => {
                     error_vec.push(ConverterError::ResolvedIdentWrongType {
                         message: format!("rules cannot be used as types"),
-                        help: format!("{} is an event", event.borrow().name.0),
-                        called_span: name.1.clone(),
-                        referenced_span: event.borrow().name.1.clone(),
+                        help: format!("{} is an event", event.borrow().name.value),
+                        called_span: name.span.clone(),
+                        referenced_span: event.borrow().name.span.clone(),
                     });
                     None
                 }
@@ -181,8 +173,8 @@ fn link_type(
         }
         None => {
             error_vec.push(ConverterError::CannotResolveIdent(
-                format!("Cannot find type with name {}", name.0),
-                name.1.clone(),
+                format!("Cannot find type with name {}", name.value),
+                name.span.clone(),
             ));
             None
         }
@@ -230,7 +222,7 @@ fn convert_rule(
 }
 
 fn convert_event(
-    cache: &mut QueryCache<(ast::Event), Rc<RefCell<imt::Event>>>,
+    cache: &mut QueryCache<ast::Event, Rc<RefCell<imt::Event>>>,
     event: &ast::Event,
 ) -> Rc<RefCell<imt::Event>> {
     if let Some(cached) = cache.get(&event) {

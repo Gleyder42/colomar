@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use crate::language::ast::Spanned;
 use crate::language::Ident;
-use crate::Span;
 
 pub type RefRule = Rc<RefCell<Rule>>;
 
@@ -91,15 +90,4 @@ pub struct Rule {
     pub title: String,
     pub event: Link<Ident, Rc<RefCell<Event>>>,
     pub arguments: Link<Vec<IdentChain>, Vec<CalledArgument>>
-}
-
-impl<'a> Named<'a> for String {
-    fn name(&'a self) -> &'a str {
-        self.as_str()
-    }
-}
-
-pub trait Named<'a> {
-
-    fn name(&'a self) -> &'a str;
 }

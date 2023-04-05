@@ -1,6 +1,6 @@
 extern crate core;
 
-use std::fmt::{Debug, Display, Formatter, write};
+use std::fmt::{Debug, Display, Formatter};
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::Span;

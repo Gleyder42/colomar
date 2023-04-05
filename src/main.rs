@@ -9,12 +9,12 @@ use std::ops::Range;
 use std::path::Path;
 use chumsky::prelude::*;
 use chumsky::Stream;
-use crate::language::lexer::{lexer, Token};
+use crate::language::lexer::{lexer};
 use crate::language::parser::parser;
 
 pub type Span = Range<usize>;
 
-use ariadne::{Color, ColorGenerator, Fmt, Label, Report, ReportBuilder, ReportKind, Source, sources};
+use ariadne::{Color, Fmt, Label, Report, ReportKind, Source, sources};
 use chumsky::error::SimpleReason;
 use crate::compiler::compile;
 use crate::language::converter::ConverterError;
@@ -23,7 +23,6 @@ pub mod workshop;
 pub mod language;
 pub mod test_assert;
 mod compiler;
-mod multimap;
 
 fn main() {
     let path = Path::new("dsl/example/test.colo");
@@ -53,7 +52,7 @@ fn main() {
 
             im_errors.into_iter()
                 .for_each(|it| {
-                    let report = match it {
+                    let _ = match it {
                         ConverterError::CannotResolveIdent(message, span) => {
                             Report::build(ReportKind::Error, "test2.colo", span.start)
                                 .with_code(10)

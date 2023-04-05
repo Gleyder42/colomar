@@ -1,11 +1,9 @@
 extern crate core;
 
-use std::fmt::Debug;
 use chumsky::prelude::*;
-use std::string::String;
 use crate::language::lexer::Token;
 use crate::language::ast::*;
-use crate::language::{Ident, Span};
+use crate::language::{Ident};
 
 type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
 type IdentChainParser = impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone;
@@ -17,7 +15,7 @@ type RuleParser = impl Parser<Token, Rule, Error=Simple<Token>> + Clone;
 
 pub fn ident_parser() -> IdentParser {
     filter_map(|span, token| match token {
-        Token::Ident(ident) => Ok(Ident(ident.clone(), span)),
+        Token::Ident(ident) => Ok(Ident { value: ident.clone(), span } ),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     })
 }

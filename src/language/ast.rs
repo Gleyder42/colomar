@@ -1,5 +1,4 @@
 use crate::language::Ident;
-use crate::language::imt::Named;
 use crate::Span;
 
 pub type Action = Box<Call>;
