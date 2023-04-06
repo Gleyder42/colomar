@@ -10,10 +10,6 @@ workshop enum Slot {
     Slot0, Slot1, All
 }
 
-workshop enum Slot {
-    Slot0, Slot1, All
-}
-
 workshop enum Hero {
     Ana, Tracer
 }

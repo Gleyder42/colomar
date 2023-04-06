@@ -119,13 +119,13 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
                 };
             },
             im::Root::Event(event) => {
-                for x in &event.borrow_mut().arguments {
-                    let y = x.borrow().types.iter()
+                for arguments in &event.borrow().arguments {
+                    let types = arguments.borrow().types.iter()
                         .filter_map(|it| link_type(it, &ident_map, &mut error_vec))
-                        .map(|it| im::Link::Bound(it))
+                        .map(im::Link::Bound)
                         .collect();
 
-                    x.borrow_mut().types = y;
+                    arguments.borrow_mut().types = types;
                 }
             },
             _ => { }
