@@ -8,8 +8,8 @@ pub type RuleRef = Rc<RefCell<Rule>>;
 pub type EnumRef = Rc<RefCell<Enum>>;
 pub type EventRef = Rc<RefCell<Event>>;
 
-// Intermediate Tree
-pub type Imt = Vec<Root>;
+// Intermediate
+pub type Im = Vec<Root>;
 
 #[derive(Debug, Clone)]
 pub struct IdentChain(pub Vec<Ident>);

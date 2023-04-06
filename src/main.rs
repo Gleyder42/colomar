@@ -39,14 +39,14 @@ fn main() {
         println!("{:#?}", errors);
 
         if let Some(ast) = ast {
-            let (imt, im_errors) = language::converter::convert(ast);
+            let (im, im_errors) = language::converter::convert(ast);
 
 
-            println!("{:#?}", imt);
+            println!("{:#?}", im);
             println!("{:#?}", im_errors);
 
             if im_errors.is_empty() {
-                let tree = compile(imt);
+                let tree = compile(im);
                 println!("{}", tree);
             }
 

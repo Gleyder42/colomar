@@ -1,7 +1,7 @@
 pub mod parser;
 pub mod lexer;
 pub mod ast;
-pub mod imt;
+pub mod im;
 
 pub mod converter;
 
