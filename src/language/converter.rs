@@ -105,14 +105,14 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
     for root in &im {
         match root {
             im::Root::Rule(rule) => {
-                let event = ident_map.get_event(rule.borrow().event.unbound_or_panic());
+                let event = ident_map.get_event(rule.borrow().event.unbound());
 
                 match event {
                     Ok(event) => rule.borrow_mut().event = im::Link::Bound(event),
                     Err(error) => error_vec.push(error)
                 };
 
-                let ident_chain = link_ident_chain(&rule, rule.borrow().arguments.unbound_or_panic(), &ident_map);
+                let ident_chain = link_ident_chain(&rule, rule.borrow().arguments.unbound(), &ident_map);
                 match ident_chain {
                     Ok(arguments) => rule.borrow_mut().arguments = im::Link::Bound(arguments),
                     Err(error) => error_vec.push(error)
@@ -147,7 +147,7 @@ fn link_ident_chain(rule: &im::RuleRef, ident_chains: &Vec<im::IdentChain>, iden
             if let Some(im::Root::Enum(r#enum)) = ident_map.get(&enum_name.value) {
                 let enum_constant = r#enum.borrow().constants.iter().find(|it| it.name.value == constant_name.value).unwrap().clone();
 
-                let event = rule.borrow().event.bound_or_panic().clone();
+                let event = rule.borrow().event.bound().clone();
                 vec.push(im::CalledArgument {
                     value: im::ConstValue::EnumConstant(Rc::clone(&enum_constant)),
                     declared: Rc::clone(&event.borrow().arguments[counter])

@@ -71,14 +71,16 @@ pub enum Link<T: Debug + Clone, V: Debug + Clone> {
 
 impl<T: Debug + Clone, V: Debug + Clone> Link<T, V> {
 
-    pub fn unbound_or_panic(&self) -> &T {
+    /// Returns the unbound value, panics if the link is bound
+    pub fn unbound(&self) -> &T {
         match self {
             Link::Unbound(value) => value,
             Link::Bound(_) => panic!("Link {self:?} was expected to be unbound, but was bound")
         }
     }
 
-    pub fn bound_or_panic(&self) -> &V {
+    /// Returns the bound value, panics if the link is unbound
+    pub fn bound(&self) -> &V {
         match self {
             Link::Unbound(_) => panic!("Link {self:?} was expected to be bound, but was unbound"),
             Link::Bound(value) => value,

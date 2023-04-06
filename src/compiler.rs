@@ -27,12 +27,12 @@ pub fn compile(im: im::Im) -> ws::WorkshopTree {
 
                 let rule = ws::Rule {
                     name: rule.title.clone(),
-                    event: Event(rule.event.bound_or_panic().borrow().name.value.clone()) ,
-                    team: Team(rule.arguments.bound_or_panic()
+                    event: Event(rule.event.bound().borrow().name.value.clone()) ,
+                    team: Team(rule.arguments.bound()
                         .get(0)
                         .map(|it| it.value.to_string())
                         .unwrap_or("All".to_string())),
-                    player: HeroSlot(rule.arguments.bound_or_panic()
+                    player: HeroSlot(rule.arguments.bound()
                         .get(1)
                         .map(|it| it.value.to_string())
                         .unwrap_or("All".to_string()))

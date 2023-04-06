@@ -1,8 +1,12 @@
-rule "Hello World" OngoingEachPlayer(Team.Team2, Hero.Ana) {
+rule "Hello World" OngoingEachPlayer(Hello.Team2, Hero.Ana) {
 
 }
 
 workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+
+}
+
+workshop enum Hello {
 
 }
 
