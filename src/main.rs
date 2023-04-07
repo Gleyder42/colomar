@@ -35,15 +35,15 @@ fn main() {
 
     if let Some(tokens) = tokens {
         let (ast, errors) = parser().parse_recovery(Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter()));
-        println!("{:#?}", ast);
-        println!("{:#?}", errors);
+        //println!("{:#?}", ast);
+        //println!("{:#?}", errors);
 
         if let Some(ast) = ast {
             let (im, im_errors) = language::converter::convert(ast);
 
 
-            println!("{:#?}", im);
-            println!("{:#?}", im_errors);
+            //println!("{:#?}", im);
+            //println!("{:#?}", im_errors);
 
             if im_errors.is_empty() {
                 let tree = compile(im);

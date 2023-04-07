@@ -46,7 +46,6 @@ rule "On Weapon Reload" WeaponReload(HeroSlot.Ana) {
 ```
 
 
-
 ## Workshop Event List
 
 Colomar names are workshop names with the spaces replaced. Only `Ongoing` events are the exception.

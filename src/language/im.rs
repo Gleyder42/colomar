@@ -7,6 +7,7 @@ use crate::language::{Ident, Span};
 pub type RuleRef = Rc<RefCell<Rule>>;
 pub type EnumRef = Rc<RefCell<Enum>>;
 pub type EventRef = Rc<RefCell<Event>>;
+pub type DeclaredArgumentRef = Rc<RefCell<DeclaredArgument>>;
 
 // Intermediate
 pub type Im = Vec<Root>;
@@ -96,16 +97,32 @@ pub struct DeclaredArgument {
     pub default_value: Option<Link<IdentChain, ConstValue>>
 }
 
+impl DeclaredArgument {
+
+    pub fn contains_type(&self, r#enum: &EnumRef) -> bool {
+        for link in &self.types {
+            match link.bound() {
+                Type::Enum(bound_enum) => {
+                    if Rc::ptr_eq(bound_enum, r#enum) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CalledArgument {
-    pub declared: Rc<RefCell<DeclaredArgument>>,
+    pub declared: DeclaredArgumentRef,
     pub value: ConstValue
 }
 
 #[derive(Debug, Clone)]
 pub struct Event {
     pub name: Ident,
-    pub arguments: Vec<Rc<RefCell<DeclaredArgument>>>,
+    pub arguments: Vec<DeclaredArgumentRef>,
     pub span: Span
 }
 

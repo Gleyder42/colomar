@@ -1,15 +1,17 @@
-workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
-
+struct Thing {
+    val button: Button
+    val health: num
 }
 
-workshop enum Slot {
-    Slot0, Slot1, All
-}
+const val things = [
+    Thing { button: Button.Ability1, health: 10 },
+    Thing { button: Button.Ability2, health: 20 }
+]
 
-workshop enum Hero {
-    Ana, Tracer
-}
+rule "Heal player based on ability" OngoingEachPlayer() {
+    for thing in things {
+        cond player.isButtonHeld(thing.button)
 
-workshop enum Team {
-    Team1, Team2, All
+        player.heal(thing.health)
+    }
 }

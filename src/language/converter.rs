@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use crate::language::{ast, Ident, Span};
 use crate::language::im;
+use crate::language::im::EnumRef;
 
 type QueryCache<K, V> = HashMap<K, V>;
 
@@ -14,13 +15,12 @@ pub enum ConverterError {
         help: String,
         called_span: Span,
         referenced_span: Span,
-    },
+    }
 }
 
 type IdentMap = HashMap<String, im::Root>;
 
 impl IdentMapExt for IdentMap {
-
     fn get_event(&self, ident: &Ident) -> Result<im::EventRef, ConverterError> {
         match self.get(&ident.value) {
             Some(im::Root::Event(event)) => Ok(Rc::clone(event)),
@@ -29,14 +29,14 @@ impl IdentMapExt for IdentMap {
                     message: format!("Cannot find event {}", ident.value),
                     help: format!("There is a {} {}, but its not an event", value.name(), ident.value),
                     called_span: ident.span.clone(),
-                    referenced_span: value.span()
+                    referenced_span: value.span(),
                 };
                 Err(error)
-            },
+            }
             None => {
                 let error = ConverterError::CannotResolveIdent(
                     format!("Cannot find {}", ident.value),
-                    ident.span.clone()
+                    ident.span.clone(),
                 );
                 Err(error)
             }
@@ -50,7 +50,7 @@ impl IdentMapExt for IdentMap {
         } else {
             let error = ConverterError::CannotResolveIdent(
                 format!("{} already exists in the current scope", ident.value),
-                ident.span.clone()
+                ident.span.clone(),
             );
             Err(error)
         }
@@ -58,7 +58,6 @@ impl IdentMapExt for IdentMap {
 }
 
 trait IdentMapExt {
-
     fn get_event(&self, ident: &Ident) -> Result<im::EventRef, ConverterError>;
 
     fn insert_unique(&mut self, ident: Ident, value: im::Root) -> Result<(), ConverterError>;
@@ -84,7 +83,7 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
                     error_vec.push(error);
                 }
                 event_root
-            },
+            }
             ast::Root::Enum(r#enum) => {
                 let r#enum = convert_enum(&mut enum_cache, r#enum);
                 let enum_root = im::Root::Enum(Rc::clone(&r#enum));
@@ -93,7 +92,7 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
                     error_vec.push(error);
                 }
                 enum_root
-            },
+            }
             ast::Root::Rule(rule) => {
                 let rule = convert_rule(&mut rule_cache, rule);
                 im::Root::Rule(rule)
@@ -107,17 +106,28 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
             im::Root::Rule(rule) => {
                 let event = ident_map.get_event(rule.borrow().event.unbound());
 
-                match event {
-                    Ok(event) => rule.borrow_mut().event = im::Link::Bound(event),
-                    Err(error) => error_vec.push(error)
+                let event = match event {
+                    Ok(event) => {
+                        rule.borrow_mut().event = im::Link::Bound(Rc::clone(&event));
+                        event
+                    }
+                    Err(error) => {
+                        error_vec.push(error);
+                        continue;
+                    }
                 };
 
-                let ident_chain = link_ident_chain(&rule, rule.borrow().arguments.unbound(), &ident_map);
+                let ident_chain = link_ident_chain(
+                    rule.borrow().arguments.unbound(),
+                    &ident_map,
+                    |r#enum, enum_constant, index| create_called_argument(r#enum, enum_constant, index, &event),
+                );
+
                 match ident_chain {
                     Ok(arguments) => rule.borrow_mut().arguments = im::Link::Bound(arguments),
-                    Err(error) => error_vec.push(error)
+                    Err(mut error) => error_vec.append(&mut error)
                 };
-            },
+            }
             im::Root::Event(event) => {
                 for arguments in &event.borrow().arguments {
                     let types = arguments.borrow().types.iter()
@@ -127,44 +137,105 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
 
                     arguments.borrow_mut().types = types;
                 }
-            },
-            _ => { }
+            }
+            _ => {}
         }
     }
 
     (im, error_vec)
 }
 
-fn link_ident_chain(rule: &im::RuleRef, ident_chains: &Vec<im::IdentChain>, ident_map: &IdentMap) -> Result<Vec<im::CalledArgument>, ConverterError> {
-    let mut vec = Vec::new();
+fn create_called_argument(
+    r#enum: &EnumRef,
+    enum_constant: &Rc<im::EnumConstant>,
+    index: usize,
+    event: &im::EventRef
+) -> Result<im::CalledArgument, ConverterError> {
+    let binding = event.borrow();
+    let declared_argument = binding.arguments.get(index);
+    println!("{:?}", declared_argument);
 
-    let mut counter = 0;
+    match declared_argument {
+        Some(declared_argument) if declared_argument.borrow().contains_type(r#enum) => { },
+        Some(declared_argument) => {
+            let error = ConverterError::ResolvedIdentWrongType {
+                message: format!("Argument types don't match"),
+                help: format!("Consider changing the type of the argument"),
+                called_span: declared_argument.borrow().name.span.clone(),
+                referenced_span: event.borrow().name.span.clone()
+            };
+            return Err(error);
+        }
+        None => {
+            let error = ConverterError::CannotResolveIdent(
+                format!("Too many arguments supplied"),
+                enum_constant.name.span.clone()
+            );
+            return Err(error);
+        }
+    }
+
+    let argument = im::CalledArgument {
+        value: im::ConstValue::EnumConstant(Rc::clone(enum_constant)),
+        declared: Rc::clone(&binding.arguments[index]),
+    };
+    Ok(argument)
+}
+
+fn create_const_value(
+    enum_constant: &Rc<im::EnumConstant>,
+    _index: usize
+) -> Result<im::ConstValue, ConverterError>  {
+    Ok(im::ConstValue::EnumConstant(Rc::clone(&enum_constant)))
+}
+
+fn link_ident_chain<T, F>(
+    ident_chains: &Vec<im::IdentChain>,
+    ident_map: &IdentMap,
+    function: F,
+) -> Result<Vec<T>, Vec<ConverterError>>
+    where F: Fn(&EnumRef, &Rc<im::EnumConstant>, usize) -> Result<T, ConverterError>
+{
+    let mut results = Vec::new();
+    let mut errors = Vec::new();
+
+    let mut index: usize = 0;
     for ident_chain in ident_chains {
         if ident_chain.0.len() == 2 {
             let enum_name = &ident_chain.0[0];
             let constant_name = &ident_chain.0[1];
 
             if let Some(im::Root::Enum(r#enum)) = ident_map.get(&enum_name.value) {
-                let enum_constant = r#enum.borrow().constants.iter().find(|it| it.name.value == constant_name.value).unwrap().clone();
+                let enum_ref = r#enum.borrow();
+                let enum_constant = enum_ref.constants.iter()
+                    .find(|it| it.name.value == constant_name.value);
 
-                let event = rule.borrow().event.bound().clone();
-                vec.push(im::CalledArgument {
-                    value: im::ConstValue::EnumConstant(Rc::clone(&enum_constant)),
-                    declared: Rc::clone(&event.borrow().arguments[counter])
-                });
+                if let Some(enum_constant) = enum_constant {
+                    let result = function(r#enum, enum_constant, index);
+                    match result {
+                        Ok(value) => results.push(value),
+                        Err(error) => errors.push(error)
+                    };
+                };
             } else {
                 let error = ConverterError::CannotResolveIdent(format!("Cannot find enum {}", enum_name.value), enum_name.span.clone());
-                return Err(error)
+                errors.push(error);
+                return Err(errors);
             }
         } else {
             let error = ConverterError::CannotResolveIdent(format!("IdentChain can only have two idents"), 0..1);
-            return Err(error);
+            errors.push(error);
+            return Err(errors);
         }
 
-        counter += 1;
+        index += 1;
     };
 
-    Ok(vec)
+    if errors.is_empty() {
+        Ok(results)
+    } else {
+        Err(errors)
+    }
 }
 
 fn link_type(
@@ -236,7 +307,7 @@ fn convert_rule(
         title: rule.name.0,
         event: im::Link::Unbound(rule.event),
         arguments: im::Link::Unbound(arguments),
-        span: rule.span
+        span: rule.span,
     };
 
     let im_rule = Rc::new(RefCell::new(im_rule));

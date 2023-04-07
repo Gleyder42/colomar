@@ -1,13 +1,5 @@
-rule "Hello World" OngoingEachPlayer(Hello.Team2, Hero.Ana) {
-
-}
-
-workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
-
-}
-
-workshop enum Hello {
-
+workshop enum Team {
+    Team1, Team2, All
 }
 
 workshop enum Slot {
@@ -18,8 +10,12 @@ workshop enum Hero {
     Ana, Tracer
 }
 
-workshop enum Team {
-    Team1, Team2, All
+workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+
+}
+
+rule "Hello World" OngoingEachPlayer(Hero.Ana, Hero.Ana, Slot.All) {
+
 }
 
 rule "Hello World" WeaponReloading() {
