@@ -30,10 +30,10 @@ impl Display for Token {
             Token::Workshop => write!(f, "workshop"),
             Token::Enum => write!(f, "enum"),
             Token::By => write!(f, "by"),
-            Token::Ident(string) => write!(f, "Ident {string}"),
-            Token::String(string) => write!(f, "String {string}"),
-            Token::Num(string) => write!(f, "Num {string}"),
-            Token::Ctrl(ctrl) => write!(f, "Ctrl {ctrl}"),
+            Token::Ident(string) => write!(f, "{string}"),
+            Token::String(string) => write!(f, "{string}"),
+            Token::Num(string) => write!(f, "{string}"),
+            Token::Ctrl(ctrl) => write!(f, "{ctrl}"),
         }
     }
 }

@@ -18,7 +18,7 @@ rule "Hello World" OngoingEachPlayer(Team.Team1, Hero.Ana) {
 
 }
 
-rule "Hello World" OngoingEachPlayer(Team.Team1, Hero.Ana) {
+rule "Hello World" OngoingEachPlayer(Team.Team2, Hero.Tracer) {
 
 }
 

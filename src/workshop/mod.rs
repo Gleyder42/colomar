@@ -45,23 +45,16 @@ impl Display for WorkshopTree {
     }
 }
 
+const RULE_TEMPLATE: &'static str = include_str!("rule.ows");
+
 impl Display for Rule {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f,
-               "
-                rule({rule_name})
-                {{
-                    event
-                    {{
-                        {event_type}
-                        {team}
-                        {player}
-                    }}
-                }}",
-               rule_name = self.name,
-               event_type = self.event,
-               team = self.team,
-               player = self.player
-        )
+        let rule = RULE_TEMPLATE.to_string()
+            .replace("%rule_name%", &self.name)
+            .replace("%event_type%", &self.event.0)
+            .replace("%arg0%", &self.team.0)
+            .replace("%arg1%", &self.player.0);
+
+        write!(f, "{}", rule)
     }
 }

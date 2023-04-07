@@ -1,17 +1,5 @@
-struct Thing {
-    val button: Button
-    val health: num
-}
+rule "Heal on reload" OngoingEachPlayer() {
+    cond player.isReloading
 
-const val things = [
-    Thing { button: Button.Ability1, health: 10 },
-    Thing { button: Button.Ability2, health: 20 }
-]
-
-rule "Heal player based on ability" OngoingEachPlayer() {
-    for thing in things {
-        cond player.isButtonHeld(thing.button)
-
-        player.heal(thing.health)
-    }
+    player.heal(10)
 }
