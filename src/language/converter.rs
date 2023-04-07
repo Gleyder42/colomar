@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use crate::language::{ast, Ident, Span};
 use crate::language::im;
-use crate::language::im::EnumRef;
 
 type QueryCache<K, V> = HashMap<K, V>;
 
@@ -146,7 +145,7 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
 }
 
 fn create_called_argument(
-    r#enum: &EnumRef,
+    r#enum: &im::EnumRef,
     enum_constant: &Rc<im::EnumConstant>,
     index: usize,
     event: &im::EventRef
@@ -194,7 +193,7 @@ fn link_ident_chain<T, F>(
     ident_map: &IdentMap,
     function: F,
 ) -> Result<Vec<T>, Vec<ConverterError>>
-    where F: Fn(&EnumRef, &Rc<im::EnumConstant>, usize) -> Result<T, ConverterError>
+    where F: Fn(&im::EnumRef, &Rc<im::EnumConstant>, usize) -> Result<T, ConverterError>
 {
     let mut results = Vec::new();
     let mut errors = Vec::new();
@@ -363,3 +362,4 @@ fn convert_enum(
     cache.insert(cloned_enum, Rc::clone(&im_enum));
     im_enum
 }
+

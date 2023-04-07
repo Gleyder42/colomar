@@ -1,3 +1,4 @@
+use derivative::Derivative;
 use crate::language::Ident;
 use crate::Span;
 
@@ -5,11 +6,14 @@ pub type Action = Box<Call>;
 pub type Condition = Box<Call>;
 pub type CallArgs = Vec<Box<Call>>;
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct Spanned<T>(pub T, pub Span);
+#[derive(Derivative, Debug, Hash, Clone, Eq)]
+#[derivative(PartialEq)]
+pub struct Spanned<T>(
+    pub T,
+    #[derivative(PartialEq = "ignore")] pub Span
+);
 
 // Abstract Syntax Tree
-
 pub type Ast = Vec<Root>;
 
 #[derive(Debug)]
