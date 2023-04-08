@@ -77,8 +77,8 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
         let root = match root {
             ast::Root::Struct(r#struct) => {
                 let r#struct = convert_struct(r#struct);
-                let struct_root = im::Root::Struct(r#struct);
-                let result = ident_map.insert_unique(r#struct.name.clone(), struct_root.clone());
+                let struct_root = im::Root::Struct(Rc::clone(&r#struct));
+                let result = ident_map.insert_unique(r#struct.borrow().name.clone(), struct_root.clone());
                 if let Err(error) = result {
                     error_vec.push(error);
                 }
@@ -165,7 +165,7 @@ fn create_called_argument(
     println!("{:?}", declared_argument);
 
     match declared_argument {
-        Some(declared_argument) if declared_argument.borrow().contains_type(r#enum) => { },
+        Some(declared_argument) if declared_argument.borrow().contains_type(im::Type::Enum(Rc::clone(r#enum))) => { },
         Some(declared_argument) => {
             let error = ConverterError::ResolvedIdentWrongType {
                 message: format!("Argument types don't match"),
@@ -259,6 +259,9 @@ fn link_type(
             match root {
                 im::Root::Enum(r#enum) => {
                     Some(im::Type::Enum(Rc::clone(&r#enum)))
+                },
+                im::Root::Struct(r#struct) => {
+                    Some(im::Type::Struct(Rc::clone(&r#struct)))
                 }
                 im::Root::Event(event) => {
                     error_vec.push(ConverterError::ResolvedIdentWrongType {
@@ -282,7 +285,7 @@ fn link_type(
     }
 }
 
-fn convert_struct(r#struct: ast::Struct) -> im::Struct {
+fn convert_struct(r#struct: ast::Struct) -> im::StructRef {
     let functions = r#struct.functions.into_iter()
         .map(|it| {
             im::Function {
@@ -298,17 +301,20 @@ fn convert_struct(r#struct: ast::Struct) -> im::Struct {
         .map(|it| im::StructProperty {
             is_workshop: it.is_workshop,
             name: it.name,
-            r#type: im::Link::Unbound(it.r#type)
+            r#type: im::Link::Unbound(it.r#type),
+            desc: it.desc
         })
         .map(make_ref)
         .collect();
 
-    im::Struct {
+    let r#struct = im::Struct {
         name: r#struct.name,
         is_open: r#struct.is_open,
         is_workshop: r#struct.is_workshop,
+        span: r#struct.span,
         properties, functions
-    }
+    };
+    make_ref(r#struct)
 }
 
 
@@ -335,6 +341,8 @@ fn convert_rule(
                         None => break
                     };
                 }
+                box ast::Call::Number { .. } => todo!(),
+                box ast::Call::String { .. } => todo!(),
                 box ast::Call::Fn { .. } => todo!()
             };
         }

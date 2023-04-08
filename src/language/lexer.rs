@@ -18,7 +18,8 @@ pub enum Token {
     Struct,
     GetVal,
     Fn,
-    LineBreak,
+    NewLine,
+    Type,
     Ident(String),
     String(String),
     Num(String),
@@ -39,7 +40,8 @@ impl Display for Token {
             Token::Open => write!(f, "open"),
             Token::GetVal => write!(f, "getval"),
             Token::Fn => write!(f, "fn"),
-            Token::LineBreak => write!(f, "line break"),
+            Token::Type => write!(f, "type"),
+            Token::NewLine => write!(f, "newline"),
             Token::Ident(string) => write!(f, "{string}"),
             Token::String(string) => write!(f, "{string}"),
             Token::Num(string) => write!(f, "{string}"),
@@ -63,6 +65,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     let ctrl = one_of("(){},.:|=")
         .map(|c| Token::Ctrl(c));
 
+
     let ident = text::ident().map(|ident: String| match ident.as_str() {
         "rule" => Token::Rule,
         "cond" => Token::Cond,
@@ -74,11 +77,16 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         "struct" => Token::Struct,
         "getval" => Token::GetVal,
         "fn" => Token::Fn,
-        "\n" => Token::LineBreak,
+        "type" => Token::Type,
         _ => Token::Ident(ident),
-    });
+    }
+    );
+
+    let newline = text::newline()
+        .map(|it| Token::NewLine);
 
     let token = num
+        .or(newline)
         .or(string)
         .or(ctrl)
         .or(ident)
@@ -86,7 +94,6 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
 
     token
         .map_with_span(|tok, span| (tok, span))
-        .padded()
         .repeated()
 }
 
@@ -126,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond workshop event enum by open struct getval fn \n";
+        let code = "rule cond workshop event enum by open struct getval fn type \n";
 
         let actual = lexer().parse(code).unwrap();
         let expected = vec![
@@ -140,7 +147,8 @@ mod tests {
             Token::Struct,
             Token::GetVal,
             Token::Fn,
-            Token::LineBreak
+            Token::Type,
+            Token::NewLine
         ];
 
         assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);

@@ -1,9 +1,12 @@
 extern crate core;
 
+use chumsky::combinator::To;
 use chumsky::prelude::*;
+use chumsky::text::ident;
 use crate::language::lexer::Token;
 use crate::language::ast::*;
 use crate::language::{Ident};
+use crate::Span;
 
 type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
 type IdentChainParser = impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone;
@@ -35,7 +38,14 @@ fn declare_arguments_parser(
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
 }
 
+fn workshop_keyword() -> impl Parser<Token, Spanned<bool>, Error=Simple<Token>> + Clone {
+    just(Token::Workshop)
+        .or_not()
+        .map_with_span(|it, span| Spanned(it.is_some(), span))
+}
+
 fn event_parser(
+    block: BlockParser,
     declare_args: DeclaredArgumentParser,
     ident: IdentParser,
     args: ArgsParser,
@@ -47,18 +57,18 @@ fn event_parser(
         .then(ident.clone())
         .then(declare_args)
         .then(just(Token::By).ignore_then(ident).then(args).or_not())
-        .then_ignore(just(Token::Ctrl('{')))
-        .then_ignore(just(Token::Ctrl('}')))
-        .validate(|(((is_workshop, event), decl_args), by), span, emit| {
+        .then(block.clone())
+        .validate(|((((is_workshop, name), decl_args), by), block), span, emit| {
             if is_workshop && by.is_some() {
                 emit(Simple::custom(span, "Workshop functions cannot have a by clause"));
             }
-            (((is_workshop, event), decl_args), by)
+            ((((is_workshop, name), decl_args), by), block)
         })
-        .map_with_span(|(((_, event), decl_args), by), span| Event {
-            name: event,
+        .map_with_span(|((((is_workshop, name), decl_args), by), block), span| Event {
+            name,
             by,
             args: decl_args,
+            conditions: block.conditions,
             span
         })
 }
@@ -68,14 +78,16 @@ fn enum_parser(
 ) -> EnumParser {
     let constants = ident.clone()
         .separated_by(just(Token::Ctrl(',')))
-        .allow_trailing();
+        .allow_trailing()
+        .padded_by(newlines());
 
-    just(Token::Workshop)
-        .or_not()
-        .map_with_span(|o, span| Spanned(o.is_some(), span))
+    workshop_keyword()
         .then_ignore(just(Token::Enum))
         .then(ident.clone())
-        .then(constants.delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))))
+        .then(constants.delimited_by(
+            just(Token::Ctrl('{')),
+            just(Token::Ctrl('}'))
+        ))
         .map_with_span(|((is_workshop, name), constants), span| Enum { name, is_workshop, constants, span })
 }
 
@@ -83,15 +95,11 @@ fn struct_parser(
     ident: IdentParser,
     declared_args: DeclaredArgumentParser
 ) -> StructParser {
-    let property = just(Token::Workshop)
-        .or_not()
-        .map_with_span(|o, span| Spanned(o.is_some(), span))
+    let property = workshop_keyword()
         .then(just(Token::GetVal))
         .then(ident.clone())
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident.clone())
-        .then_ignore(just(Token::LineBreak))
-        .padded_by(just(Token::LineBreak))
         .map(|(((is_workshop, property_type), name), r#type)| {
             let desc = match property_type {
                 // Write a test which tries to put other tokens here
@@ -101,14 +109,10 @@ fn struct_parser(
             StructProperty { name, is_workshop, desc, r#type }
         });
 
-    let member_function = just(Token::Workshop)
-        .or_not()
-        .map_with_span(|it, span| Spanned(it.is_some(), span))
+    let member_function = workshop_keyword()
         .then_ignore(just(Token::Fn))
         .then(ident.clone())
         .then(declared_args.clone())
-        .then_ignore(just(Token::LineBreak))
-        .padded_by(just(Token::LineBreak))
         .map(|((is_workshop, name), arguments)| {
             Function { name, is_workshop, arguments }
         });
@@ -120,19 +124,18 @@ fn struct_parser(
 
     let struct_parser = just(Token::Open)
         .or_not().map_with_span(|it, span| Spanned(it.is_some(), span))
-        .then(
-            just(Token::Workshop)
-                .or_not().map_with_span(|it, span| Spanned(it.is_some(), span))
-        )
+        .then(just(Token::Workshop).or_not().map_with_span(|it, span| Spanned(it.is_some(), span)))
         .then_ignore(just(Token::Struct))
         .then(ident.clone())
-        .then_ignore(just(Token::Ctrl('{')))
         .then(
             property.map(StructMember::Property)
                 .or(member_function.map(StructMember::Function))
-                .separated_by(just(Token::LineBreak))
+                .separated_by(just(Token::NewLine).repeated().at_least(1))
+                .padded_by(just(Token::NewLine).repeated())
+                .delimited_by(
+                    just(Token::Ctrl('{')), just(Token::Ctrl('}'))
+                )
         )
-        .then_ignore(just(Token::Ctrl('}')))
         .map_with_span(|(((is_open, is_workshop), name), members), span| {
             let mut functions = Vec::new();
             let mut properties = Vec::new();
@@ -149,6 +152,12 @@ fn struct_parser(
     struct_parser
 }
 
+fn newlines() -> impl Parser<Token, (), Error=Simple<Token>> + Clone {
+    just(Token::NewLine)
+        .repeated()
+        .map(|_| ())
+}
+
 fn ident_chain_parser(
     ident: IdentParser
 ) -> (
@@ -163,14 +172,30 @@ fn ident_chain_parser(
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
         .labelled("function args");
 
+    let literal = filter_map(|span, token| match token {
+        Token::String(string) => Ok(MaybeLiteral::String(string)),
+        Token::Num(number) => Ok(MaybeLiteral::Number(number)),
+        _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
+    });
+
+    enum MaybeLiteral {
+        Ident(Ident, Option<Vec<Box<Call>>>),
+        String(String),
+        Number(String)
+    }
+
     ident_chain.define(
-        ident.then(args.clone().or_not())
+        ident
+            .then(args.clone().or_not()).map(|it| MaybeLiteral::Ident(it.0, it.1))
+            .or(literal)
             .separated_by(just(Token::Ctrl('.')))
             .at_least(1)
             .map_with_span(|o, span| o.into_iter().rfold::<Option<Box<Call>>, _>(None, |acc, element| {
                 let call = match element {
-                    (name, Some(args)) => Call::Fn { name, args, next: acc, span: span.clone() },
-                    (name, None) => Call::Var { name, next: acc }
+                    MaybeLiteral::Ident(name, Some(args)) => Call::Fn { name, args, next: acc, span: span.clone() },
+                    MaybeLiteral::Ident(name, None) => Call::Var { name, next: acc },
+                    MaybeLiteral::String(value) => Call::String { value, next: acc },
+                    MaybeLiteral::Number(value) => Call::Number { value, next: acc }
                 };
                 return Some(Box::new(call));
             }).expect("Cannot have call chain with no calls")));
@@ -183,15 +208,14 @@ fn block_parser(
 ) -> BlockParser {
     let cond = just(Token::Cond)
         .ignore_then(ident_chain.clone())
-        .then_ignore(just(Token::Ctrl(';')))
-        .map(|o| o);
+        .then_ignore(just(Token::NewLine));
 
     just(Token::Ctrl('{'))
-        .ignore_then(cond.repeated())
+        .ignore_then(cond.repeated().padded_by(just(Token::NewLine).repeated()))
         .then(ident_chain.clone()
-            .then_ignore(just(Token::Ctrl(';')))
+            .then_ignore(just(Token::NewLine))
             .map(|o| o as Action)
-            .repeated()
+            .repeated().padded_by(just(Token::NewLine).repeated())
         )
         .then_ignore(just(Token::Ctrl('}')))
         .map_with_span(|o, span| Block { actions: o.0, conditions: o.1, span })
@@ -230,7 +254,7 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
 
     let rule_parser = rule_parser(ident.clone(), block.clone(), args.clone())
         .map(Root::Rule);
-    let event_parser = event_parser(declared_argument.clone(), ident.clone(), args)
+    let event_parser = event_parser(block.clone(), declared_argument.clone(), ident.clone(), args)
         .map(Root::Event);
     let enum_parser = enum_parser(ident.clone())
         .map(Root::Enum);
@@ -238,7 +262,7 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
         .map(Root::Struct);
 
     choice((rule_parser, event_parser, enum_parser, struct_parser))
-        .repeated()
+        .separated_by(just(Token::NewLine).repeated())
         .then_ignore(end())
         .map(|ast| ast)
 }
@@ -316,6 +340,7 @@ mod tests {
         let expected: Vec<Event> = vec![
             Event {
                 name: Ident::new("OngoingEachPlayer".to_string(), 15..32),
+                conditions: Vec::new(),
                 by: None,
                 span: 0..71,
                 args: vec![

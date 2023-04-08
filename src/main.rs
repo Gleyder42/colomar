@@ -34,7 +34,10 @@ fn main() {
     file.read_to_string(&mut source).unwrap();
 
     let (tokens, lexer_errors) = lexer().parse_recovery(source.as_str());
+    //println!("{:?}", source.chars().collect::<Vec<_>>());
     let tokens = if let Some(tokens) = tokens {
+        println!("{:#?}", tokens.iter().map(|it| &it.0).collect::<Vec<_>>());
+
         tokens
     } else {
         for error in lexer_errors {

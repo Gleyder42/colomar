@@ -1,11 +1,10 @@
-workshop type bool
-workshop type string
-workshop type num
+workshop struct bool { }
+workshop struct string { }
+workshop struct num { }
 
 workshop enum Team {
     Team1, Team2, All
 }
-
 workshop enum Slot {
     Slot0, Slot1, All
 }
@@ -15,15 +14,14 @@ workshop enum Hero {
 }
 
 open workshop struct Player {
-
-    workshop setvar isReloading: bool
+    workshop getval isReloading: bool
 
     workshop fn displaySmallMessage(message: string)
 
     workshop fn heal(amount: num, healer: Player = null)
 }
 
-workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All)
+workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) { }
 
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading

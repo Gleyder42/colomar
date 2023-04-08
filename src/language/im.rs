@@ -11,6 +11,7 @@ pub type EventRef = Rc<RefCell<Event>>;
 pub type DeclaredArgumentRef = Rc<RefCell<DeclaredArgument>>;
 pub type FunctionRef = Rc<RefCell<Function>>;
 pub type PropertyRef = Rc<RefCell<StructProperty>>;
+pub type StructRef = Rc<RefCell<Struct>>;
 
 pub fn make_ref<T>(value: T) -> Rc<RefCell<T>> {
     Rc::new(RefCell::new(value))
@@ -28,7 +29,7 @@ pub enum Root {
     Rule(RuleRef),
     Enum(EnumRef),
     Event(EventRef),
-    Struct(Struct)
+    Struct(StructRef)
 }
 
 impl Root {
@@ -36,7 +37,8 @@ impl Root {
         match self {
             Root::Event(_) => "Event",
             Root::Enum(_) => "Enum",
-            Root::Rule(_) => "Rule"
+            Root::Rule(_) => "Rule",
+            Root::Struct(_) => "Struct"
         }
     }
 
@@ -44,7 +46,8 @@ impl Root {
         match self {
             Root::Rule(rule) => rule.borrow().span.clone(),
             Root::Enum(r#enum) => r#enum.borrow().span.clone(),
-            Root::Event(event) => event.borrow().span.clone()
+            Root::Event(event) => event.borrow().span.clone(),
+            Root::Struct(r#struct) => r#struct.borrow().span.clone(),
         }
     }
 }
@@ -79,7 +82,8 @@ pub struct Struct {
     pub is_workshop: Spanned<bool>,
     pub name: Ident,
     pub functions: Vec<FunctionRef>,
-    pub properties: Vec<PropertyRef>
+    pub properties: Vec<PropertyRef>,
+    pub span: Span
 }
 
 #[derive(Derivative, Debug, Clone, Eq)]
@@ -101,7 +105,8 @@ pub enum ConstValue {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Type {
-    Enum(EnumRef)
+    Enum(EnumRef),
+    Struct(StructRef)
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -141,17 +146,15 @@ pub struct DeclaredArgument {
 }
 
 impl DeclaredArgument {
-    pub fn contains_type(&self, r#enum: &EnumRef) -> bool {
-        for link in &self.types {
-            match link.bound() {
-                Type::Enum(bound_enum) => {
-                    if Rc::ptr_eq(bound_enum, r#enum) {
-                        return true;
-                    }
-                }
+
+    pub fn contains_type(&self, r#type: Type) -> bool {
+        self.types.iter().any(|it| {
+            match (it.bound(), r#type.clone()) {
+                (Type::Enum(a), Type::Enum(b)) => a == &b,
+                (Type::Struct(a), Type::Struct(b)) => a == &b,
+                _ => false
             }
-        }
-        return false;
+        })
     }
 }
 

@@ -30,6 +30,7 @@ pub struct Event {
     pub name: Ident,
     pub by: Option<(Ident, Vec<Box<Call>>)>,
     pub args: Vec<DeclaredArgument>,
+    pub conditions: Vec<Condition>,
     pub span: Span
 }
 
@@ -42,7 +43,7 @@ pub enum PropertyDesc {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-struct StructProperty {
+pub struct StructProperty {
     pub is_workshop: Spanned<bool>,
     pub desc: PropertyDesc,
     pub name: Ident,
@@ -111,6 +112,14 @@ pub enum Call {
         name: Ident,
         next: Option<Box<Call>>
     },
+    String {
+        value: String,
+        next: Option<Box<Call>>
+    },
+    Number {
+        value: String,
+        next: Option<Box<Call>>
+    }
 }
 
 #[cfg(test)]
