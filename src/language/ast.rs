@@ -5,6 +5,7 @@ use crate::Span;
 pub type Action = Box<Call>;
 pub type Condition = Box<Call>;
 pub type CallArgs = Vec<Box<Call>>;
+pub type Types = Vec<Ident>;
 
 #[derive(Derivative, Debug, Hash, Clone, Eq)]
 #[derivative(PartialEq)]
@@ -21,6 +22,7 @@ pub enum Root {
     Event(Event),
     Rule(Rule),
     Enum(Enum),
+    Struct(Struct)
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -28,6 +30,39 @@ pub struct Event {
     pub name: Ident,
     pub by: Option<(Ident, Vec<Box<Call>>)>,
     pub args: Vec<DeclaredArgument>,
+    pub span: Span
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+pub enum PropertyDesc {
+    GetVal,
+    SetVar,
+    Val,
+    Var
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+struct StructProperty {
+    pub is_workshop: Spanned<bool>,
+    pub desc: PropertyDesc,
+    pub name: Ident,
+    pub r#type: Ident
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct Function {
+    pub is_workshop: Spanned<bool>,
+    pub name: Ident,
+    pub arguments: Vec<DeclaredArgument>
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct Struct {
+    pub is_open: Spanned<bool>,
+    pub is_workshop: Spanned<bool>,
+    pub name: Ident,
+    pub properties: Vec<StructProperty>,
+    pub functions: Vec<Function>,
     pub span: Span
 }
 
@@ -42,7 +77,7 @@ pub struct Enum {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct DeclaredArgument {
     pub name: Ident,
-    pub types: Vec<Ident>,
+    pub types: Types,
     pub default_value: Option<Box<Call>>,
     pub span: Span
 }

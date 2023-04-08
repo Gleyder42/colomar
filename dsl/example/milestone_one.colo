@@ -1,3 +1,7 @@
+workshop type bool
+workshop type string
+workshop type num
+
 workshop enum Team {
     Team1, Team2, All
 }
@@ -12,7 +16,7 @@ workshop enum Hero {
 
 open workshop struct Player {
 
-    workshop getval isReloading: bool
+    workshop setvar isReloading: bool
 
     workshop fn displaySmallMessage(message: string)
 

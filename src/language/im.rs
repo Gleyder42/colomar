@@ -2,13 +2,19 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 use derivative::Derivative;
-use crate::language::ast::Spanned;
+use crate::language::ast::{PropertyDesc, Spanned};
 use crate::language::{Ident, Span};
 
 pub type RuleRef = Rc<RefCell<Rule>>;
 pub type EnumRef = Rc<RefCell<Enum>>;
 pub type EventRef = Rc<RefCell<Event>>;
 pub type DeclaredArgumentRef = Rc<RefCell<DeclaredArgument>>;
+pub type FunctionRef = Rc<RefCell<Function>>;
+pub type PropertyRef = Rc<RefCell<StructProperty>>;
+
+pub fn make_ref<T>(value: T) -> Rc<RefCell<T>> {
+    Rc::new(RefCell::new(value))
+}
 
 // Intermediate
 pub type Im = Vec<Root>;
@@ -22,6 +28,7 @@ pub enum Root {
     Rule(RuleRef),
     Enum(EnumRef),
     Event(EventRef),
+    Struct(Struct)
 }
 
 impl Root {
@@ -46,6 +53,33 @@ impl Root {
 #[derivative(PartialEq)]
 pub struct EnumConstant {
     pub name: Ident,
+}
+
+#[derive(Derivative, Debug, Clone, Eq)]
+#[derivative(PartialEq)]
+pub struct Function {
+    pub is_workshop: Spanned<bool>,
+    pub name: Ident,
+    pub arguments: Vec<DeclaredArgumentRef>
+}
+
+#[derive(Derivative, Debug, Clone, Eq)]
+#[derivative(PartialEq)]
+pub struct StructProperty {
+    pub is_workshop: Spanned<bool>,
+    pub name: Ident,
+    pub desc: PropertyDesc,
+    pub r#type: Link<Ident, Type>
+}
+
+#[derive(Derivative, Debug, Clone, Eq)]
+#[derivative(PartialEq)]
+pub struct Struct {
+    pub is_open: Spanned<bool>,
+    pub is_workshop: Spanned<bool>,
+    pub name: Ident,
+    pub functions: Vec<FunctionRef>,
+    pub properties: Vec<PropertyRef>
 }
 
 #[derive(Derivative, Debug, Clone, Eq)]

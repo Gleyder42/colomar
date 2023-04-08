@@ -1,6 +1,6 @@
 extern crate core;
 
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display, Formatter, write};
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::Span;
@@ -14,6 +14,11 @@ pub enum Token {
     Workshop,
     Enum,
     By,
+    Open,
+    Struct,
+    GetVal,
+    Fn,
+    LineBreak,
     Ident(String),
     String(String),
     Num(String),
@@ -30,6 +35,11 @@ impl Display for Token {
             Token::Workshop => write!(f, "workshop"),
             Token::Enum => write!(f, "enum"),
             Token::By => write!(f, "by"),
+            Token::Struct => write!(f, "struct"),
+            Token::Open => write!(f, "open"),
+            Token::GetVal => write!(f, "getval"),
+            Token::Fn => write!(f, "fn"),
+            Token::LineBreak => write!(f, "line break"),
             Token::Ident(string) => write!(f, "{string}"),
             Token::String(string) => write!(f, "{string}"),
             Token::Num(string) => write!(f, "{string}"),
@@ -50,7 +60,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .collect::<String>()
         .map(Token::String);
 
-    let ctrl = one_of("(){},.:;|=")
+    let ctrl = one_of("(){},.:|=")
         .map(|c| Token::Ctrl(c));
 
     let ident = text::ident().map(|ident: String| match ident.as_str() {
@@ -60,6 +70,11 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         "event" => Token::Event,
         "enum" => Token::Enum,
         "by" => Token::By,
+        "open" => Token::Open,
+        "struct" => Token::Struct,
+        "getval" => Token::GetVal,
+        "fn" => Token::Fn,
+        "\n" => Token::LineBreak,
         _ => Token::Ident(ident),
     });
 
@@ -111,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond workshop event enum by";
+        let code = "rule cond workshop event enum by open struct getval fn \n";
 
         let actual = lexer().parse(code).unwrap();
         let expected = vec![
@@ -120,7 +135,12 @@ mod tests {
             Token::Workshop,
             Token::Event,
             Token::Enum,
-            Token::By
+            Token::By,
+            Token::Open,
+            Token::Struct,
+            Token::GetVal,
+            Token::Fn,
+            Token::LineBreak
         ];
 
         assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);

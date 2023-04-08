@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use crate::language::{ast, Ident, Span};
 use crate::language::im;
+use crate::language::im::make_ref;
 
 type QueryCache<K, V> = HashMap<K, V>;
 
@@ -74,6 +75,15 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
     // Converter Phase
     for root in ast {
         let root = match root {
+            ast::Root::Struct(r#struct) => {
+                let r#struct = convert_struct(r#struct);
+                let struct_root = im::Root::Struct(r#struct);
+                let result = ident_map.insert_unique(r#struct.name.clone(), struct_root.clone());
+                if let Err(error) = result {
+                    error_vec.push(error);
+                }
+                struct_root
+            }
             ast::Root::Event(event) => {
                 let event = convert_event(&mut event_cache, event);
                 let event_root = im::Root::Event(Rc::clone(&event));
@@ -272,6 +282,36 @@ fn link_type(
     }
 }
 
+fn convert_struct(r#struct: ast::Struct) -> im::Struct {
+    let functions = r#struct.functions.into_iter()
+        .map(|it| {
+            im::Function {
+                name: it.name,
+                is_workshop: it.is_workshop,
+                arguments: convert_declared_argument(it.arguments)
+            }
+        })
+        .map(make_ref)
+        .collect();
+
+    let properties = r#struct.properties.into_iter()
+        .map(|it| im::StructProperty {
+            is_workshop: it.is_workshop,
+            name: it.name,
+            r#type: im::Link::Unbound(it.r#type)
+        })
+        .map(make_ref)
+        .collect();
+
+    im::Struct {
+        name: r#struct.name,
+        is_open: r#struct.is_open,
+        is_workshop: r#struct.is_workshop,
+        properties, functions
+    }
+}
+
+
 fn convert_rule(
     rule_cache: &mut QueryCache<ast::Rule, im::RuleRef>,
     rule: ast::Rule,
@@ -323,7 +363,16 @@ fn convert_event(
     }
     let cloned_event = event.clone();
 
-    let arguments: Vec<_> = event.args.into_iter()
+    let arguments = convert_declared_argument(event.args);
+
+    let im_event = im::Event { name: event.name, arguments, span: event.span };
+    let im_event = Rc::new(RefCell::new(im_event));
+    cache.insert(cloned_event, Rc::clone(&im_event));
+    im_event
+}
+
+fn convert_declared_argument(vec: Vec<ast::DeclaredArgument>) -> Vec<Rc<RefCell<im::DeclaredArgument>>> {
+    let arguments: Vec<_> = vec.into_iter()
         .map(|decl_args| {
             im::DeclaredArgument {
                 name: decl_args.name,
@@ -333,11 +382,7 @@ fn convert_event(
         })
         .map(|it| Rc::new(RefCell::new(it)))
         .collect();
-
-    let im_event = im::Event { name: event.name, arguments, span: event.span };
-    let im_event = Rc::new(RefCell::new(im_event));
-    cache.insert(cloned_event, Rc::clone(&im_event));
-    im_event
+    arguments
 }
 
 fn convert_enum(

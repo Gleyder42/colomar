@@ -25,7 +25,7 @@ pub mod test_assert;
 mod compiler;
 
 fn main() {
-    let filename = "test.colo";
+    let filename = "milestone_one.colo";
     let filepath = format!("dsl/example/{filename}");
     let path = Path::new(&filepath);
     let mut file = fs::File::open(path).unwrap();

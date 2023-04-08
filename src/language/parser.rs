@@ -12,6 +12,8 @@ type EventParser = impl Parser<Token, Event, Error=Simple<Token>> + Clone;
 type EnumParser = impl Parser<Token, Enum, Error=Simple<Token>> + Clone;
 type BlockParser = impl Parser<Token, Block, Error=Simple<Token>> + Clone;
 type RuleParser = impl Parser<Token, Rule, Error=Simple<Token>> + Clone;
+type StructParser = impl Parser<Token, Struct, Error=Simple<Token>> + Clone;
+type DeclaredArgumentParser = impl Parser<Token, Vec<DeclaredArgument>, Error=Simple<Token>> + Clone;
 
 pub fn ident_parser() -> IdentParser {
     filter_map(|span, token| match token {
@@ -20,19 +22,24 @@ pub fn ident_parser() -> IdentParser {
     })
 }
 
-fn event_parser(
+fn declare_arguments_parser(
     ident: IdentParser,
     ident_chain: IdentChainParser,
-    args: ArgsParser,
-) -> EventParser {
-    let declare_args = ident.clone()
+) -> DeclaredArgumentParser {
+    ident.clone()
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident.clone().separated_by(just(Token::Ctrl('|'))))
         .then(just(Token::Ctrl('=')).ignore_then(ident_chain).or_not())
         .map_with_span(|((name, types), default_value), span | DeclaredArgument { name, types, default_value, span })
         .separated_by(just(Token::Ctrl(',')))
-        .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')));
+        .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
+}
 
+fn event_parser(
+    declare_args: DeclaredArgumentParser,
+    ident: IdentParser,
+    args: ArgsParser,
+) -> EventParser {
     just(Token::Workshop)
         .or_not()
         .map(|o| o.is_some())
@@ -70,6 +77,76 @@ fn enum_parser(
         .then(ident.clone())
         .then(constants.delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))))
         .map_with_span(|((is_workshop, name), constants), span| Enum { name, is_workshop, constants, span })
+}
+
+fn struct_parser(
+    ident: IdentParser,
+    declared_args: DeclaredArgumentParser
+) -> StructParser {
+    let property = just(Token::Workshop)
+        .or_not()
+        .map_with_span(|o, span| Spanned(o.is_some(), span))
+        .then(just(Token::GetVal))
+        .then(ident.clone())
+        .then_ignore(just(Token::Ctrl(':')))
+        .then(ident.clone())
+        .then_ignore(just(Token::LineBreak))
+        .padded_by(just(Token::LineBreak))
+        .map(|(((is_workshop, property_type), name), r#type)| {
+            let desc = match property_type {
+                // Write a test which tries to put other tokens here
+                Token::GetVal => PropertyDesc::GetVal,
+                _ => panic!("Compiler Error: Unexpected token as property type {}", property_type)
+            };
+            StructProperty { name, is_workshop, desc, r#type }
+        });
+
+    let member_function = just(Token::Workshop)
+        .or_not()
+        .map_with_span(|it, span| Spanned(it.is_some(), span))
+        .then_ignore(just(Token::Fn))
+        .then(ident.clone())
+        .then(declared_args.clone())
+        .then_ignore(just(Token::LineBreak))
+        .padded_by(just(Token::LineBreak))
+        .map(|((is_workshop, name), arguments)| {
+            Function { name, is_workshop, arguments }
+        });
+
+    enum StructMember {
+        Property(StructProperty),
+        Function(Function)
+    }
+
+    let struct_parser = just(Token::Open)
+        .or_not().map_with_span(|it, span| Spanned(it.is_some(), span))
+        .then(
+            just(Token::Workshop)
+                .or_not().map_with_span(|it, span| Spanned(it.is_some(), span))
+        )
+        .then_ignore(just(Token::Struct))
+        .then(ident.clone())
+        .then_ignore(just(Token::Ctrl('{')))
+        .then(
+            property.map(StructMember::Property)
+                .or(member_function.map(StructMember::Function))
+                .separated_by(just(Token::LineBreak))
+        )
+        .then_ignore(just(Token::Ctrl('}')))
+        .map_with_span(|(((is_open, is_workshop), name), members), span| {
+            let mut functions = Vec::new();
+            let mut properties = Vec::new();
+            for member in members {
+                match member {
+                    StructMember::Function(function) => functions.push(function),
+                    StructMember::Property(property) => properties.push(property)
+                };
+            }
+
+            Struct { name, is_open, is_workshop, span, properties, functions  }
+        });
+
+    struct_parser
 }
 
 fn ident_chain_parser(
@@ -149,15 +226,18 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
     let ident = ident_parser();
     let (ident_chain, args) = ident_chain_parser(ident.clone());
     let block = block_parser(ident_chain.clone());
+    let declared_argument = declare_arguments_parser(ident.clone(), ident_chain.clone());
 
     let rule_parser = rule_parser(ident.clone(), block.clone(), args.clone())
         .map(Root::Rule);
-    let event_parser = event_parser(ident.clone(), ident_chain.clone(), args)
+    let event_parser = event_parser(declared_argument.clone(), ident.clone(), args)
         .map(Root::Event);
     let enum_parser = enum_parser(ident.clone())
         .map(Root::Enum);
+    let struct_parser = struct_parser(ident.clone(), declared_argument.clone())
+        .map(Root::Struct);
 
-    choice((rule_parser, event_parser, enum_parser))
+    choice((rule_parser, event_parser, enum_parser, struct_parser))
         .repeated()
         .then_ignore(end())
         .map(|ast| ast)
