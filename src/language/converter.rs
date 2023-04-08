@@ -181,7 +181,7 @@ fn create_called_argument(
     Ok(argument)
 }
 
-fn create_const_value(
+fn _create_const_value(
     enum_constant: &Rc<im::EnumConstant>,
     _index: usize
 ) -> Result<im::ConstValue, ConverterError>  {
