@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::process::id;
 use std::rc::Rc;
 use crate::language::{ast, Ident, Span};
 use crate::language::im;
@@ -58,19 +59,15 @@ impl Accessor {
     }
 }
 
-struct Namespace<'a> {
-    parent: Option<&'a Namespace<'a>>,
+struct Namespace {
+    parent: Vec<Rc<Namespace>>,
     map: HashMap<String, Accessor>
 }
 
-impl<'a> Namespace<'a> {
+impl Namespace {
 
-    fn new_root() -> Namespace<'a> {
-        Namespace { map: HashMap::new(), parent: None }
-    }
-
-    fn new(parent: &'a Namespace) -> Namespace<'a> {
-        Namespace { map: HashMap::new(), parent: Some(parent) }
+    fn new_root() -> Namespace {
+        Namespace { map: HashMap::new(), parent: Vec::new() }
     }
 
     fn get(&self, ident: &Ident) -> Option<Accessor> {
@@ -82,7 +79,12 @@ impl<'a> Namespace<'a> {
         if option.is_some() {
             option
         } else {
-            self.parent.map(|it| it.contains(ident)).flatten()
+            self.parent.iter()
+                .map(|it| it.contains(&ident))
+                .filter(|it| it.is_some())
+                .flatten()
+                .collect::<Vec<_>>()
+                .pop()
         }
     }
 
@@ -288,36 +290,8 @@ fn _create_const_value(
     Ok(im::ConstValue::EnumConstant(Rc::clone(&enum_constant)))
 }
 
-fn link_call(call: Box<ast::Call>, namespace: &Namespace)  {
-    let mut current = call;
-    let mut current_namespace = Namespace::new_root();
-    loop {
-        let next = match *current {
-            ast::Call::Var { name, next } => {
-                match namespace.get(&name) {
-                    Some(Accessor::Enum(r#enum)) => current_namespace.add_enum_constants(&r#enum).unwrap(),
-                    Some(Accessor::EnumConstant(enum_constant)) => todo!(),
-                    _ => todo!()
-                };
+fn link_call(call_chain: ast::CallChain, namespace: Rc<Namespace>)  {
 
-                next
-            },
-            ast::Call::Fn { name, args, span, next } => {
-                next
-            },
-            ast::Call::Number { value, next } => {
-                next
-            },
-            ast::Call::String { value, next } => {
-                next
-            }
-        };
-
-        match next {
-            Some(next) => current = next,
-            None => break,
-        }
-    }
 }
 
 fn link_ident_chain<T, F>(
@@ -449,33 +423,33 @@ fn convert_rule(
     }
     let cloned_rule = rule.clone();
 
-    let arguments = rule.args.into_iter().map(|it| {
-        let mut current = it;
-        let mut ident_chain = Vec::new();
-
-        loop {
-            match current {
-                box ast::Call::Var { name, next } => {
-                    ident_chain.push(name.clone());
-
-                    match next {
-                        Some(next) => current = next,
-                        None => break
-                    };
-                }
-                box ast::Call::Number { .. } => todo!(),
-                box ast::Call::String { .. } => todo!(),
-                box ast::Call::Fn { .. } => todo!()
-            };
-        }
-
-        im::IdentChain(ident_chain)
-    }).collect();
+    // let arguments = rule.args.into_iter().map(|it| {
+    //     let mut current = it;
+    //     let mut ident_chain = Vec::new();
+    //
+    //     loop {
+    //         match current {
+    //             box ast::Call::Ident { name, next } => {
+    //                 ident_chain.push(name.clone());
+    //
+    //                 match next {
+    //                     Some(next) => current = next,
+    //                     None => break
+    //                 };
+    //             }
+    //             box ast::Call::Number { .. } => todo!(),
+    //             box ast::Call::String { .. } => todo!(),
+    //             box ast::Call::ArgumentsIdent { .. } => todo!()
+    //         };
+    //     }
+    //
+    //     im::IdentChain(ident_chain)
+    // }).collect();
 
     let im_rule = im::Rule {
         title: rule.name.0,
         event: im::Link::Unbound(rule.event),
-        arguments: im::Link::Unbound(arguments),
+        arguments: im::Link::Unbound(Vec::new()),
         span: rule.span,
     };
 

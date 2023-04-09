@@ -6,8 +6,8 @@ use crate::language::ast::*;
 use crate::language::{Ident};
 
 type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
-type IdentChainParser = impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone;
-type ArgsParser = impl Parser<Token, Vec<Box<Call>>, Error=Simple<Token>> + Clone;
+type IdentChainParser = impl Parser<Token, CallChain, Error=Simple<Token>> + Clone;
+type ArgsParser = impl Parser<Token, Vec<CallChain>, Error=Simple<Token>> + Clone;
 type EventParser = impl Parser<Token, Event, Error=Simple<Token>> + Clone;
 type EnumParser = impl Parser<Token, Enum, Error=Simple<Token>> + Clone;
 type BlockParser = impl Parser<Token, Block, Error=Simple<Token>> + Clone;
@@ -17,7 +17,7 @@ type DeclaredArgumentParser = impl Parser<Token, Vec<DeclaredArgument>, Error=Si
 
 pub fn ident_parser() -> IdentParser {
     filter_map(|span, token| match token {
-        Token::Ident(ident) => Ok(Ident { value: ident.clone(), span } ),
+        Token::Ident(ident) => Ok(Ident { value: ident.clone(), span }),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     })
 }
@@ -30,7 +30,9 @@ fn declare_arguments_parser(
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident.clone().separated_by(just(Token::Ctrl('|'))))
         .then(just(Token::Ctrl('=')).ignore_then(ident_chain).or_not())
-        .map_with_span(|((name, types), default_value), span | DeclaredArgument { name, types, default_value, span })
+        .map_with_span(|((name, types), default_value), span|
+            DeclaredArgument { name, types, default_value, span }
+        )
         .separated_by(just(Token::Ctrl(',')))
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
 }
@@ -66,7 +68,7 @@ fn event_parser(
             by,
             args: decl_args,
             conditions: block.conditions,
-            span
+            span,
         })
 }
 
@@ -83,14 +85,14 @@ fn enum_parser(
         .then(ident.clone())
         .then(constants.delimited_by(
             just(Token::Ctrl('{')),
-            just(Token::Ctrl('}'))
+            just(Token::Ctrl('}')),
         ))
         .map_with_span(|((is_workshop, name), constants), span| Enum { name, is_workshop, constants, span })
 }
 
 fn struct_parser(
     ident: IdentParser,
-    declared_args: DeclaredArgumentParser
+    declared_args: DeclaredArgumentParser,
 ) -> StructParser {
     let property = workshop_keyword()
         .then(just(Token::GetVal))
@@ -116,7 +118,7 @@ fn struct_parser(
 
     enum StructMember {
         Property(StructProperty),
-        Function(Function)
+        Function(Function),
     }
 
     let struct_parser = just(Token::Open)
@@ -130,7 +132,7 @@ fn struct_parser(
                 .separated_by(just(Token::NewLine).repeated().at_least(1))
                 .padded_by(just(Token::NewLine).repeated())
                 .delimited_by(
-                    just(Token::Ctrl('{')), just(Token::Ctrl('}'))
+                    just(Token::Ctrl('{')), just(Token::Ctrl('}')),
                 )
         )
         .map_with_span(|(((is_open, is_workshop), name), members), span| {
@@ -143,7 +145,7 @@ fn struct_parser(
                 };
             }
 
-            Struct { name, is_open, is_workshop, span, properties, functions  }
+            Struct { name, is_open, is_workshop, span, properties, functions }
         });
 
     struct_parser
@@ -161,41 +163,34 @@ fn ident_chain_parser(
     IdentChainParser,
     ArgsParser
 ) {
-    let mut ident_chain = Recursive::<_, Box<Call>, _>::declare();
+    let mut ident_chain = Recursive::<_, CallChain, _>::declare();
     let args = ident_chain
         .clone()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
+        .map(|it| it as CallArguments)
         .labelled("function args");
 
     let literal = filter_map(|span, token| match token {
-        Token::String(string) => Ok(MaybeLiteral::String(string)),
-        Token::Num(number) => Ok(MaybeLiteral::Number(number)),
+        Token::String(string) => Ok(Box::new(Call::String(string))),
+        Token::Num(number) => Ok(Box::new(Call::Number(number))),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     });
 
-    enum MaybeLiteral {
-        Ident(Ident, Option<Vec<Box<Call>>>),
-        String(String),
-        Number(String)
-    }
-
     ident_chain.define(
         ident
-            .then(args.clone().or_not()).map(|it| MaybeLiteral::Ident(it.0, it.1))
+            .then(args.clone().or_not())
+            .map_with_span(|(ident, arguments), span| {
+                let call = match arguments {
+                    Some(arguments) => Call::ArgumentsIdent { name: ident, args: arguments, span },
+                    None => Call::Ident(ident)
+                };
+                Box::new(call)
+            })
             .or(literal)
             .separated_by(just(Token::Ctrl('.')))
-            .at_least(1)
-            .map_with_span(|o, span| o.into_iter().rfold::<Option<Box<Call>>, _>(None, |acc, element| {
-                let call = match element {
-                    MaybeLiteral::Ident(name, Some(args)) => Call::Fn { name, args, next: acc, span: span.clone() },
-                    MaybeLiteral::Ident(name, None) => Call::Var { name, next: acc },
-                    MaybeLiteral::String(value) => Call::String { value, next: acc },
-                    MaybeLiteral::Number(value) => Call::Number { value, next: acc }
-                };
-                return Some(Box::new(call));
-            }).expect("Cannot have call chain with no calls")));
+            .at_least(1));
 
     (ident_chain, args)
 }
@@ -240,7 +235,7 @@ pub fn rule_parser(
             name: rule_name,
             event: ident,
             args,
-            span
+            span,
         })
 }
 
@@ -303,7 +298,7 @@ mod tests {
                     Ident::new("Tracer".to_string(), 39..45),
                     Ident::new("Mercy".to_string(), 52..57),
                 ],
-                span: 0..60
+                span: 0..60,
             },
             Enum {
                 is_workshop: Spanned(false, 64..68),
@@ -312,7 +307,7 @@ mod tests {
                     Ident::new("First".to_string(), 83..88),
                     Ident::new("Second".to_string(), 90..96),
                 ],
-                span: 64..99
+                span: 64..99,
             },
         ];
 
@@ -346,7 +341,7 @@ mod tests {
                         name: Ident::new("team".to_string(), 33..37),
                         types: vec![Ident::new("Team".to_string(), 39..43)],
                         default_value: None,
-                        span: 33..43
+                        span: 33..43,
                     },
                     DeclaredArgument {
                         name: Ident::new(
@@ -354,9 +349,9 @@ mod tests {
                             45..53,
                         ),
                         types: vec![Ident::new(
-                                    "Hero".to_string(),
-                                    55..59,
-                                ), Ident::new(
+                            "Hero".to_string(),
+                            55..59,
+                        ), Ident::new(
                             "Slot".to_string(),
                             62..66,
                         )],
@@ -391,7 +386,7 @@ mod tests {
                 args: Vec::new(),
                 conditions: Vec::new(),
                 actions: Vec::new(),
-                span: 0..39
+                span: 0..39,
             },
             Rule {
                 name: Spanned("Test".to_string(), 48..54),
@@ -402,7 +397,7 @@ mod tests {
                 ],
                 conditions: Vec::new(),
                 actions: Vec::new(),
-                span: 43..80
+                span: 43..80,
             },
             Rule {
                 name: Spanned("Heal on Kill".to_string(), 89..103),
@@ -413,7 +408,7 @@ mod tests {
                 ],
                 conditions: Vec::new(),
                 actions: Vec::new(),
-                span: 84..142
+                span: 84..142,
             },
             Rule {
                 name: Spanned("Heal on Kill".to_string(), 151..165),
@@ -424,7 +419,7 @@ mod tests {
                 ],
                 conditions: Vec::new(),
                 actions: Vec::new(),
-                span: 146..208
+                span: 146..208,
             },
             Rule {
                 name: Spanned("Do something".to_string(), 217..231),
@@ -434,12 +429,12 @@ mod tests {
                     Call::new_fn_args(
                         Ident::new("test".to_string(), 243..247),
                         243..254,
-                        vec![Call::new_var(Ident::new("Team1".to_string(), 248..253))]
+                        vec![Call::new_var(Ident::new("Team1".to_string(), 248..253))],
                     ),
                     Call::new_fn_args(
                         Ident::new("foo".to_string(), 256..259),
                         256..266,
-                        vec![Call::new_var(Ident::new("Slot1".to_string(), 260..265))]
+                        vec![Call::new_var(Ident::new("Slot1".to_string(), 260..265))],
                     ),
                 ],
                 conditions: Vec::new(),
@@ -471,7 +466,7 @@ mod tests {
                             322..340,
                             vec![
                                 Call::new_var(Ident::new("x".to_string(), 335..336)),
-                                Call::new_var(Ident::new("p".to_string(), 338..339, )),
+                                Call::new_var(Ident::new("p".to_string(), 338..339)),
                             ],
                         ),
                     ),

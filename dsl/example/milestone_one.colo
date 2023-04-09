@@ -24,7 +24,7 @@ open workshop struct Player {
 workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) { }
 
 rule "Hello World" OngoingEachPlayer() {
-    cond player.isReloading
+    cond player.isReloading(yes.lol, no.lol)
 
     player.displaySmallMessage("Hello World")
 }
