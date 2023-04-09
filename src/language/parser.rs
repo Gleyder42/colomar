@@ -1,12 +1,9 @@
 extern crate core;
 
-use chumsky::combinator::To;
 use chumsky::prelude::*;
-use chumsky::text::ident;
 use crate::language::lexer::Token;
 use crate::language::ast::*;
 use crate::language::{Ident};
-use crate::Span;
 
 type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
 type IdentChainParser = impl Parser<Token, Box<Call>, Error=Simple<Token>> + Clone;
@@ -64,7 +61,7 @@ fn event_parser(
             }
             ((((is_workshop, name), decl_args), by), block)
         })
-        .map_with_span(|((((is_workshop, name), decl_args), by), block), span| Event {
+        .map_with_span(|((((_is_workshop, name), decl_args), by), block), span| Event {
             name,
             by,
             args: decl_args,
@@ -208,17 +205,18 @@ fn block_parser(
 ) -> BlockParser {
     let cond = just(Token::Cond)
         .ignore_then(ident_chain.clone())
-        .then_ignore(just(Token::NewLine));
+        .then_ignore(just(Token::NewLine))
+        .map(|it| it as Condition);
 
     just(Token::Ctrl('{'))
         .ignore_then(cond.repeated().padded_by(just(Token::NewLine).repeated()))
         .then(ident_chain.clone()
             .then_ignore(just(Token::NewLine))
-            .map(|o| o as Action)
+            .map(|it| it as Action)
             .repeated().padded_by(just(Token::NewLine).repeated())
         )
         .then_ignore(just(Token::Ctrl('}')))
-        .map_with_span(|o, span| Block { actions: o.0, conditions: o.1, span })
+        .map_with_span(|(conditions, actions), span| Block { actions, conditions, span })
 }
 
 pub fn rule_parser(

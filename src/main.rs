@@ -86,7 +86,7 @@ fn main() {
     };
 
     let (ast, errors) = parser().parse_recovery(Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter()));
-    //println!("{:#?}", ast);
+    println!("{:#?}", ast);
     //println!("{:#?}", errors);
 
     if let Some(ast) = ast {
@@ -129,6 +129,24 @@ fn main() {
                             .with_label(
                                 Label::new(("test2.colo", referenced_span.clone()))
                                     .with_message(help)
+                            )
+                            .finish()
+                            .print(sources(vec![
+                                ("test2.colo", source.as_str())
+                            ]))
+                            .unwrap();
+                    },
+                    ConverterError::DuplicateIdent { message, first_defined_span, second_defined_span} => {
+                        Report::build(ReportKind::Error, "test2.colo", first_defined_span.start)
+                            .with_code(5)
+                            .with_message(message)
+                            .with_label(
+                                Label::new(("test2.colo", first_defined_span))
+                                    .with_message("First defined here")
+                            )
+                            .with_label(
+                                Label::new(("test2.colo", second_defined_span))
+                                    .with_message("Second defined here")
                             )
                             .finish()
                             .print(sources(vec![

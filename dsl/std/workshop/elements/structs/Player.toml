@@ -1,8 +1,14 @@
 self = "Event Player"
 
-[variables]
-ability1Enabled = "Set Ability 1 Enabled(%self%, %value%)"
+[getval]
 hero = "Hero Of(%self%)"
+isReloading = "Is Reloading(%self%)"
+
+[setval]
+ability1Enabled = "Set Ability 1 Enabled(%self%, %value%)"
+
+[variables]
 
 [functions]
-heal = "Heal(%self%, %healee%, %amount%)"
+heal = "Heal(%self%, %healer%, %amount%)"
+displaySmallMessage = "SmallMessage(%message%)"

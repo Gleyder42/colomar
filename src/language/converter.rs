@@ -3,13 +3,18 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use crate::language::{ast, Ident, Span};
 use crate::language::im;
-use crate::language::im::make_ref;
+use crate::language::im::{make_ref};
 
 type QueryCache<K, V> = HashMap<K, V>;
 
 #[derive(Debug)]
 pub enum ConverterError {
     CannotResolveIdent(String, Span),
+    DuplicateIdent {
+        message: String,
+        first_defined_span: Span,
+        second_defined_span: Span
+    },
     ResolvedIdentWrongType {
         message: String,
         help: String,
@@ -18,18 +23,108 @@ pub enum ConverterError {
     }
 }
 
-type IdentMap = HashMap<String, im::Root>;
+trait IdentMapExt {
+    fn get_event(&self, ident: &Ident) -> Result<im::EventRef, ConverterError>;
 
-impl IdentMapExt for IdentMap {
+    fn insert_unique(&mut self, ident: Ident, value: im::Root) -> Result<(), ConverterError>;
+}
+
+#[derive(Clone)]
+enum Accessor {
+    Enum(im::EnumRef),
+    Event(im::EventRef),
+    Struct(im::StructRef),
+    EnumConstant(Rc<im::EnumConstant>),
+}
+
+impl Accessor {
+
+    fn name_span(&self) -> Span {
+        match self {
+            Accessor::Enum(r#enum) => r#enum.borrow().name.span.clone(),
+            Accessor::Struct(r#struct) => r#struct.borrow().name.span.clone(),
+            Accessor::Event(event) => event.borrow().name.span.clone(),
+            Accessor::EnumConstant(enum_constant) => enum_constant.name.span.clone()
+        }
+    }
+
+    fn name(&self) -> &'static str {
+        match self {
+            Accessor::Event(_) => "Event",
+            Accessor::Enum(_) => "Enum",
+            Accessor::EnumConstant(_) => "Enum Constant",
+            Accessor::Struct(_) => "Struct"
+        }
+    }
+}
+
+struct Namespace<'a> {
+    parent: Option<&'a Namespace<'a>>,
+    map: HashMap<String, Accessor>
+}
+
+impl<'a> Namespace<'a> {
+
+    fn new_root() -> Namespace<'a> {
+        Namespace { map: HashMap::new(), parent: None }
+    }
+
+    fn new(parent: &'a Namespace) -> Namespace<'a> {
+        Namespace { map: HashMap::new(), parent: Some(parent) }
+    }
+
+    fn get(&self, ident: &Ident) -> Option<Accessor> {
+        self.map.get(&ident.value).map(|it| it.clone())
+    }
+
+    fn contains(&self, ident: &Ident) -> Option<Accessor> {
+        let option = self.map.get(&ident.value).map(|it| it.clone());
+        if option.is_some() {
+            option
+        } else {
+            self.parent.map(|it| it.contains(ident)).flatten()
+        }
+    }
+
+    fn add_enum_constants(&mut self, r#enum: &im::EnumRef) -> Result<(), ConverterError> {
+        for enum_constant in &r#enum.borrow().constants {
+            let result = self.add(
+                enum_constant.name.clone(),
+                Accessor::EnumConstant(Rc::clone(enum_constant))
+            );
+            if result.is_err() {
+                return result;
+            }
+        };
+        return Ok(());
+    }
+
+    fn add(&mut self, ident: Ident, accessor: Accessor) -> Result<(), ConverterError> {
+        match self.contains(&ident) {
+            Some(root) => {
+                let error = ConverterError::DuplicateIdent {
+                    message: format!("{} already exists within in the current scope", ident.value),
+                    first_defined_span: root.name_span(),
+                    second_defined_span: ident.span
+                };
+                Err(error)
+            },
+            None => {
+                self.map.insert(ident.value.clone(), accessor);
+                Ok(())
+            }
+        }
+    }
+
     fn get_event(&self, ident: &Ident) -> Result<im::EventRef, ConverterError> {
-        match self.get(&ident.value) {
-            Some(im::Root::Event(event)) => Ok(Rc::clone(event)),
+        match self.get(ident) {
+            Some(Accessor::Event(event)) => Ok(Rc::clone(&event)),
             Some(value) => {
                 let error = ConverterError::ResolvedIdentWrongType {
                     message: format!("Cannot find event {}", ident.value),
                     help: format!("There is a {} {}, but its not an event", value.name(), ident.value),
                     called_span: ident.span.clone(),
-                    referenced_span: value.span(),
+                    referenced_span: value.name_span(),
                 };
                 Err(error)
             }
@@ -42,32 +137,13 @@ impl IdentMapExt for IdentMap {
             }
         }
     }
-
-    fn insert_unique(&mut self, ident: Ident, value: im::Root) -> Result<(), ConverterError> {
-        if !self.contains_key(&ident.value) {
-            self.insert(ident.value.clone(), value);
-            Ok(())
-        } else {
-            let error = ConverterError::CannotResolveIdent(
-                format!("{} already exists in the current scope", ident.value),
-                ident.span.clone(),
-            );
-            Err(error)
-        }
-    }
-}
-
-trait IdentMapExt {
-    fn get_event(&self, ident: &Ident) -> Result<im::EventRef, ConverterError>;
-
-    fn insert_unique(&mut self, ident: Ident, value: im::Root) -> Result<(), ConverterError>;
 }
 
 pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
+    let mut root_namespace = Namespace::new_root();
     let mut enum_cache = QueryCache::new();
     let mut event_cache = QueryCache::new();
     let mut rule_cache = QueryCache::new();
-    let mut ident_map = IdentMap::new();
 
     let mut im = im::Im::new();
     let mut error_vec = Vec::new();
@@ -77,30 +153,36 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
         let root = match root {
             ast::Root::Struct(r#struct) => {
                 let r#struct = convert_struct(r#struct);
-                let struct_root = im::Root::Struct(Rc::clone(&r#struct));
-                let result = ident_map.insert_unique(r#struct.borrow().name.clone(), struct_root.clone());
+                let result = root_namespace.add(
+                    r#struct.borrow().name.clone(),
+                    Accessor::Struct(Rc::clone(&r#struct))
+                );
                 if let Err(error) = result {
                     error_vec.push(error);
                 }
-                struct_root
+                im::Root::Struct(Rc::clone(&r#struct))
             }
             ast::Root::Event(event) => {
                 let event = convert_event(&mut event_cache, event);
-                let event_root = im::Root::Event(Rc::clone(&event));
-                let result = ident_map.insert_unique(event.borrow().name.clone(), event_root.clone());
+                let result = root_namespace.add(
+                    event.borrow().name.clone(),
+                    Accessor::Event(Rc::clone(&event))
+                );
                 if let Err(error) = result {
                     error_vec.push(error);
                 }
-                event_root
+                im::Root::Event(Rc::clone(&event))
             }
             ast::Root::Enum(r#enum) => {
                 let r#enum = convert_enum(&mut enum_cache, r#enum);
-                let enum_root = im::Root::Enum(Rc::clone(&r#enum));
-                let result = ident_map.insert_unique(r#enum.borrow().name.clone(), enum_root.clone());
+                let result = root_namespace.add(
+                    r#enum.borrow().name.clone(),
+                    Accessor::Enum(Rc::clone(&r#enum))
+                );
                 if let Err(error) = result {
                     error_vec.push(error);
                 }
-                enum_root
+                im::Root::Enum(Rc::clone(&r#enum))
             }
             ast::Root::Rule(rule) => {
                 let rule = convert_rule(&mut rule_cache, rule);
@@ -113,45 +195,53 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
     for root in &im {
         match root {
             im::Root::Rule(rule) => {
-                let event = ident_map.get_event(rule.borrow().event.unbound());
-
-                let event = match event {
-                    Ok(event) => {
-                        rule.borrow_mut().event = im::Link::Bound(Rc::clone(&event));
-                        event
-                    }
-                    Err(error) => {
-                        error_vec.push(error);
-                        continue;
-                    }
-                };
-
-                let ident_chain = link_ident_chain(
-                    rule.borrow().arguments.unbound(),
-                    &ident_map,
-                    |r#enum, enum_constant, index| create_called_argument(r#enum, enum_constant, index, &event),
-                );
-
-                match ident_chain {
-                    Ok(arguments) => rule.borrow_mut().arguments = im::Link::Bound(arguments),
-                    Err(mut error) => error_vec.append(&mut error)
-                };
+                link_rule(&root_namespace, &mut error_vec, rule);
             }
             im::Root::Event(event) => {
-                for arguments in &event.borrow().arguments {
-                    let types = arguments.borrow().types.iter()
-                        .filter_map(|it| link_type(it, &ident_map, &mut error_vec))
-                        .map(im::Link::Bound)
-                        .collect();
-
-                    arguments.borrow_mut().types = types;
-                }
+                link_enum(&root_namespace, &mut error_vec, &event);
             }
             _ => {}
         }
     }
 
     (im, error_vec)
+}
+
+fn link_enum(namespace: &Namespace, mut error_vec: &mut Vec<ConverterError>, event: &im::EventRef) {
+    for arguments in &event.borrow().arguments {
+        let types = arguments.borrow().types.iter()
+            .filter_map(|it| link_type(it, &namespace, &mut error_vec))
+            .map(im::Link::Bound)
+            .collect();
+
+        arguments.borrow_mut().types = types;
+    }
+}
+
+fn link_rule(namespace: &Namespace, error_vec: &mut Vec<ConverterError>, rule: &im::RuleRef) {
+    let event = namespace.get_event(rule.borrow().event.unbound());
+
+    let event = match event {
+        Ok(event) => {
+            rule.borrow_mut().event = im::Link::Bound(Rc::clone(&event));
+            event
+        }
+        Err(error) => {
+            error_vec.push(error);
+            return;
+        }
+    };
+
+    let ident_chain = link_ident_chain(
+        rule.borrow().arguments.unbound(),
+        &namespace,
+        |r#enum, enum_constant, index| create_called_argument(r#enum, enum_constant, index, &event),
+    );
+
+    match ident_chain {
+        Ok(arguments) => rule.borrow_mut().arguments = im::Link::Bound(arguments),
+        Err(mut error) => error_vec.append(&mut error)
+    };
 }
 
 fn create_called_argument(
@@ -198,9 +288,41 @@ fn _create_const_value(
     Ok(im::ConstValue::EnumConstant(Rc::clone(&enum_constant)))
 }
 
+fn link_call(call: Box<ast::Call>, namespace: &Namespace)  {
+    let mut current = call;
+    let mut current_namespace = Namespace::new_root();
+    loop {
+        let next = match *current {
+            ast::Call::Var { name, next } => {
+                match namespace.get(&name) {
+                    Some(Accessor::Enum(r#enum)) => current_namespace.add_enum_constants(&r#enum).unwrap(),
+                    Some(Accessor::EnumConstant(enum_constant)) => todo!(),
+                    _ => todo!()
+                };
+
+                next
+            },
+            ast::Call::Fn { name, args, span, next } => {
+                next
+            },
+            ast::Call::Number { value, next } => {
+                next
+            },
+            ast::Call::String { value, next } => {
+                next
+            }
+        };
+
+        match next {
+            Some(next) => current = next,
+            None => break,
+        }
+    }
+}
+
 fn link_ident_chain<T, F>(
     ident_chains: &Vec<im::IdentChain>,
-    ident_map: &IdentMap,
+    namespace: &Namespace,
     function: F,
 ) -> Result<Vec<T>, Vec<ConverterError>>
     where F: Fn(&im::EnumRef, &Rc<im::EnumConstant>, usize) -> Result<T, ConverterError>
@@ -214,13 +336,13 @@ fn link_ident_chain<T, F>(
             let enum_name = &ident_chain.0[0];
             let constant_name = &ident_chain.0[1];
 
-            if let Some(im::Root::Enum(r#enum)) = ident_map.get(&enum_name.value) {
+            if let Some(Accessor::Enum(r#enum)) = namespace.get(&enum_name) {
                 let enum_ref = r#enum.borrow();
                 let enum_constant = enum_ref.constants.iter()
                     .find(|it| it.name.value == constant_name.value);
 
                 if let Some(enum_constant) = enum_constant {
-                    let result = function(r#enum, enum_constant, index);
+                    let result = function(&r#enum, enum_constant, index);
                     match result {
                         Ok(value) => results.push(value),
                         Err(error) => errors.push(error)
@@ -249,21 +371,21 @@ fn link_ident_chain<T, F>(
 
 fn link_type(
     ref_type: &im::Link<Ident, im::Type>,
-    ident_map: &HashMap<String, im::Root>,
+    namespace: &Namespace,
     error_vec: &mut Vec<ConverterError>,
 ) -> Option<im::Type> {
     let name = if let im::Link::Unbound(name) = ref_type { name } else { return None; };
 
-    match ident_map.get(&name.value) {
+    match namespace.get(&name) {
         Some(root) => {
             match root {
-                im::Root::Enum(r#enum) => {
+                Accessor::Enum(r#enum) => {
                     Some(im::Type::Enum(Rc::clone(&r#enum)))
                 },
-                im::Root::Struct(r#struct) => {
+                Accessor::Struct(r#struct) => {
                     Some(im::Type::Struct(Rc::clone(&r#struct)))
                 }
-                im::Root::Event(event) => {
+                Accessor::Event(event) => {
                     error_vec.push(ConverterError::ResolvedIdentWrongType {
                         message: format!("rules cannot be used as types"),
                         help: format!("{} is an event", event.borrow().name.value),
@@ -271,8 +393,8 @@ fn link_type(
                         referenced_span: event.borrow().name.span.clone(),
                     });
                     None
-                }
-                im::Root::Rule(_) => panic!("Rules have no ident")
+                },
+                _ => todo!()
             }
         }
         None => {

@@ -1,6 +1,6 @@
 extern crate core;
 
-use std::fmt::{Debug, Display, Formatter, write};
+use std::fmt::{Debug, Display, Formatter};
 use chumsky::prelude::*;
 use std::string::String;
 use crate::language::Span;
@@ -83,7 +83,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     );
 
     let newline = text::newline()
-        .map(|it| Token::NewLine);
+        .map(|_| Token::NewLine);
 
     let token = num
         .or(newline)
