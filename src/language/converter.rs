@@ -36,6 +36,7 @@ enum Accessor {
     Event(im::EventRef),
     Struct(im::StructRef),
     EnumConstant(Rc<im::EnumConstant>),
+    Function(im::FunctionRef)
 }
 
 impl Accessor {
@@ -45,7 +46,8 @@ impl Accessor {
             Accessor::Enum(r#enum) => r#enum.borrow().name.span.clone(),
             Accessor::Struct(r#struct) => r#struct.borrow().name.span.clone(),
             Accessor::Event(event) => event.borrow().name.span.clone(),
-            Accessor::EnumConstant(enum_constant) => enum_constant.name.span.clone()
+            Accessor::EnumConstant(enum_constant) => enum_constant.name.span.clone(),
+            Accessor::Function(function) => function.borrow().name.span.clone()
         }
     }
 
@@ -54,7 +56,8 @@ impl Accessor {
             Accessor::Event(_) => "Event",
             Accessor::Enum(_) => "Enum",
             Accessor::EnumConstant(_) => "Enum Constant",
-            Accessor::Struct(_) => "Struct"
+            Accessor::Struct(_) => "Struct",
+            Accessor::Function(_) => "Function"
         }
     }
 }
@@ -290,8 +293,56 @@ fn _create_const_value(
     Ok(im::ConstValue::EnumConstant(Rc::clone(&enum_constant)))
 }
 
-fn link_call(call_chain: ast::CallChain, namespace: Rc<Namespace>)  {
+fn link_call(call_chain: ast::CallChain, namespace: Rc<Namespace>) -> Result<Accessor, ConverterError> {
+    let mut current_namespace = namespace;
+    let mut current_value = None;
+    for call in call_chain {
+        match *call {
+            ast::Call::Ident(ident) => {
+                match current_namespace.get(&ident) {
+                    Some(Accessor::Enum(r#enum)) => {
+                        let mut local_namespace = Namespace::new_root();
+                        local_namespace.add_enum_constants(&r#enum)?;
+                        current_namespace = Rc::new(local_namespace);
+                        current_value = Some(Accessor::Enum(r#enum));
+                    },
+                    Some(Accessor::EnumConstant(enum_constant)) => {
+                        current_namespace = Rc::new(Namespace::new_root());
+                        current_value = Some(Accessor::EnumConstant(enum_constant));
+                    }
+                    Some(accessor) => {
+                        let error = ConverterError::ResolvedIdentWrongType {
+                            message: format!("Items of type {} are not supported", accessor.name()),
+                            help: String::new(),
+                            called_span: ident.span.clone(),
+                            referenced_span: accessor.name_span()
+                        };
+                        return Err(error)
+                    }
+                    None => {
+                        let error = ConverterError::CannotResolveIdent(
+                            format!("Cannot find item {}", ident.value),
+                            ident.span.clone()
+                        );
+                        return Err(error)
+                    }
+                }
+            },
+            ast::Call::ArgumentsIdent { name, args, .. } => {
+                match current_namespace.get(&name) {
+                    Some(Accessor::Function(function)) => {
+                        // TODO Add function return type
+                        current_namespace = Rc::new(Namespace::new_root());
+                        current_value = Some(Accessor::Function(function));
+                    },
+                    _ => todo!()
+                }
+            },
+            _ => todo!()
+        }
+    }
 
+    Ok(current_value.unwrap())
 }
 
 fn link_ident_chain<T, F>(
