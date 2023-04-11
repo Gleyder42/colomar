@@ -5,6 +5,7 @@ workshop struct num { }
 workshop enum Team {
     Team1, Team2, All
 }
+
 workshop enum Slot {
     Slot0, Slot1, All
 }
@@ -21,7 +22,9 @@ open workshop struct Player {
     workshop fn heal(amount: num, healer: Player = null)
 }
 
-workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) { }
+workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+    val player: Player
+}
 
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading

@@ -17,6 +17,7 @@ pub enum Token {
     Open,
     Struct,
     GetVal,
+    Val,
     Fn,
     NewLine,
     Type,
@@ -41,6 +42,7 @@ impl Display for Token {
             Token::GetVal => write!(f, "getval"),
             Token::Fn => write!(f, "fn"),
             Token::Type => write!(f, "type"),
+            Token::Val => write!(f, "val"),
             Token::NewLine => write!(f, "newline"),
             Token::Ident(string) => write!(f, "{string}"),
             Token::String(string) => write!(f, "{string}"),
@@ -78,6 +80,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         "getval" => Token::GetVal,
         "fn" => Token::Fn,
         "type" => Token::Type,
+        "val" => Token::Val,
         _ => Token::Ident(ident),
     }
     );
@@ -133,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond workshop event enum by open struct getval fn type \n";
+        let code = "rule cond workshop event enum by open struct getval val fn type \n";
 
         let actual = lexer().parse(code).unwrap();
         let expected = vec![
@@ -146,6 +149,7 @@ mod tests {
             Token::Open,
             Token::Struct,
             Token::GetVal,
+            Token::Val,
             Token::Fn,
             Token::Type,
             Token::NewLine

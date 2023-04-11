@@ -2,10 +2,15 @@ use derivative::Derivative;
 use crate::language::Ident;
 use crate::Span;
 
-pub type Action = CallChain;
 pub type Condition = CallChain;
 pub type CallArgs = CallArguments;
 pub type Types = Vec<Ident>;
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum Action {
+    CallChain(CallChain),
+    Property(Property)
+}
 
 #[derive(Derivative, Debug, Hash, Clone, Eq)]
 #[derivative(PartialEq)]
@@ -31,6 +36,7 @@ pub struct Event {
     pub by: Option<(Ident, CallArguments)>,
     pub args: Vec<DeclaredArgument>,
     pub conditions: Vec<Condition>,
+    pub actions: Vec<Action>,
     pub span: Span
 }
 
@@ -43,7 +49,7 @@ pub enum PropertyDesc {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct StructProperty {
+pub struct Property {
     pub is_workshop: Spanned<bool>,
     pub desc: PropertyDesc,
     pub name: Ident,
@@ -62,7 +68,7 @@ pub struct Struct {
     pub is_open: Spanned<bool>,
     pub is_workshop: Spanned<bool>,
     pub name: Ident,
-    pub properties: Vec<StructProperty>,
+    pub properties: Vec<Property>,
     pub functions: Vec<Function>,
     pub span: Span
 }
@@ -100,9 +106,24 @@ pub struct Block {
     pub span: Span
 }
 
+/// Idents chain with dots
+///
+/// Team.All
+/// Hello.World
+/// player.heal()
 pub type CallChain = Vec<Box<Call>>;
+
+/// Multiple ident chains
+///
+/// (Team.All, Hero.Ana)
+/// (player, 100)
 pub type CallArguments = Vec<CallChain>;
 
+/// Single ident.
+///
+/// Team
+/// All
+/// hello
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Call {
     ArgumentsIdent {

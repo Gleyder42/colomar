@@ -14,6 +14,7 @@ type BlockParser = impl Parser<Token, Block, Error=Simple<Token>> + Clone;
 type RuleParser = impl Parser<Token, Rule, Error=Simple<Token>> + Clone;
 type StructParser = impl Parser<Token, Struct, Error=Simple<Token>> + Clone;
 type DeclaredArgumentParser = impl Parser<Token, Vec<DeclaredArgument>, Error=Simple<Token>> + Clone;
+type PropertyParser = impl Parser<Token, Property, Error=Simple<Token>> + Clone;
 
 pub fn ident_parser() -> IdentParser {
     filter_map(|span, token| match token {
@@ -47,7 +48,7 @@ fn event_parser(
     block: BlockParser,
     declare_args: DeclaredArgumentParser,
     ident: IdentParser,
-    args: ArgsParser,
+    args: ArgsParser
 ) -> EventParser {
     just(Token::Workshop)
         .or_not()
@@ -68,6 +69,7 @@ fn event_parser(
             by,
             args: decl_args,
             conditions: block.conditions,
+            actions: block.actions,
             span,
         })
 }
@@ -90,12 +92,9 @@ fn enum_parser(
         .map_with_span(|((is_workshop, name), constants), span| Enum { name, is_workshop, constants, span })
 }
 
-fn struct_parser(
-    ident: IdentParser,
-    declared_args: DeclaredArgumentParser,
-) -> StructParser {
-    let property = workshop_keyword()
-        .then(just(Token::GetVal))
+fn property_parser(ident: IdentParser) -> PropertyParser {
+    workshop_keyword()
+        .then(choice((just(Token::GetVal), just(Token::Val))))
         .then(ident.clone())
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident.clone())
@@ -103,11 +102,18 @@ fn struct_parser(
             let desc = match property_type {
                 // Write a test which tries to put other tokens here
                 Token::GetVal => PropertyDesc::GetVal,
+                Token::Val => PropertyDesc::Val,
                 _ => panic!("Compiler Error: Unexpected token as property type {}", property_type)
             };
-            StructProperty { name, is_workshop, desc, r#type }
-        });
+            Property { name, is_workshop, desc, r#type }
+        })
+}
 
+fn struct_parser(
+    ident: IdentParser,
+    declared_args: DeclaredArgumentParser,
+    property: PropertyParser,
+) -> StructParser {
     let member_function = workshop_keyword()
         .then_ignore(just(Token::Fn))
         .then(ident.clone())
@@ -117,7 +123,7 @@ fn struct_parser(
         });
 
     enum StructMember {
-        Property(StructProperty),
+        Property(Property),
         Function(Function),
     }
 
@@ -196,18 +202,21 @@ fn ident_chain_parser(
 }
 
 fn block_parser(
-    ident_chain: IdentChainParser
+    ident_chain: IdentChainParser,
+    property: PropertyParser,
 ) -> BlockParser {
     let cond = just(Token::Cond)
         .ignore_then(ident_chain.clone())
         .then_ignore(just(Token::NewLine))
         .map(|it| it as Condition);
 
+    let action = ident_chain.map(Action::CallChain)
+        .or(property.map(Action::Property));
+
     just(Token::Ctrl('{'))
         .ignore_then(cond.repeated().padded_by(just(Token::NewLine).repeated()))
-        .then(ident_chain.clone()
+        .then(action
             .then_ignore(just(Token::NewLine))
-            .map(|it| it as Action)
             .repeated().padded_by(just(Token::NewLine).repeated())
         )
         .then_ignore(just(Token::Ctrl('}')))
@@ -242,7 +251,8 @@ pub fn rule_parser(
 pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
     let ident = ident_parser();
     let (ident_chain, args) = ident_chain_parser(ident.clone());
-    let block = block_parser(ident_chain.clone());
+    let property = property_parser(ident.clone());
+    let block = block_parser(ident_chain.clone(), property.clone());
     let declared_argument = declare_arguments_parser(ident.clone(), ident_chain.clone());
 
     let rule_parser = rule_parser(ident.clone(), block.clone(), args.clone())
@@ -251,7 +261,7 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
         .map(Root::Event);
     let enum_parser = enum_parser(ident.clone())
         .map(Root::Enum);
-    let struct_parser = struct_parser(ident.clone(), declared_argument.clone())
+    let struct_parser = struct_parser(ident.clone(), declared_argument.clone(), property.clone())
         .map(Root::Struct);
 
     choice((rule_parser, event_parser, enum_parser, struct_parser))

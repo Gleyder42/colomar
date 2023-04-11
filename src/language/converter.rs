@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::process::id;
 use std::rc::Rc;
+use once_cell::unsync::Lazy;
 use crate::language::{ast, Ident, Span};
 use crate::language::im;
 use crate::language::im::{make_ref};
@@ -31,40 +31,43 @@ trait IdentMapExt {
 }
 
 #[derive(Clone)]
-enum Accessor {
+enum Referable {
     Enum(im::EnumRef),
     Event(im::EventRef),
     Struct(im::StructRef),
     EnumConstant(Rc<im::EnumConstant>),
-    Function(im::FunctionRef)
+    Function(im::FunctionRef),
+    Property(im::PropertyRef)
 }
 
-impl Accessor {
+impl Referable {
 
     fn name_span(&self) -> Span {
         match self {
-            Accessor::Enum(r#enum) => r#enum.borrow().name.span.clone(),
-            Accessor::Struct(r#struct) => r#struct.borrow().name.span.clone(),
-            Accessor::Event(event) => event.borrow().name.span.clone(),
-            Accessor::EnumConstant(enum_constant) => enum_constant.name.span.clone(),
-            Accessor::Function(function) => function.borrow().name.span.clone()
+            Referable::Enum(r#enum) => r#enum.borrow().name.span.clone(),
+            Referable::Struct(r#struct) => r#struct.borrow().name.span.clone(),
+            Referable::Event(event) => event.borrow().name.span.clone(),
+            Referable::EnumConstant(enum_constant) => enum_constant.name.span.clone(),
+            Referable::Function(function) => function.borrow().name.span.clone(),
+            Referable::Property(property) => property.borrow().name.span.clone(),
         }
     }
 
     fn name(&self) -> &'static str {
         match self {
-            Accessor::Event(_) => "Event",
-            Accessor::Enum(_) => "Enum",
-            Accessor::EnumConstant(_) => "Enum Constant",
-            Accessor::Struct(_) => "Struct",
-            Accessor::Function(_) => "Function"
+            Referable::Event(_) => "Event",
+            Referable::Enum(_) => "Enum",
+            Referable::EnumConstant(_) => "Enum Constant",
+            Referable::Struct(_) => "Struct",
+            Referable::Function(_) => "Function",
+            Referable::Property(_) => "Property"
         }
     }
 }
 
 struct Namespace {
     parent: Vec<Rc<Namespace>>,
-    map: HashMap<String, Accessor>
+    map: HashMap<String, Referable>
 }
 
 impl Namespace {
@@ -73,11 +76,24 @@ impl Namespace {
         Namespace { map: HashMap::new(), parent: Vec::new() }
     }
 
-    fn get(&self, ident: &Ident) -> Option<Accessor> {
+    fn try_with_struct(r#struct: &im::StructRef) -> Result<Namespace, ConverterError> {
+        let mut namespace = Namespace::new_root();
+        namespace.add_struct_properties(r#struct)?;
+        namespace.add_struct_functions(r#struct)?;
+        Ok(namespace)
+    }
+
+    fn try_with_enum(r#enum: &im::EnumRef) -> Result<Namespace, ConverterError> {
+        let mut namespace = Namespace::new_root();
+        namespace.add_enum_constants(&r#enum)?;
+        Ok(namespace)
+    }
+
+    fn get(&self, ident: &Ident) -> Option<Referable> {
         self.map.get(&ident.value).map(|it| it.clone())
     }
 
-    fn contains(&self, ident: &Ident) -> Option<Accessor> {
+    fn contains(&self, ident: &Ident) -> Option<Referable> {
         let option = self.map.get(&ident.value).map(|it| it.clone());
         if option.is_some() {
             option
@@ -91,20 +107,28 @@ impl Namespace {
         }
     }
 
+    fn add_struct_properties(&mut self, r#struct: &im::StructRef) -> Result<(), ConverterError> {
+        for property in &r#struct.borrow().properties {
+            self.add(property.borrow().name.clone(), Referable::Property(Rc::clone(&property)))?;
+        }
+        Ok(())
+    }
+
+    fn add_struct_functions(&mut self, r#struct: &im::StructRef) -> Result<(), ConverterError> {
+        for function in &r#struct.borrow().functions {
+            self.add(function.borrow().name.clone(), Referable::Function(Rc::clone(&function)))?;
+        }
+        Ok(())
+    }
+
     fn add_enum_constants(&mut self, r#enum: &im::EnumRef) -> Result<(), ConverterError> {
         for enum_constant in &r#enum.borrow().constants {
-            let result = self.add(
-                enum_constant.name.clone(),
-                Accessor::EnumConstant(Rc::clone(enum_constant))
-            );
-            if result.is_err() {
-                return result;
-            }
+            self.add(enum_constant.name.clone(), Referable::EnumConstant(Rc::clone(enum_constant)))?;
         };
         return Ok(());
     }
 
-    fn add(&mut self, ident: Ident, accessor: Accessor) -> Result<(), ConverterError> {
+    fn add(&mut self, ident: Ident, accessor: Referable) -> Result<(), ConverterError> {
         match self.contains(&ident) {
             Some(root) => {
                 let error = ConverterError::DuplicateIdent {
@@ -123,7 +147,7 @@ impl Namespace {
 
     fn get_event(&self, ident: &Ident) -> Result<im::EventRef, ConverterError> {
         match self.get(ident) {
-            Some(Accessor::Event(event)) => Ok(Rc::clone(&event)),
+            Some(Referable::Event(event)) => Ok(Rc::clone(&event)),
             Some(value) => {
                 let error = ConverterError::ResolvedIdentWrongType {
                     message: format!("Cannot find event {}", ident.value),
@@ -160,7 +184,7 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
                 let r#struct = convert_struct(r#struct);
                 let result = root_namespace.add(
                     r#struct.borrow().name.clone(),
-                    Accessor::Struct(Rc::clone(&r#struct))
+                    Referable::Struct(Rc::clone(&r#struct))
                 );
                 if let Err(error) = result {
                     error_vec.push(error);
@@ -171,7 +195,7 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
                 let event = convert_event(&mut event_cache, event);
                 let result = root_namespace.add(
                     event.borrow().name.clone(),
-                    Accessor::Event(Rc::clone(&event))
+                    Referable::Event(Rc::clone(&event))
                 );
                 if let Err(error) = result {
                     error_vec.push(error);
@@ -182,7 +206,7 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
                 let r#enum = convert_enum(&mut enum_cache, r#enum);
                 let result = root_namespace.add(
                     r#enum.borrow().name.clone(),
-                    Accessor::Enum(Rc::clone(&r#enum))
+                    Referable::Enum(Rc::clone(&r#enum))
                 );
                 if let Err(error) = result {
                     error_vec.push(error);
@@ -293,22 +317,43 @@ fn _create_const_value(
     Ok(im::ConstValue::EnumConstant(Rc::clone(&enum_constant)))
 }
 
-fn link_call(call_chain: ast::CallChain, namespace: Rc<Namespace>) -> Result<Accessor, ConverterError> {
-    let mut current_namespace = namespace;
+enum ActualValue {
+    Referable(Referable),
+    String(String),
+    Number(String)
+}
+
+const EMPTY_NAMESPACE: Lazy<Rc<Namespace>> = Lazy::new(|| Rc::new(Namespace::new_root()));
+
+fn resolve_call(call: Box<ast::Call>, namespace: Rc<Namespace>) -> Result<ActualValue, ConverterError> {
+    resolve_call_chain(vec![call], namespace)
+}
+
+fn resolve_call_chain(call_chain: ast::CallChain, namespace: Rc<Namespace>) -> Result<ActualValue, ConverterError> {
+    let mut current_namespace = Rc::clone(&namespace);
     let mut current_value = None;
     for call in call_chain {
         match *call {
             ast::Call::Ident(ident) => {
                 match current_namespace.get(&ident) {
-                    Some(Accessor::Enum(r#enum)) => {
-                        let mut local_namespace = Namespace::new_root();
-                        local_namespace.add_enum_constants(&r#enum)?;
-                        current_namespace = Rc::new(local_namespace);
-                        current_value = Some(Accessor::Enum(r#enum));
+                    Some(Referable::Enum(r#enum)) => {
+                        current_namespace = Rc::new(Namespace::try_with_enum(&r#enum)?);
+                        current_value = Some(ActualValue::Referable(Referable::Enum(r#enum)));
                     },
-                    Some(Accessor::EnumConstant(enum_constant)) => {
-                        current_namespace = Rc::new(Namespace::new_root());
-                        current_value = Some(Accessor::EnumConstant(enum_constant));
+                    Some(Referable::EnumConstant(enum_constant)) => {
+                        current_namespace = Rc::clone(&EMPTY_NAMESPACE);
+                        current_value = Some(ActualValue::Referable(Referable::EnumConstant(enum_constant)));
+                    },
+                    Some(Referable::Property(property)) => {
+                        current_namespace = match property.borrow().r#type.bound() {
+                            im::Type::Struct(r#struct) => Rc::new(Namespace::try_with_struct(&r#struct)?),
+                            im::Type::Enum(r#enum) => Rc::new(Namespace::try_with_enum(&r#enum)?)
+                        };
+                        current_value = Some(ActualValue::Referable(Referable::Property(property)));
+                    },
+                    Some(Referable::Struct(r#struct)) => {
+                        current_namespace = Rc::new(Namespace::try_with_struct(&r#struct)?);
+                        current_value = Some(ActualValue::Referable(Referable::Struct(r#struct)))
                     }
                     Some(accessor) => {
                         let error = ConverterError::ResolvedIdentWrongType {
@@ -317,28 +362,37 @@ fn link_call(call_chain: ast::CallChain, namespace: Rc<Namespace>) -> Result<Acc
                             called_span: ident.span.clone(),
                             referenced_span: accessor.name_span()
                         };
-                        return Err(error)
+                        return Err(error);
                     }
                     None => {
                         let error = ConverterError::CannotResolveIdent(
                             format!("Cannot find item {}", ident.value),
                             ident.span.clone()
                         );
-                        return Err(error)
+                        return Err(error);
                     }
-                }
+                };
             },
             ast::Call::ArgumentsIdent { name, args, .. } => {
                 match current_namespace.get(&name) {
-                    Some(Accessor::Function(function)) => {
+                    Some(Referable::Function(function)) => {
+                        // TODO Add compiler warning that args are ignored currently
+
                         // TODO Add function return type
                         current_namespace = Rc::new(Namespace::new_root());
-                        current_value = Some(Accessor::Function(function));
+                        current_value = Some(ActualValue::Referable(Referable::Function(function)));
                     },
                     _ => todo!()
-                }
+                };
             },
-            _ => todo!()
+            ast::Call::String(string) => {
+                current_namespace = Rc::clone(&EMPTY_NAMESPACE);
+                current_value = Some(ActualValue::String(string));
+            }
+            ast::Call::Number(number) => {
+                current_namespace = Rc::clone(&EMPTY_NAMESPACE);
+                current_value = Some(ActualValue::Number(number));
+            }
         }
     }
 
@@ -361,7 +415,7 @@ fn link_ident_chain<T, F>(
             let enum_name = &ident_chain.0[0];
             let constant_name = &ident_chain.0[1];
 
-            if let Some(Accessor::Enum(r#enum)) = namespace.get(&enum_name) {
+            if let Some(Referable::Enum(r#enum)) = namespace.get(&enum_name) {
                 let enum_ref = r#enum.borrow();
                 let enum_constant = enum_ref.constants.iter()
                     .find(|it| it.name.value == constant_name.value);
@@ -404,13 +458,13 @@ fn link_type(
     match namespace.get(&name) {
         Some(root) => {
             match root {
-                Accessor::Enum(r#enum) => {
+                Referable::Enum(r#enum) => {
                     Some(im::Type::Enum(Rc::clone(&r#enum)))
                 },
-                Accessor::Struct(r#struct) => {
+                Referable::Struct(r#struct) => {
                     Some(im::Type::Struct(Rc::clone(&r#struct)))
                 }
-                Accessor::Event(event) => {
+                Referable::Event(event) => {
                     error_vec.push(ConverterError::ResolvedIdentWrongType {
                         message: format!("rules cannot be used as types"),
                         help: format!("{} is an event", event.borrow().name.value),
