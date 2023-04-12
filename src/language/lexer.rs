@@ -67,7 +67,6 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     let ctrl = one_of("(){},.:|=")
         .map(|c| Token::Ctrl(c));
 
-
     let ident = text::ident().map(|ident: String| match ident.as_str() {
         "rule" => Token::Rule,
         "cond" => Token::Cond,
@@ -82,8 +81,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         "type" => Token::Type,
         "val" => Token::Val,
         _ => Token::Ident(ident),
-    }
-    );
+    });
 
     let newline = text::newline()
         .map(|_| Token::NewLine);
@@ -96,6 +94,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .recover_with(skip_then_retry_until([]));
 
     token
+        .padded()
         .map_with_span(|tok, span| (tok, span))
         .repeated()
 }

@@ -50,9 +50,7 @@ fn event_parser(
     ident: IdentParser,
     args: ArgsParser
 ) -> EventParser {
-    just(Token::Workshop)
-        .or_not()
-        .map(|o| o.is_some())
+    just(Token::Workshop).or_not().map(|o| o.is_some())
         .then_ignore(just(Token::Event))
         .then(ident.clone())
         .then(declare_args)
@@ -127,16 +125,19 @@ fn struct_parser(
         Function(Function),
     }
 
-    let struct_parser = just(Token::Open)
-        .or_not().map_with_span(|it, span| Spanned(it.is_some(), span))
-        .then(just(Token::Workshop).or_not().map_with_span(|it, span| Spanned(it.is_some(), span)))
+    let open_keyword = just(Token::Open)
+        .or_not()
+        .map_with_span(|it, span| Spanned(it.is_some(), span));
+
+    let struct_parser = open_keyword
+        .then(workshop_keyword())
         .then_ignore(just(Token::Struct))
         .then(ident.clone())
         .then(
             property.map(StructMember::Property)
                 .or(member_function.map(StructMember::Function))
-                .separated_by(just(Token::NewLine).repeated().at_least(1))
                 .padded_by(just(Token::NewLine).repeated())
+                .repeated()
                 .delimited_by(
                     just(Token::Ctrl('{')), just(Token::Ctrl('}')),
                 )
@@ -207,20 +208,23 @@ fn block_parser(
 ) -> BlockParser {
     let cond = just(Token::Cond)
         .ignore_then(ident_chain.clone())
-        .then_ignore(just(Token::NewLine))
         .map(|it| it as Condition);
 
     let action = ident_chain.map(Action::CallChain)
         .or(property.map(Action::Property));
 
     just(Token::Ctrl('{'))
-        .ignore_then(cond.repeated().padded_by(just(Token::NewLine).repeated()))
-        .then(action
-            .then_ignore(just(Token::NewLine))
-            .repeated().padded_by(just(Token::NewLine).repeated())
-        )
+        .ignore_then(cond.separated_by(at_least_newlines()))
+        .then(action.separated_by(at_least_newlines()))
         .then_ignore(just(Token::Ctrl('}')))
         .map_with_span(|(conditions, actions), span| Block { actions, conditions, span })
+}
+
+fn at_least_newlines() -> impl Parser<Token, (), Error=Simple<Token>> + Clone {
+    just(Token::NewLine)
+        .repeated()
+        .at_least(1)
+        .map(|_| ())
 }
 
 pub fn rule_parser(

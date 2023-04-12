@@ -15,6 +15,7 @@ workshop enum Hero {
 }
 
 open workshop struct Player {
+
     workshop getval isReloading: bool
 
     workshop fn displaySmallMessage(message: string)
