@@ -29,7 +29,7 @@ fn declare_arguments_parser(
 ) -> DeclaredArgumentParser {
     ident.clone()
         .then_ignore(just(Token::Ctrl(':')))
-        .then(ident.clone().separated_by(just(Token::Ctrl('|'))))
+        .then(ident.clone().separated_by(just(Token::Ctrl('|'))).map_with_span(|types, span| Types { types, span }))
         .then(just(Token::Ctrl('=')).ignore_then(ident_chain).or_not())
         .map_with_span(|((name, types), default_value), span|
             DeclaredArgument { name, types, default_value, span }
@@ -180,8 +180,8 @@ fn ident_chain_parser(
         .labelled("function args");
 
     let literal = filter_map(|span, token| match token {
-        Token::String(string) => Ok(Box::new(Call::String(string))),
-        Token::Num(number) => Ok(Box::new(Call::Number(number))),
+        Token::String(string) => Ok(Box::new(Call::String(string, span))),
+        Token::Num(number) => Ok(Box::new(Call::Number(number, span))),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     });
 
@@ -190,7 +190,7 @@ fn ident_chain_parser(
             .then(args.clone().or_not())
             .map_with_span(|(ident, arguments), span| {
                 let call = match arguments {
-                    Some(arguments) => Call::ArgumentsIdent { name: ident, args: arguments, span },
+                    Some(arguments) => Call::IdentArguments { name: ident, args: arguments, span },
                     None => Call::Ident(ident)
                 };
                 Box::new(call)

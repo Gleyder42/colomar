@@ -50,12 +50,10 @@ fn main() {
     };
 
     let (im, converter_errors) = if let Some(ast) = ast {
-        let (ast, errors) = convert(ast);
-        (Some(ast), errors)
+        convert(ast)
     } else {
         (None, Vec::new())
     };
-
 
     let workshop_tree = if let Some(im) = im {
         let wt = compile(im);
@@ -98,6 +96,13 @@ fn print_errors(compiler_errors: Vec<CompilerError>, src_id: &'static str, sourc
 
 fn print_converter_error(error: ConverterError, src_id: &str) -> ReportBuilder<(&str, Span)> {
     match error {
+        ConverterError::MismatchedTypes { message, ident_message, ident_span } => {
+            Report::build(ReportKind::Error, src_id, ident_span.start)
+                .with_message(message)
+                .with_label(Label::new((src_id, ident_span))
+                    .with_message(ident_message)
+                    .with_color(Color::Red))
+        }
         ConverterError::CannotResolveIdent(message, span) => {
             Report::build(ReportKind::Error, src_id, span.start)
                 .with_message(message)

@@ -9,14 +9,6 @@ impl Display for im::EnumConstant {
     }
 }
 
-impl Display for im::ConstValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            im::ConstValue::EnumConstant(enum_constant) => write!(f, "{}", enum_constant.name.value)
-        }
-    }
-}
-
 pub fn compile(im: im::Im) -> ws::WorkshopTree {
     let mut rules = Vec::new();
 

@@ -1,9 +1,9 @@
 use std::cell::RefCell;
-use std::fmt::Debug;
-use std::rc::Rc;
+use std::fmt::{Debug, Display, Formatter};
+use std::rc::{Rc, Weak};
 use derivative::Derivative;
 use crate::language::ast::{PropertyDesc, Spanned};
-use crate::language::{Ident, Span};
+use crate::language::{ast, Ident, Span};
 
 pub type RuleRef = Rc<RefCell<Rule>>;
 pub type EnumRef = Rc<RefCell<Enum>>;
@@ -52,10 +52,13 @@ impl Root {
     }
 }
 
-#[derive(Derivative, Debug, Eq)]
-#[derivative(PartialEq)]
+#[derive(Derivative, Debug)]
+#[derivative(PartialEq, Eq)]
 pub struct EnumConstant {
     pub name: Ident,
+
+    #[derivative(PartialEq = "ignore")]
+    pub r#enum: Weak<RefCell<Enum>>
 }
 
 #[derive(Derivative, Debug, Clone, Eq)]
@@ -97,16 +100,19 @@ pub struct Enum {
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
-pub enum ConstValue {
-    EnumConstant(Rc<EnumConstant>)
-}
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Type {
     Enum(EnumRef),
     Struct(StructRef)
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Enum(_) => write!(f, "Enum"),
+            Type::Struct(_) => write!(f, "Struct")
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -128,6 +134,13 @@ impl<T, V> Link<T, V>
         }
     }
 
+    pub fn take_unbound(self) -> T {
+        match self {
+            Link::Unbound(value) => value,
+            Link::Bound(_) => panic!("Link {self:?} was expected to be unbound, but was bound")
+        }
+    }
+
     /// Returns the bound value, panics if the link is unbound
     pub fn bound(&self) -> &V {
         match self {
@@ -141,20 +154,33 @@ impl<T, V> Link<T, V>
 #[derivative(PartialEq)]
 pub struct DeclaredArgument {
     pub name: Ident,
-    pub types: Vec<Link<Ident, Type>>,
-    pub default_value: Option<Link<IdentChain, ConstValue>>,
+    pub types: Link<ast::Types, Types>,
+    pub default_value: Option<Link<IdentChain, ActualValue>>,
 }
 
-impl DeclaredArgument {
+#[derive(Derivative, Debug, Clone, Eq)]
+#[derivative(PartialEq)]
+pub struct Types {
+    pub types: Vec<Type>,
+
+    #[derivative(PartialEq = "ignore")]
+    pub span: Span
+}
+
+impl Display for Types {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let output = self.types.iter()
+            .map(|it| it.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        write!(f, "{}", output)
+    }
+}
+
+impl Types {
 
     pub fn contains_type(&self, r#type: Type) -> bool {
-        self.types.iter().any(|it| {
-            match (it.bound(), r#type.clone()) {
-                (Type::Enum(a), Type::Enum(b)) => a == &b,
-                (Type::Struct(a), Type::Struct(b)) => a == &b,
-                _ => false
-            }
-        })
+        self.types.iter().any(|it| it == &r#type)
     }
 }
 
@@ -162,7 +188,7 @@ impl DeclaredArgument {
 #[derivative(PartialEq)]
 pub struct CalledArgument {
     pub declared: DeclaredArgumentRef,
-    pub value: ConstValue,
+    pub value: ActualValue,
 }
 
 #[derive(Derivative, Debug, Clone, Eq)]
@@ -180,17 +206,120 @@ pub struct Event {
 pub struct Rule {
     pub title: String,
     pub event: Link<Ident, EventRef>,
-    pub arguments: Link<Vec<IdentChain>, Vec<CalledArgument>>,
+    pub arguments: Link<ast::CallArguments, Vec<CalledArgument>>,
 
     #[derivative(PartialEq = "ignore")]
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Referable {
+    Enum(EnumRef),
+    Event(EventRef),
+    Struct(StructRef),
+    EnumConstant(Rc<EnumConstant>),
+    Function(FunctionRef),
+    Property(PropertyRef),
+}
+
+impl Referable {
+
+    pub fn r#type(&self) -> Type {
+        match self {
+            Referable::Enum(r#enum) => Type::Enum(r#enum.clone()),
+            Referable::Struct(r#struct) => Type::Struct(r#struct.clone()),
+            Referable::EnumConstant(enum_constant) => Type::Enum(enum_constant.r#enum.upgrade().unwrap().clone()),
+            Referable::Property(property) => property.borrow().r#type.bound().clone(),
+            Referable::Function(_) => todo!("Function types are not implemented yet"),
+            Referable::Event(_) => todo!("Event types are not implemented yet"),
+        }
+    }
+}
+
+impl Into<StructRef> for Referable {
+    fn into(self) -> StructRef {
+        match self {
+            Referable::Struct(r#struct) => r#struct,
+            _ => panic!("Referable is not a struct, but a {:?}", self)
+        }
+    }
+}
+
+impl Display for Referable {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Referable::EnumConstant(enum_constant) => write!(f, "{}", enum_constant.name.value),
+            _ => panic!()
+        }
+    }
+}
+
+impl Referable {
+    pub fn name_span(&self) -> Span {
+        match self {
+            Referable::Enum(r#enum) => r#enum.borrow().name.span.clone(),
+            Referable::Struct(r#struct) => r#struct.borrow().name.span.clone(),
+            Referable::Event(event) => event.borrow().name.span.clone(),
+            Referable::EnumConstant(enum_constant) => enum_constant.name.span.clone(),
+            Referable::Function(function) => function.borrow().name.span.clone(),
+            Referable::Property(property) => property.borrow().name.span.clone(),
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Referable::Event(_) => "Event",
+            Referable::Enum(_) => "Enum",
+            Referable::EnumConstant(_) => "Enum Constant",
+            Referable::Struct(_) => "Struct",
+            Referable::Function(_) => "Function",
+            Referable::Property(_) => "Property"
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ActualValue {
+    Referable(Referable, Span),
+    String(String, StructRef, Span),
+    Number(String, StructRef, Span),
+}
+
+impl Display for ActualValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ActualValue::String(string, ..) => write!(f, "{string}"),
+            ActualValue::Number(number, ..) => write!(f, "{number}"),
+            ActualValue::Referable(referable, ..) => write!(f, "{referable}")
+        }
+    }
+}
+
+impl ActualValue {
+
+    pub fn r#type(&self) -> Type {
+        match self {
+            ActualValue::String(_, r#struct, _) => Type::Struct(Rc::clone(&r#struct)),
+            ActualValue::Number(_, r#struct, _) => Type::Struct(Rc::clone(&r#struct)),
+            ActualValue::Referable(referable, _) => referable.r#type()
+        }
+    }
+
+    /// The span of the actual value
+    pub fn span(&self) -> Span {
+        match self {
+            ActualValue::String(_, _, span) => span.clone(),
+            ActualValue::Number(_, _, span) => span.clone(),
+            ActualValue::Referable(_, span) => span.clone()
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
-    use crate::language::ast::{Spanned};
+    use crate::language::ast::Spanned;
     use crate::language::Ident;
     use crate::language::im::{CalledArgument, ConstValue, DeclaredArgument, Enum, EnumConstant, Event, IdentChain, Link, Rule};
 

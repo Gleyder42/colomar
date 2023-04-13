@@ -1,10 +1,10 @@
-use std::cell::RefCell;
+use std::cell::{RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 use once_cell::unsync::Lazy;
 use crate::language::{ast, Ident, Span};
 use crate::language::im;
-use crate::language::im::{make_ref};
+use crate::language::im::{ActualValue, make_ref, Referable, Types};
 
 type QueryCache<K, V> = HashMap<K, V>;
 
@@ -14,13 +14,29 @@ pub enum ConverterError {
     DuplicateIdent {
         message: String,
         first_defined_span: Span,
-        second_defined_span: Span
+        second_defined_span: Span,
     },
     ResolvedIdentWrongType {
         message: String,
         help: String,
         called_span: Span,
         referenced_span: Span,
+    },
+    MismatchedTypes {
+        message: &'static str,
+        ident_span: Span,
+        ident_message: String,
+    }
+}
+
+impl ConverterError {
+
+    fn mismatched_types(ident_span: Span, actual_type: im::Type, expected: &im::Types) -> ConverterError {
+        ConverterError::MismatchedTypes {
+            message: "Mismatched types",
+            ident_span,
+            ident_message: format!("Is of type {} but {} is expected", actual_type, expected)
+        }
     }
 }
 
@@ -30,48 +46,12 @@ trait IdentMapExt {
     fn insert_unique(&mut self, ident: Ident, value: im::Root) -> Result<(), ConverterError>;
 }
 
-#[derive(Clone)]
-enum Referable {
-    Enum(im::EnumRef),
-    Event(im::EventRef),
-    Struct(im::StructRef),
-    EnumConstant(Rc<im::EnumConstant>),
-    Function(im::FunctionRef),
-    Property(im::PropertyRef)
-}
-
-impl Referable {
-
-    fn name_span(&self) -> Span {
-        match self {
-            Referable::Enum(r#enum) => r#enum.borrow().name.span.clone(),
-            Referable::Struct(r#struct) => r#struct.borrow().name.span.clone(),
-            Referable::Event(event) => event.borrow().name.span.clone(),
-            Referable::EnumConstant(enum_constant) => enum_constant.name.span.clone(),
-            Referable::Function(function) => function.borrow().name.span.clone(),
-            Referable::Property(property) => property.borrow().name.span.clone(),
-        }
-    }
-
-    fn name(&self) -> &'static str {
-        match self {
-            Referable::Event(_) => "Event",
-            Referable::Enum(_) => "Enum",
-            Referable::EnumConstant(_) => "Enum Constant",
-            Referable::Struct(_) => "Struct",
-            Referable::Function(_) => "Function",
-            Referable::Property(_) => "Property"
-        }
-    }
-}
-
 struct Namespace {
     parent: Vec<Rc<Namespace>>,
-    map: HashMap<String, Referable>
+    map: HashMap<String, Referable>,
 }
 
 impl Namespace {
-
     fn new_root() -> Namespace {
         Namespace { map: HashMap::new(), parent: Vec::new() }
     }
@@ -87,6 +67,10 @@ impl Namespace {
         let mut namespace = Namespace::new_root();
         namespace.add_enum_constants(&r#enum)?;
         Ok(namespace)
+    }
+
+    fn get_with_str(&self, name: &'static str) -> Option<Referable> {
+        self.map.get(name).map(|it| it.clone())
     }
 
     fn get(&self, ident: &Ident) -> Option<Referable> {
@@ -128,18 +112,18 @@ impl Namespace {
         return Ok(());
     }
 
-    fn add(&mut self, ident: Ident, accessor: Referable) -> Result<(), ConverterError> {
+    fn add(&mut self, ident: Ident, referable: Referable) -> Result<(), ConverterError> {
         match self.contains(&ident) {
             Some(root) => {
                 let error = ConverterError::DuplicateIdent {
                     message: format!("{} already exists within in the current scope", ident.value),
                     first_defined_span: root.name_span(),
-                    second_defined_span: ident.span
+                    second_defined_span: ident.span,
                 };
                 Err(error)
-            },
+            }
             None => {
-                self.map.insert(ident.value.clone(), accessor);
+                self.map.insert(ident.value.clone(), referable);
                 Ok(())
             }
         }
@@ -168,7 +152,37 @@ impl Namespace {
     }
 }
 
-pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
+struct Predefined {
+    string_primitive: im::StructRef,
+    num_primitive: im::StructRef,
+}
+
+trait ErrorHandler {
+
+    fn add_errors(self, errors: &mut Vec<ConverterError>);
+}
+
+impl<T> ErrorHandler for Result<T, ConverterError> {
+
+    fn add_errors(self, errors: &mut Vec<ConverterError>) {
+        match self {
+            Err(error) => errors.push(error),
+            Ok(_) => {}
+        }
+    }
+}
+
+impl<T> ErrorHandler for Result<T, Vec<ConverterError>> {
+
+    fn add_errors(self, errors: &mut Vec<ConverterError>) {
+        match self {
+            Err(mut error) => errors.append(&mut error),
+            Ok(_) => {}
+        }
+    }
+}
+
+pub fn convert(ast: ast::Ast) -> (Option<im::Im>, Vec<ConverterError>) {
     let mut root_namespace = Namespace::new_root();
     let mut enum_cache = QueryCache::new();
     let mut event_cache = QueryCache::new();
@@ -182,35 +196,32 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
         let root = match root {
             ast::Root::Struct(r#struct) => {
                 let r#struct = convert_struct(r#struct);
-                let result = root_namespace.add(
+
+                root_namespace.add(
                     r#struct.borrow().name.clone(),
-                    Referable::Struct(Rc::clone(&r#struct))
-                );
-                if let Err(error) = result {
-                    error_vec.push(error);
-                }
+                    Referable::Struct(Rc::clone(&r#struct)),
+                ).add_errors(&mut error_vec);
+
                 im::Root::Struct(Rc::clone(&r#struct))
             }
             ast::Root::Event(event) => {
                 let event = convert_event(&mut event_cache, event);
-                let result = root_namespace.add(
+
+                root_namespace.add(
                     event.borrow().name.clone(),
-                    Referable::Event(Rc::clone(&event))
-                );
-                if let Err(error) = result {
-                    error_vec.push(error);
-                }
+                    Referable::Event(Rc::clone(&event)),
+                ).add_errors(&mut error_vec);
+
                 im::Root::Event(Rc::clone(&event))
             }
             ast::Root::Enum(r#enum) => {
                 let r#enum = convert_enum(&mut enum_cache, r#enum);
-                let result = root_namespace.add(
+
+                root_namespace.add(
                     r#enum.borrow().name.clone(),
-                    Referable::Enum(Rc::clone(&r#enum))
-                );
-                if let Err(error) = result {
-                    error_vec.push(error);
-                }
+                    Referable::Enum(Rc::clone(&r#enum)),
+                ).add_errors(&mut error_vec);
+
                 im::Root::Enum(Rc::clone(&r#enum))
             }
             ast::Root::Rule(rule) => {
@@ -221,269 +232,262 @@ pub fn convert(ast: ast::Ast) -> (im::Im, Vec<ConverterError>) {
         im.push(root);
     }
 
+    if !error_vec.is_empty() {
+        return (None, error_vec);
+    }
+
+    let string_primitive: im::StructRef = root_namespace.get_with_str("string").unwrap().into();
+    let num_primitive: im::StructRef = root_namespace.get_with_str("num").unwrap().into();
+
+    let root_namespace = Rc::new(root_namespace);
+    let predefined = Predefined { string_primitive, num_primitive };
+
     for root in &im {
         match root {
             im::Root::Rule(rule) => {
-                link_rule(&root_namespace, &mut error_vec, rule);
+                link_rule(rule, root_namespace.clone(), &predefined).add_errors(&mut error_vec);
             }
             im::Root::Event(event) => {
-                link_enum(&root_namespace, &mut error_vec, &event);
-            }
+                link_event(event, root_namespace.clone(), &predefined).add_errors(&mut error_vec);
+            },
             _ => {}
         }
     }
 
-    (im, error_vec)
+    (Some(im), error_vec)
 }
 
-fn link_enum(namespace: &Namespace, mut error_vec: &mut Vec<ConverterError>, event: &im::EventRef) {
-    for arguments in &event.borrow().arguments {
-        let types = arguments.borrow().types.iter()
-            .filter_map(|it| link_type(it, &namespace, &mut error_vec))
-            .map(im::Link::Bound)
-            .collect();
+fn link_event(event: &im::EventRef, namespace: Rc<Namespace>, predefined: &Predefined) -> Result<(), Vec<ConverterError>> {
+    for declared_argument in &event.borrow().arguments {
+        let binding = declared_argument.borrow();
 
-        arguments.borrow_mut().types = types;
+        // Try not to move here
+        let spanned = binding.types.unbound().clone();
+        let split = spanned.types.into_iter()
+            .map(|it| resolve_ident(it, namespace.clone(), predefined))
+            .collect::<ResultSplit<ActualValue, ConverterError>>();
+
+        if !split.1.is_empty() {
+            return Err(split.1);
+        }
+
+        drop(binding);
+        let types = split.0.into_iter().map(|it| it.r#type()).collect();
+        declared_argument.borrow_mut().types = im::Link::Bound(Types { types, span: spanned.span });
+    }
+    Ok(())
+}
+
+struct ResultSplit<V, E>(Vec<V>, Vec<E>);
+
+impl<V, E> FromIterator<Result<V, E>> for ResultSplit<V, E> {
+
+    fn from_iter<T: IntoIterator<Item=Result<V, E>>>(iter: T) -> Self {
+        let mut results = Vec::new();
+        let mut errors = Vec::new();
+        for result in iter {
+            match result {
+                Ok(value) => results.push(value),
+                Err(error) => errors.push(error)
+            }
+        }
+        ResultSplit(results, errors)
     }
 }
 
-fn link_rule(namespace: &Namespace, error_vec: &mut Vec<ConverterError>, rule: &im::RuleRef) {
-    let event = namespace.get_event(rule.borrow().event.unbound());
+impl<V, E> FromIterator<Result<V, Vec<E>>> for ResultSplit<V, E> {
 
-    let event = match event {
+    fn from_iter<T: IntoIterator<Item=Result<V, Vec<E>>>>(iter: T) -> Self {
+        let mut results = Vec::new();
+        let mut errors = Vec::new();
+        for result in iter {
+            match result {
+                Ok(value) => results.push(value),
+                Err(mut error) => errors.append(&mut error)
+            }
+        }
+        ResultSplit(results, errors)
+    }
+}
+
+fn link_rule(
+    rule: &im::RuleRef,
+    namespace: Rc<Namespace>,
+    predefined: &Predefined
+) -> Result<(), Vec<ConverterError>> {
+    let event = match namespace.get_event(rule.borrow().event.unbound()) {
         Ok(event) => {
-            rule.borrow_mut().event = im::Link::Bound(Rc::clone(&event));
             event
         }
-        Err(error) => {
-            error_vec.push(error);
-            return;
-        }
+        Err(error) => return Err(vec![error]),
     };
+    rule.borrow_mut().event = im::Link::Bound(event.clone());
 
-    let ident_chain = link_ident_chain(
-        rule.borrow().arguments.unbound(),
-        &namespace,
-        |r#enum, enum_constant, index| create_called_argument(r#enum, enum_constant, index, &event),
-    );
+    let binding = rule.borrow();
+    let arguments = binding.arguments.unbound();
+    // Todo do not call_chain.clone()
+    let split: ResultSplit<ActualValue, ConverterError> = arguments.into_iter()
+        .map(|call_chain| resolve_call_chain(call_chain.clone(), namespace.clone(), predefined))
+        .collect();
 
-    match ident_chain {
-        Ok(arguments) => rule.borrow_mut().arguments = im::Link::Bound(arguments),
-        Err(mut error) => error_vec.append(&mut error)
-    };
-}
-
-fn create_called_argument(
-    r#enum: &im::EnumRef,
-    enum_constant: &Rc<im::EnumConstant>,
-    index: usize,
-    event: &im::EventRef
-) -> Result<im::CalledArgument, ConverterError> {
-    let binding = event.borrow();
-    let declared_argument = binding.arguments.get(index);
-    println!("{:?}", declared_argument);
-
-    match declared_argument {
-        Some(declared_argument) if declared_argument.borrow().contains_type(im::Type::Enum(Rc::clone(r#enum))) => { },
-        Some(declared_argument) => {
-            let error = ConverterError::ResolvedIdentWrongType {
-                message: format!("Argument types don't match"),
-                help: format!("Consider changing the type of the argument"),
-                called_span: declared_argument.borrow().name.span.clone(),
-                referenced_span: event.borrow().name.span.clone()
-            };
-            return Err(error);
-        }
-        None => {
-            let error = ConverterError::CannotResolveIdent(
-                format!("Too many arguments supplied"),
-                enum_constant.name.span.clone()
-            );
-            return Err(error);
-        }
+    if !split.1.is_empty() {
+        return Err(split.1);
     }
 
-    let argument = im::CalledArgument {
-        value: im::ConstValue::EnumConstant(Rc::clone(enum_constant)),
-        declared: Rc::clone(&binding.arguments[index]),
-    };
-    Ok(argument)
-}
+    let split: ResultSplit<im::CalledArgument, ConverterError> = split.0.into_iter()
+        .zip(event.borrow().arguments.iter())
+        .map(|(actual, declared)| {
+            if declared.borrow().types.bound().contains_type(actual.r#type()) {
+                let argument = im::CalledArgument {
+                    value: actual,
+                    declared: declared.clone()
+                };
+                Ok(argument)
+            } else {
+                let error = ConverterError::mismatched_types(
+                    actual.span(),
+                    actual.r#type(),
+                    declared.borrow().types.bound()
+                );
+                Err(vec![error])
+            }
+        })
+        .collect();
 
-fn _create_const_value(
-    enum_constant: &Rc<im::EnumConstant>,
-    _index: usize
-) -> Result<im::ConstValue, ConverterError>  {
-    Ok(im::ConstValue::EnumConstant(Rc::clone(&enum_constant)))
-}
+    if !split.1.is_empty() {
+        return Err(split.1);
+    }
 
-enum ActualValue {
-    Referable(Referable),
-    String(String),
-    Number(String)
+    drop(binding);
+
+    rule.borrow_mut().arguments = im::Link::Bound(split.0);
+    Ok(())
 }
 
 const EMPTY_NAMESPACE: Lazy<Rc<Namespace>> = Lazy::new(|| Rc::new(Namespace::new_root()));
 
-fn resolve_call(call: Box<ast::Call>, namespace: Rc<Namespace>) -> Result<ActualValue, ConverterError> {
-    resolve_call_chain(vec![call], namespace)
+fn resolve_ident(
+    ident: Ident,
+    namespace: Rc<Namespace>,
+    predefined: &Predefined,
+) -> Result<ActualValue, ConverterError> {
+    resolve_call(Box::new(ast::Call::Ident(ident)), namespace, predefined)
 }
 
-fn resolve_call_chain(call_chain: ast::CallChain, namespace: Rc<Namespace>) -> Result<ActualValue, ConverterError> {
+fn resolve_call(
+    call: Box<ast::Call>,
+    namespace: Rc<Namespace>,
+    predefined: &Predefined,
+) -> Result<ActualValue, ConverterError> {
+    resolve_call_chain(vec![call], namespace, predefined)
+}
+
+fn resolve_call_chain(
+    call_chain: ast::CallChain,
+    namespace: Rc<Namespace>,
+    predefined: &Predefined,
+) -> Result<ActualValue, ConverterError> {
     let mut current_namespace = Rc::clone(&namespace);
     let mut current_value = None;
     for call in call_chain {
         match *call {
-            ast::Call::Ident(ident) => {
-                match current_namespace.get(&ident) {
+            ast::Call::Ident(name) => {
+                match current_namespace.get(&name) {
                     Some(Referable::Enum(r#enum)) => {
                         current_namespace = Rc::new(Namespace::try_with_enum(&r#enum)?);
-                        current_value = Some(ActualValue::Referable(Referable::Enum(r#enum)));
-                    },
+                        current_value = Some(ActualValue::Referable(Referable::Enum(r#enum), name.span));
+                    }
                     Some(Referable::EnumConstant(enum_constant)) => {
                         current_namespace = Rc::clone(&EMPTY_NAMESPACE);
-                        current_value = Some(ActualValue::Referable(Referable::EnumConstant(enum_constant)));
-                    },
+                        current_value = Some(ActualValue::Referable(Referable::EnumConstant(enum_constant), name.span));
+                    }
                     Some(Referable::Property(property)) => {
                         current_namespace = match property.borrow().r#type.bound() {
                             im::Type::Struct(r#struct) => Rc::new(Namespace::try_with_struct(&r#struct)?),
                             im::Type::Enum(r#enum) => Rc::new(Namespace::try_with_enum(&r#enum)?)
                         };
-                        current_value = Some(ActualValue::Referable(Referable::Property(property)));
-                    },
+                        current_value = Some(ActualValue::Referable(Referable::Property(property), name.span));
+                    }
                     Some(Referable::Struct(r#struct)) => {
                         current_namespace = Rc::new(Namespace::try_with_struct(&r#struct)?);
-                        current_value = Some(ActualValue::Referable(Referable::Struct(r#struct)))
+                        current_value = Some(ActualValue::Referable(Referable::Struct(r#struct), name.span))
                     }
                     Some(accessor) => {
                         let error = ConverterError::ResolvedIdentWrongType {
                             message: format!("Items of type {} are not supported", accessor.name()),
                             help: String::new(),
-                            called_span: ident.span.clone(),
-                            referenced_span: accessor.name_span()
+                            called_span: name.span.clone(),
+                            referenced_span: accessor.name_span(),
                         };
                         return Err(error);
                     }
                     None => {
                         let error = ConverterError::CannotResolveIdent(
-                            format!("Cannot find item {}", ident.value),
-                            ident.span.clone()
+                            format!("Cannot find item {}", name.value),
+                            name.span.clone(),
                         );
                         return Err(error);
                     }
                 };
-            },
-            ast::Call::ArgumentsIdent { name, args, .. } => {
+            }
+            ast::Call::IdentArguments { name, args, .. } => {
                 match current_namespace.get(&name) {
                     Some(Referable::Function(function)) => {
-                        // TODO Add compiler warning that args are ignored currently
+                        let result = args.into_iter()
+                            .map(|it| resolve_call_chain(
+                                it,
+                                namespace.clone(),
+                                predefined
+                            ))
+                            .collect::<Vec<_>>();
+                        let mut args = Vec::new();
+                        for result in result {
+                            match result {
+                                Ok(actual_value) => args.push(actual_value),
+                                Err(error) => return Err(error)
+                            }
+                        }
 
-                        // TODO Add function return type
-                        current_namespace = Rc::new(Namespace::new_root());
-                        current_value = Some(ActualValue::Referable(Referable::Function(function)));
-                    },
+                        let mut result = function.borrow().arguments.iter()
+                            .zip(args.iter())
+                            .filter_map(|(declared, actual)| {
+                                let declared = declared.borrow();
+
+                                if declared.types.bound().contains_type(actual.r#type()) {
+                                    None
+                                } else {
+                                    let error = ConverterError::mismatched_types(
+                                        actual.span(),
+                                        actual.r#type(),
+                                        declared.types.bound(),
+                                    );
+                                    Some(error)
+                                }
+                            })
+                            .collect::<Vec<_>>();
+
+                        if let Some(pop) = result.pop() {
+                            return Err(pop);
+                        }
+
+                        current_namespace = EMPTY_NAMESPACE.clone();
+                        current_value = Some(ActualValue::Referable(Referable::Function(function), name.span));
+                    }
                     _ => todo!()
                 };
-            },
-            ast::Call::String(string) => {
-                current_namespace = Rc::clone(&EMPTY_NAMESPACE);
-                current_value = Some(ActualValue::String(string));
             }
-            ast::Call::Number(number) => {
-                current_namespace = Rc::clone(&EMPTY_NAMESPACE);
-                current_value = Some(ActualValue::Number(number));
+            ast::Call::String(string, span) => {
+                current_namespace = EMPTY_NAMESPACE.clone();
+                current_value = Some(ActualValue::String(string, predefined.string_primitive.clone(), span));
+            }
+            ast::Call::Number(number, span) => {
+                current_namespace = EMPTY_NAMESPACE.clone();
+                current_value = Some(ActualValue::Number(number, predefined.num_primitive.clone(), span));
             }
         }
     }
 
     Ok(current_value.unwrap())
-}
-
-fn link_ident_chain<T, F>(
-    ident_chains: &Vec<im::IdentChain>,
-    namespace: &Namespace,
-    function: F,
-) -> Result<Vec<T>, Vec<ConverterError>>
-    where F: Fn(&im::EnumRef, &Rc<im::EnumConstant>, usize) -> Result<T, ConverterError>
-{
-    let mut results = Vec::new();
-    let mut errors = Vec::new();
-
-    let mut index: usize = 0;
-    for ident_chain in ident_chains {
-        if ident_chain.0.len() == 2 {
-            let enum_name = &ident_chain.0[0];
-            let constant_name = &ident_chain.0[1];
-
-            if let Some(Referable::Enum(r#enum)) = namespace.get(&enum_name) {
-                let enum_ref = r#enum.borrow();
-                let enum_constant = enum_ref.constants.iter()
-                    .find(|it| it.name.value == constant_name.value);
-
-                if let Some(enum_constant) = enum_constant {
-                    let result = function(&r#enum, enum_constant, index);
-                    match result {
-                        Ok(value) => results.push(value),
-                        Err(error) => errors.push(error)
-                    };
-                };
-            } else {
-                let error = ConverterError::CannotResolveIdent(format!("Cannot find enum {}", enum_name.value), enum_name.span.clone());
-                errors.push(error);
-                return Err(errors);
-            }
-        } else {
-            let error = ConverterError::CannotResolveIdent(format!("IdentChain can only have two idents"), 0..1);
-            errors.push(error);
-            return Err(errors);
-        }
-
-        index += 1;
-    };
-
-    if errors.is_empty() {
-        Ok(results)
-    } else {
-        Err(errors)
-    }
-}
-
-fn link_type(
-    ref_type: &im::Link<Ident, im::Type>,
-    namespace: &Namespace,
-    error_vec: &mut Vec<ConverterError>,
-) -> Option<im::Type> {
-    let name = if let im::Link::Unbound(name) = ref_type { name } else { return None; };
-
-    match namespace.get(&name) {
-        Some(root) => {
-            match root {
-                Referable::Enum(r#enum) => {
-                    Some(im::Type::Enum(Rc::clone(&r#enum)))
-                },
-                Referable::Struct(r#struct) => {
-                    Some(im::Type::Struct(Rc::clone(&r#struct)))
-                }
-                Referable::Event(event) => {
-                    error_vec.push(ConverterError::ResolvedIdentWrongType {
-                        message: format!("rules cannot be used as types"),
-                        help: format!("{} is an event", event.borrow().name.value),
-                        called_span: name.span.clone(),
-                        referenced_span: event.borrow().name.span.clone(),
-                    });
-                    None
-                },
-                _ => todo!()
-            }
-        }
-        None => {
-            error_vec.push(ConverterError::CannotResolveIdent(
-                format!("Cannot find type with name {}", name.value),
-                name.span.clone(),
-            ));
-            None
-        }
-    }
 }
 
 fn convert_struct(r#struct: ast::Struct) -> im::StructRef {
@@ -492,7 +496,7 @@ fn convert_struct(r#struct: ast::Struct) -> im::StructRef {
             im::Function {
                 name: it.name,
                 is_workshop: it.is_workshop,
-                arguments: convert_declared_argument(it.arguments)
+                arguments: convert_declared_argument(it.arguments),
             }
         })
         .map(make_ref)
@@ -503,7 +507,7 @@ fn convert_struct(r#struct: ast::Struct) -> im::StructRef {
             is_workshop: it.is_workshop,
             name: it.name,
             r#type: im::Link::Unbound(it.r#type),
-            desc: it.desc
+            desc: it.desc,
         })
         .map(make_ref)
         .collect();
@@ -513,7 +517,8 @@ fn convert_struct(r#struct: ast::Struct) -> im::StructRef {
         is_open: r#struct.is_open,
         is_workshop: r#struct.is_workshop,
         span: r#struct.span,
-        properties, functions
+        properties,
+        functions,
     };
     make_ref(r#struct)
 }
@@ -585,7 +590,7 @@ fn convert_declared_argument(vec: Vec<ast::DeclaredArgument>) -> Vec<Rc<RefCell<
         .map(|decl_args| {
             im::DeclaredArgument {
                 name: decl_args.name,
-                types: decl_args.types.into_iter().map(im::Link::Unbound).collect(),
+                types: im::Link::Unbound(decl_args.types),
                 default_value: None,
             }
         })
@@ -603,16 +608,17 @@ fn convert_enum(
     }
     let cloned_enum = r#enum.clone();
 
-    let im_enum = im::Enum {
-        name: r#enum.name,
-        is_workshop: r#enum.is_workshop,
-        span: r#enum.span,
-        constants: r#enum.constants.into_iter()
-            .map(|name| Rc::new(im::EnumConstant { name }))
-            .collect(),
-    };
-
-    let im_enum = Rc::new(RefCell::new(im_enum));
+    let im_enum = im::EnumRef::new_cyclic(|weak| {
+        let r#enum = im::Enum {
+            name: r#enum.name,
+            is_workshop: r#enum.is_workshop,
+            span: r#enum.span,
+            constants: r#enum.constants.into_iter()
+                .map(|name| Rc::new(im::EnumConstant { name, r#enum: weak.clone() }))
+                .collect(),
+        };
+        RefCell::new(r#enum)
+    });
     cache.insert(cloned_enum, Rc::clone(&im_enum));
     im_enum
 }

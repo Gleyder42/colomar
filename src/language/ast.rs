@@ -4,7 +4,12 @@ use crate::Span;
 
 pub type Condition = CallChain;
 pub type CallArgs = CallArguments;
-pub type Types = Vec<Ident>;
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct Types {
+    pub types: Vec<Ident>,
+    pub span: Span
+}
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Action {
@@ -126,14 +131,14 @@ pub type CallArguments = Vec<CallChain>;
 /// hello
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Call {
-    ArgumentsIdent {
+    IdentArguments {
         name: Ident,
         args: CallArguments,
         span: Span
     },
     Ident(Ident),
-    String(String),
-    Number(String),
+    String(String, Span),
+    Number(String, Span),
 }
 
 #[cfg(test)]
