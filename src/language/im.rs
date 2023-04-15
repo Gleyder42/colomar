@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::{Rc, Weak};
 use derivative::Derivative;
-use crate::language::ast::{PropertyDesc, Spanned};
+use crate::language::ast::{CallChain, PropertyDesc, Spanned};
 use crate::language::{ast, Ident, Span};
 
 pub type RuleRef = Rc<RefCell<Rule>>;
@@ -155,7 +155,7 @@ impl<T, V> Link<T, V>
 pub struct DeclaredArgument {
     pub name: Ident,
     pub types: Link<ast::Types, Types>,
-    pub default_value: Option<Link<IdentChain, ActualValue>>,
+    pub default_value: Option<Link<CallChain, ActualValue>>,
 }
 
 #[derive(Derivative, Debug, Clone, Eq)]

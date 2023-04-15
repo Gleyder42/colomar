@@ -4,7 +4,7 @@ use std::rc::Rc;
 use once_cell::unsync::Lazy;
 use crate::language::{ast, Ident, Span};
 use crate::language::im;
-use crate::language::im::{ActualValue, make_ref, Referable, Types};
+use crate::language::im::{ActualValue, DeclaredArgumentRef, make_ref, Referable, Types};
 
 type QueryCache<K, V> = HashMap<K, V>;
 
@@ -271,7 +271,25 @@ fn link_event(event: &im::EventRef, namespace: Rc<Namespace>, predefined: &Prede
             return Err(split.1);
         }
 
+
+        let actual_value = if let Some(default_value) = &binding.default_value {
+            //TODO Do not default_value.unbound().clone()
+            let actual_value = resolve_call_chain(
+                default_value.unbound().clone(),
+                namespace.clone(),
+                predefined,
+            ).map_err(|it| vec![it])?;
+            Some(actual_value)
+        } else {
+            None
+        };
+
         drop(binding);
+
+        if let Some(actual_value) = actual_value {
+            declared_argument.borrow_mut().default_value = Some(im::Link::Bound(actual_value));
+        }
+
         let types = split.0.into_iter().map(|it| it.r#type()).collect();
         declared_argument.borrow_mut().types = im::Link::Bound(Types { types, span: spanned.span });
     }
@@ -585,13 +603,13 @@ fn convert_event(
     im_event
 }
 
-fn convert_declared_argument(vec: Vec<ast::DeclaredArgument>) -> Vec<Rc<RefCell<im::DeclaredArgument>>> {
+fn convert_declared_argument(vec: Vec<ast::DeclaredArgument>) -> Vec<DeclaredArgumentRef> {
     let arguments: Vec<_> = vec.into_iter()
         .map(|decl_args| {
             im::DeclaredArgument {
                 name: decl_args.name,
                 types: im::Link::Unbound(decl_args.types),
-                default_value: None,
+                default_value: decl_args.default_value.map(|it| im::Link::Unbound(it)),
             }
         })
         .map(|it| Rc::new(RefCell::new(it)))

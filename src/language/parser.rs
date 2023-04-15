@@ -211,7 +211,7 @@ fn block_parser(
         .map(|it| it as Condition);
 
     let action = ident_chain.map(Action::CallChain)
-        .or(property.map(Action::Property));
+            .or(property.map(Action::Property));
 
     just(Token::Ctrl('{'))
         .ignore_then(cond.separated_by(at_least_newlines()))

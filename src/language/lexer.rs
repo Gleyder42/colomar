@@ -7,7 +7,6 @@ use crate::language::Span;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
-    ContextAssigment,
     Rule,
     Event,
     Cond,
@@ -30,7 +29,6 @@ pub enum Token {
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::ContextAssigment => write!(f, "ContextAssigment"),
             Token::Rule => write!(f, "rule"),
             Token::Event => write!(f, "event"),
             Token::Cond => write!(f, "cond"),
@@ -94,7 +92,6 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .recover_with(skip_then_retry_until([]));
 
     token
-        .padded()
         .map_with_span(|tok, span| (tok, span))
         .repeated()
 }

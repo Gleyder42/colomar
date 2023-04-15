@@ -27,16 +27,17 @@ workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot
     val player: Player
 }
 
+workshop event MyEvent(team: Team = Team.Team1, hero: Hero = Hero.Ana) {
+
+}
+
+rule "Test" MyEvent() {
+
+}
+
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading
 
     player.displaySmallMessage("Hello World")
-}
-
-event WeaponReloading(hero: Hero) by OngoingEachPlayer(Slot.Slot1, hero) {
-    cond player.isReloading
-}
-
-rule "Heal on Reload" WeaponReloading(Hero.Zarya) {
     player.heal(100)
 }
