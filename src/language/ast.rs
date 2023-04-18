@@ -11,6 +11,13 @@ pub struct Types {
     pub span: Span
 }
 
+#[cfg(test)]
+impl From<Vec<Ident>> for Types {
+    fn from(value: Vec<Ident>) -> Self {
+        Types { types: value, span: 0..1 }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Action {
     CallChain(CallChain),
@@ -139,34 +146,4 @@ pub enum Call {
     Ident(Ident),
     String(String, Span),
     Number(String, Span),
-}
-
-#[cfg(test)]
-impl CallChainExt for CallChain { }
-
-#[cfg(test)]
-trait CallChainExt {
-    fn new_var(name: Ident) -> Box<CallChain> {
-        Box::new(CallChain::Var { name, next: None })
-    }
-
-    fn new_var_next(name: Ident, next: Box<CallChain>) -> Box<CallChain> {
-        Box::new(CallChain::Var { name, next: Some(next)  })
-    }
-
-    fn new_fn(name: Ident, span: Span) -> Box<CallChain> {
-        Box::new(CallChain::Fn { name, args: Vec::new(), next: None, span  })
-    }
-
-    fn new_fn_next(name: Ident, span: Span, next: Box<CallChain>) -> Box<CallChain> {
-        Box::new(CallChain::Fn { name, args: Vec::new(), next: Some(next), span  })
-    }
-
-    fn new_fn_args(name: Ident, span: Span, args: CallArgs) -> Box<CallChain> {
-        Box::new(CallChain::Fn { name, args, next: None, span  })
-    }
-
-    fn new_fn_args_next(name: Ident, span: Span, args: CallArgs, next: Box<CallChain>) -> Box<CallChain> {
-        Box::new(CallChain::Fn { name, args, next: Some(next), span  })
-    }
 }

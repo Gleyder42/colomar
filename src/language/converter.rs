@@ -264,7 +264,7 @@ fn link_event(event: &im::EventRef, namespace: Rc<Namespace>, predefined: &Prede
         // Try not to move here
         let spanned = binding.types.unbound().clone();
         let split = spanned.types.into_iter()
-            .map(|it| resolve_ident(it, namespace.clone(), predefined))
+            .map(|it| resolve_ident(it, Rc::clone(&namespace), predefined))
             .collect::<ResultSplit<ActualValue, ConverterError>>();
 
         if !split.1.is_empty() {

@@ -27,11 +27,7 @@ workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot
     val player: Player
 }
 
-workshop event MyEvent(team: Team = Team.Team1, hero: Hero = Hero.Ana) {
-
-}
-
-rule "Test" MyEvent() {
+rule "Hello other world" OngoingEachPlayer(Hero.Ana, Slot.Slot1) {
 
 }
 

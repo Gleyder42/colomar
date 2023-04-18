@@ -17,11 +17,3 @@ pub struct Ident {
     #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
-
-#[cfg(test)]
-impl Ident {
-
-    fn new(value: impl Into<String>, span: Span) -> Ident {
-        Ident { value: value.into(), span }
-    }
-}
