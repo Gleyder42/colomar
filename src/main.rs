@@ -43,7 +43,6 @@ fn main() {
     let (tokens, lexer_errors) = lexer().parse_recovery(source.as_str());
 
     let (ast, parser_errors) = if let Some(tokens) = tokens {
-        println!("{:#?}", tokens);
         let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
         parser().parse_recovery(stream)
     } else {
@@ -51,7 +50,7 @@ fn main() {
     };
 
     let (im, converter_errors) = if let Some(ast) = ast {
-        //println!("{ast:#?}");
+        println!("{ast:#?}");
         convert(ast)
     } else {
         (None, Vec::new())

@@ -161,7 +161,7 @@ fn struct_parser(
 fn newlines() -> impl Parser<Token, (), Error=Simple<Token>> + Clone {
     just(Token::NewLine)
         .repeated()
-        .map(|_| ())
+        .ignored()
 }
 
 fn ident_chain_parser(
@@ -213,10 +213,12 @@ fn block_parser(
     let action = ident_chain.map(Action::CallChain)
             .or(property.map(Action::Property));
 
-    just(Token::Ctrl('{'))
-        .ignore_then(cond.separated_by(at_least_newlines()))
-        .then(action.separated_by(at_least_newlines()))
-        .then_ignore(just(Token::Ctrl('}')))
+    cond.then_ignore(at_least_newlines()).repeated()
+        .then(action.then_ignore(at_least_newlines()).repeated())
+        .delimited_by(
+            just(Token::Ctrl('{')).padded_by(newlines()),
+            just(Token::Ctrl('}')).padded_by(newlines())
+        )
         .map_with_span(|(conditions, actions), span| Block { actions, conditions, span })
 }
 
