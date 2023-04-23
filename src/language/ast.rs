@@ -1,47 +1,10 @@
 use derivative::Derivative;
-use crate::language::Ident;
+use crate::language::{Ident, Spanned};
 use crate::Span;
 
 pub type Condition = CallChain;
 
-#[cfg(test)]
-impl From<Vec<Ident>> for Types {
-    fn from(value: Vec<Ident>) -> Self {
-        Types { values: value, span: 0..1 }
-    }
-}
-
 pub type SpannedBool = Option<Spanned<()>>;
-
-impl<T> Spanned<T> {
-
-    pub fn new(value: T, span: Span) -> Self {
-        Spanned { value, span }
-    }
-
-    pub fn ignore_value(option: Option<T>, span: Span) -> SpannedBool {
-        option.map(|t| Spanned::new((), span))
-    }
-}
-
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
-pub struct Spanned<T> {
-    pub value: T,
-
-    /// The span of type T
-    #[derivative(PartialEq = "ignore")]
-    pub span: Span
-}
-
-impl<T, I: IntoIterator<Item=T>> IntoIterator for Spanned<I> {
-    type Item = T;
-    type IntoIter = <I as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.value.into_iter()
-    }
-}
 
 // Abstract Syntax Tree
 #[derive(Debug)]
@@ -88,6 +51,12 @@ impl IntoIterator for Types {
     }
 }
 
+#[cfg(test)]
+impl From<Vec<Ident>> for Types {
+    fn from(value: Vec<Ident>) -> Self {
+        Types { values: value, span: 0..1 }
+    }
+}
 
 #[derive(Derivative, Debug, Hash, Clone)]
 #[derivative(PartialEq, Eq)]

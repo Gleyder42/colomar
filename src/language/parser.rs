@@ -3,7 +3,7 @@ extern crate core;
 use chumsky::prelude::*;
 use crate::language::lexer::Token;
 use crate::language::ast::*;
-use crate::language::{Ident};
+use crate::language::{Ident, Spanned};
 
 type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
 type IdentChainParser = impl Parser<Token, CallChain, Error=Simple<Token>> + Clone;

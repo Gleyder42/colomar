@@ -3,7 +3,6 @@ extern crate core;
 use std::fmt::{Debug, Display, Formatter};
 use chumsky::prelude::*;
 use std::string::String;
-use chumsky::Error;
 use chumsky::text::Character;
 use crate::language::Span;
 

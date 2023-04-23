@@ -2,27 +2,31 @@ use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::{Rc, Weak};
 use derivative::Derivative;
-use crate::language::ast::{CallChain, UseRestriction, Spanned};
-use crate::language::{ast, Ident, Span};
+use crate::language::ast::{CallChain, UseRestriction};
+use crate::language::{ast, Ident, Span, Spanned};
 
-pub type RuleRef = Rc<RefCell<RuleDeclaration>>;
-pub type EnumRef = Rc<RefCell<Enum>>;
-pub type EventRef = Rc<RefCell<EventDeclaration>>;
-pub type DeclaredArgumentRef = Rc<RefCell<DeclaredArgument>>;
-pub type FunctionRef = Rc<RefCell<Function>>;
-pub type PropertyRef = Rc<RefCell<Property>>;
-pub type StructRef = Rc<RefCell<Struct>>;
+pub type RuleRef = Rc<RuleDeclaration>;
+pub type EnumRef = Rc<Enum>;
+pub type EventRef = Rc<EventDeclaration>;
+pub type DeclaredArgumentRef = Rc<DeclaredArgument>;
+pub type FunctionRef = Rc<Function>;
+pub type PropertyRef = Rc<Property>;
+pub type StructRef = Rc<Struct>;
 
 pub fn make_ref<T>(value: T) -> Rc<RefCell<T>> {
     Rc::new(RefCell::new(value))
 }
 
-// Intermediate
-pub type Im = Vec<Root>;
+pub struct Im(Vec<Root>);
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
-pub struct IdentChain(pub Vec<Ident>);
+impl IntoIterator for Im {
+    type Item = Root;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Root {
@@ -44,10 +48,10 @@ impl Root {
 
     pub fn span(&self) -> Span {
         match self {
-            Root::Rule(rule) => rule.borrow().span.clone(),
-            Root::Enum(r#enum) => r#enum.borrow().span.clone(),
-            Root::Event(event) => event.borrow().span.clone(),
-            Root::Struct(r#struct) => r#struct.borrow().span.clone(),
+            Root::Rule(rule) => rule.span.clone(),
+            Root::Enum(r#enum) => r#enum.span.clone(),
+            Root::Event(event) => event.span.clone(),
+            Root::Struct(r#struct) => r#struct.span.clone(),
         }
     }
 }
@@ -58,19 +62,19 @@ pub struct EnumConstant {
     pub name: Ident,
 
     #[derivative(PartialEq = "ignore")]
-    pub r#enum: Weak<RefCell<Enum>>
+    pub r#enum: Weak<Enum>
 }
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
+#[derive(Derivative, Debug, Clone)]
+#[derivative(PartialEq, Eq)]
 pub struct Function {
     pub is_workshop: Spanned<bool>,
     pub name: Ident,
     pub arguments: Vec<DeclaredArgumentRef>
 }
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
+#[derive(Derivative, Debug, Clone)]
+#[derivative(PartialEq, Eq)]
 pub struct Property {
     pub is_workshop: Spanned<bool>,
     pub name: Ident,
@@ -78,8 +82,8 @@ pub struct Property {
     pub r#type: Link<Ident, Type>
 }
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
+#[derive(Derivative, Debug, Clone)]
+#[derivative(PartialEq, Eq)]
 pub struct Struct {
     pub is_open: Spanned<bool>,
     pub is_workshop: Spanned<bool>,
@@ -89,8 +93,8 @@ pub struct Struct {
     pub span: Span
 }
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
+#[derive(Derivative, Debug, Clone)]
+#[derivative(PartialEq, Eq)]
 pub struct Enum {
     pub name: Ident,
     pub is_workshop: Spanned<bool>,
@@ -229,7 +233,7 @@ impl Referable {
             Referable::Enum(r#enum) => Type::Enum(r#enum.clone()),
             Referable::Struct(r#struct) => Type::Struct(r#struct.clone()),
             Referable::EnumConstant(enum_constant) => Type::Enum(enum_constant.r#enum.upgrade().unwrap().clone()),
-            Referable::Property(property) => property.borrow().r#type.bound().clone(),
+            Referable::Property(property) => property.r#type.bound().clone(),
             Referable::Function(_) => todo!("Function types are not implemented yet"),
             Referable::Event(_) => todo!("Event types are not implemented yet"),
         }
@@ -257,12 +261,12 @@ impl Display for Referable {
 impl Referable {
     pub fn name_span(&self) -> Span {
         match self {
-            Referable::Enum(r#enum) => r#enum.borrow().name.span.clone(),
-            Referable::Struct(r#struct) => r#struct.borrow().name.span.clone(),
-            Referable::Event(event) => event.borrow().name.span.clone(),
+            Referable::Enum(r#enum) => r#enum.name.span.clone(),
+            Referable::Struct(r#struct) => r#struct.name.span.clone(),
+            Referable::Event(event) => event.name.span.clone(),
             Referable::EnumConstant(enum_constant) => enum_constant.name.span.clone(),
-            Referable::Function(function) => function.borrow().name.span.clone(),
-            Referable::Property(property) => property.borrow().name.span.clone(),
+            Referable::Function(function) => function.name.span.clone(),
+            Referable::Property(property) => property.name.span.clone(),
         }
     }
 
