@@ -263,7 +263,7 @@ fn link_event(event: &im::EventRef, namespace: Rc<Namespace>, predefined: &Prede
 
         // Try not to move here
         let spanned = binding.types.unbound().clone();
-        let split = spanned.types.into_iter()
+        let split = spanned.values.into_iter()
             .map(|it| resolve_ident(it, Rc::clone(&namespace), predefined))
             .collect::<ResultSplit<ActualValue, ConverterError>>();
 
@@ -521,11 +521,11 @@ fn convert_struct(r#struct: ast::Struct) -> im::StructRef {
         .collect();
 
     let properties = r#struct.properties.into_iter()
-        .map(|it| im::StructProperty {
+        .map(|it| im::Property {
             is_workshop: it.is_workshop,
             name: it.name,
             r#type: im::Link::Unbound(it.r#type),
-            desc: it.desc,
+            desc: it.use_restriction,
         })
         .map(make_ref)
         .collect();
@@ -574,7 +574,7 @@ fn convert_rule(
     //     im::IdentChain(ident_chain)
     // }).collect();
 
-    let im_rule = im::Rule {
+    let im_rule = im::RuleDeclaration {
         title: rule.name.0,
         event: im::Link::Unbound(rule.event),
         arguments: im::Link::Unbound(Vec::new()),
@@ -597,7 +597,7 @@ fn convert_event(
 
     let arguments = convert_declared_argument(event.args);
 
-    let im_event = im::Event { name: event.name, arguments, span: event.span };
+    let im_event = im::EventDeclaration { name: event.name, arguments, span: event.span };
     let im_event = Rc::new(RefCell::new(im_event));
     cache.insert(cloned_event, Rc::clone(&im_event));
     im_event

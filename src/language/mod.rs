@@ -5,7 +5,8 @@ pub mod lexer;
 pub mod ast;
 pub mod im;
 
-pub mod converter;
+// pub mod converter;
+mod query;
 
 pub type Span = std::ops::Range<usize>;
 

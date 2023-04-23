@@ -2,15 +2,15 @@ use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::{Rc, Weak};
 use derivative::Derivative;
-use crate::language::ast::{CallChain, PropertyDesc, Spanned};
+use crate::language::ast::{CallChain, UseRestriction, Spanned};
 use crate::language::{ast, Ident, Span};
 
-pub type RuleRef = Rc<RefCell<Rule>>;
+pub type RuleRef = Rc<RefCell<RuleDeclaration>>;
 pub type EnumRef = Rc<RefCell<Enum>>;
-pub type EventRef = Rc<RefCell<Event>>;
+pub type EventRef = Rc<RefCell<EventDeclaration>>;
 pub type DeclaredArgumentRef = Rc<RefCell<DeclaredArgument>>;
 pub type FunctionRef = Rc<RefCell<Function>>;
-pub type PropertyRef = Rc<RefCell<StructProperty>>;
+pub type PropertyRef = Rc<RefCell<Property>>;
 pub type StructRef = Rc<RefCell<Struct>>;
 
 pub fn make_ref<T>(value: T) -> Rc<RefCell<T>> {
@@ -71,10 +71,10 @@ pub struct Function {
 
 #[derive(Derivative, Debug, Clone, Eq)]
 #[derivative(PartialEq)]
-pub struct StructProperty {
+pub struct Property {
     pub is_workshop: Spanned<bool>,
     pub name: Ident,
-    pub desc: PropertyDesc,
+    pub desc: UseRestriction,
     pub r#type: Link<Ident, Type>
 }
 
@@ -193,7 +193,7 @@ pub struct CalledArgument {
 
 #[derive(Derivative, Debug, Clone, Eq)]
 #[derivative(PartialEq)]
-pub struct Event {
+pub struct EventDeclaration {
     pub name: Ident,
     pub arguments: Vec<DeclaredArgumentRef>,
 
@@ -203,10 +203,10 @@ pub struct Event {
 
 #[derive(Derivative, Debug, Eq)]
 #[derivative(PartialEq)]
-pub struct Rule {
+pub struct RuleDeclaration {
     pub title: String,
-    pub event: Link<Ident, EventRef>,
-    pub arguments: Link<ast::CallArguments, Vec<CalledArgument>>,
+    pub event: EventRef,
+    pub arguments: Vec<CalledArgument>,
 
     #[derivative(PartialEq = "ignore")]
     pub span: Span,
