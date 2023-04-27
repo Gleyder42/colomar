@@ -7,7 +7,7 @@ pub type Condition = CallChain;
 pub type SpannedBool = Option<Spanned<()>>;
 
 // Abstract Syntax Tree
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ast(pub Vec<Root>);
 
 impl IntoIterator for Ast {
@@ -19,7 +19,7 @@ impl IntoIterator for Ast {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Root {
     Event(Event),
     Rule(Rule),

@@ -1,9 +1,8 @@
-use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::{Rc, Weak};
 use derivative::Derivative;
-use crate::language::ast::{CallChain, UseRestriction};
-use crate::language::{ast, Ident, Span, Spanned};
+use crate::language::ast::{SpannedBool, UseRestriction};
+use crate::language::{Ident, Span};
 
 pub type RuleRef = Rc<RuleDeclaration>;
 pub type EnumRef = Rc<Enum>;
@@ -12,12 +11,10 @@ pub type DeclaredArgumentRef = Rc<DeclaredArgument>;
 pub type FunctionRef = Rc<Function>;
 pub type PropertyRef = Rc<Property>;
 pub type StructRef = Rc<Struct>;
+pub type EnumConstantRef = Rc<EnumConstant>;
 
-pub fn make_ref<T>(value: T) -> Rc<RefCell<T>> {
-    Rc::new(RefCell::new(value))
-}
-
-pub struct Im(Vec<Root>);
+#[derive(Debug, Clone)]
+pub struct Im(pub Vec<Root>);
 
 impl IntoIterator for Im {
     type Item = Root;
@@ -68,7 +65,7 @@ pub struct EnumConstant {
 #[derive(Derivative, Debug, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct Function {
-    pub is_workshop: Spanned<bool>,
+    pub is_workshop: SpannedBool,
     pub name: Ident,
     pub arguments: Vec<DeclaredArgumentRef>
 }
@@ -76,17 +73,17 @@ pub struct Function {
 #[derive(Derivative, Debug, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct Property {
-    pub is_workshop: Spanned<bool>,
+    pub is_workshop: SpannedBool,
     pub name: Ident,
     pub desc: UseRestriction,
-    pub r#type: Link<Ident, Type>
+    pub r#type: Types
 }
 
 #[derive(Derivative, Debug, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct Struct {
-    pub is_open: Spanned<bool>,
-    pub is_workshop: Spanned<bool>,
+    pub is_open: SpannedBool,
+    pub is_workshop: SpannedBool,
     pub name: Ident,
     pub functions: Vec<FunctionRef>,
     pub properties: Vec<PropertyRef>,
@@ -97,7 +94,7 @@ pub struct Struct {
 #[derivative(PartialEq, Eq)]
 pub struct Enum {
     pub name: Ident,
-    pub is_workshop: Spanned<bool>,
+    pub is_workshop: SpannedBool,
     pub constants: Vec<Rc<EnumConstant>>,
 
     #[derivative(PartialEq = "ignore")]
@@ -119,47 +116,12 @@ impl Display for Type {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Link<T, V>
-    where T: Debug + Clone + Eq,
-          V: Debug + Clone + Eq {
-    Unbound(T),
-    Bound(V),
-}
-
-impl<T, V> Link<T, V>
-    where T: Debug + Clone + Eq,
-          V: Debug + Clone + Eq {
-    /// Returns the unbound value, panics if the link is bound
-    pub fn unbound(&self) -> &T {
-        match self {
-            Link::Unbound(value) => value,
-            Link::Bound(_) => panic!("Link {self:?} was expected to be unbound, but was bound")
-        }
-    }
-
-    pub fn take_unbound(self) -> T {
-        match self {
-            Link::Unbound(value) => value,
-            Link::Bound(_) => panic!("Link {self:?} was expected to be unbound, but was bound")
-        }
-    }
-
-    /// Returns the bound value, panics if the link is unbound
-    pub fn bound(&self) -> &V {
-        match self {
-            Link::Unbound(_) => panic!("Link {self:?} was expected to be bound, but was unbound"),
-            Link::Bound(value) => value,
-        }
-    }
-}
-
 #[derive(Derivative, Debug, Clone, Eq)]
 #[derivative(PartialEq)]
 pub struct DeclaredArgument {
     pub name: Ident,
-    pub types: Link<ast::Types, Types>,
-    pub default_value: Option<Link<CallChain, ActualValue>>,
+    pub types: Types,
+    pub default_value: Option<AValue>,
 }
 
 #[derive(Derivative, Debug, Clone, Eq)]
@@ -169,6 +131,13 @@ pub struct Types {
 
     #[derivative(PartialEq = "ignore")]
     pub span: Span
+}
+
+impl Types {
+
+    pub fn contains_type(&self, r#type: Type) -> bool {
+        self.types.iter().any(|it| it == &r#type)
+    }
 }
 
 impl Display for Types {
@@ -181,18 +150,11 @@ impl Display for Types {
     }
 }
 
-impl Types {
-
-    pub fn contains_type(&self, r#type: Type) -> bool {
-        self.types.iter().any(|it| it == &r#type)
-    }
-}
-
 #[derive(Derivative, Debug, Clone, Eq)]
 #[derivative(PartialEq)]
 pub struct CalledArgument {
     pub declared: DeclaredArgumentRef,
-    pub value: ActualValue,
+    pub value: AValue,
 }
 
 #[derive(Derivative, Debug, Clone, Eq)]
@@ -217,7 +179,7 @@ pub struct RuleDeclaration {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Referable {
+pub enum RValue {
     Enum(EnumRef),
     Event(EventRef),
     Struct(StructRef),
@@ -226,95 +188,34 @@ pub enum Referable {
     Property(PropertyRef),
 }
 
-impl Referable {
-
-    pub fn r#type(&self) -> Type {
-        match self {
-            Referable::Enum(r#enum) => Type::Enum(r#enum.clone()),
-            Referable::Struct(r#struct) => Type::Struct(r#struct.clone()),
-            Referable::EnumConstant(enum_constant) => Type::Enum(enum_constant.r#enum.upgrade().unwrap().clone()),
-            Referable::Property(property) => property.r#type.bound().clone(),
-            Referable::Function(_) => todo!("Function types are not implemented yet"),
-            Referable::Event(_) => todo!("Event types are not implemented yet"),
-        }
-    }
-}
-
-impl Into<StructRef> for Referable {
+impl Into<StructRef> for RValue {
     fn into(self) -> StructRef {
         match self {
-            Referable::Struct(r#struct) => r#struct,
+            RValue::Struct(r#struct) => r#struct,
             _ => panic!("Referable is not a struct, but a {:?}", self)
         }
     }
 }
 
-impl Display for Referable {
+impl Display for RValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Referable::EnumConstant(enum_constant) => write!(f, "{}", enum_constant.name.value),
+            RValue::EnumConstant(enum_constant) => write!(f, "{}", enum_constant.name.value),
             _ => panic!()
         }
     }
 }
 
-impl Referable {
-    pub fn name_span(&self) -> Span {
-        match self {
-            Referable::Enum(r#enum) => r#enum.name.span.clone(),
-            Referable::Struct(r#struct) => r#struct.name.span.clone(),
-            Referable::Event(event) => event.name.span.clone(),
-            Referable::EnumConstant(enum_constant) => enum_constant.name.span.clone(),
-            Referable::Function(function) => function.name.span.clone(),
-            Referable::Property(property) => property.name.span.clone(),
-        }
-    }
 
-    pub fn name(&self) -> &'static str {
-        match self {
-            Referable::Event(_) => "Event",
-            Referable::Enum(_) => "Enum",
-            Referable::EnumConstant(_) => "Enum Constant",
-            Referable::Struct(_) => "Struct",
-            Referable::Function(_) => "Function",
-            Referable::Property(_) => "Property"
-        }
-    }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AValue {
+    RValue(RValue, Span),
+    CValue(CValue)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ActualValue {
-    Referable(Referable, Span),
+pub enum CValue {
     String(String, StructRef, Span),
     Number(String, StructRef, Span),
 }
 
-impl Display for ActualValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ActualValue::String(string, ..) => write!(f, "{string}"),
-            ActualValue::Number(number, ..) => write!(f, "{number}"),
-            ActualValue::Referable(referable, ..) => write!(f, "{referable}")
-        }
-    }
-}
-
-impl ActualValue {
-
-    pub fn r#type(&self) -> Type {
-        match self {
-            ActualValue::String(_, r#struct, _) => Type::Struct(Rc::clone(&r#struct)),
-            ActualValue::Number(_, r#struct, _) => Type::Struct(Rc::clone(&r#struct)),
-            ActualValue::Referable(referable, _) => referable.r#type()
-        }
-    }
-
-    /// The span of the actual value
-    pub fn span(&self) -> Span {
-        match self {
-            ActualValue::String(_, _, span) => span.clone(),
-            ActualValue::Number(_, _, span) => span.clone(),
-            ActualValue::Referable(_, span) => span.clone()
-        }
-    }
-}
