@@ -178,6 +178,7 @@ pub struct RuleDeclaration {
     pub span: Span,
 }
 
+/// Represents a value which is only known during runtime
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RValue {
     Enum(EnumRef),
@@ -186,6 +187,20 @@ pub enum RValue {
     EnumConstant(Rc<EnumConstant>),
     Function(FunctionRef),
     Property(PropertyRef),
+}
+
+impl RValue {
+
+    pub fn name(&self) -> Ident {
+        match self {
+            RValue::Struct(r#struct) => r#struct.name.clone(),
+            RValue::Enum(r#enum) => r#enum.name.clone(),
+            RValue::Event(event) => event.name.clone(),
+            RValue::EnumConstant(enum_constant) => enum_constant.name.clone(),
+            RValue::Function(function) => function.name.clone(),
+            RValue::Property(property) => property.name.clone()
+        }
+    }
 }
 
 impl Into<StructRef> for RValue {
@@ -206,13 +221,14 @@ impl Display for RValue {
     }
 }
 
-
+/// Represents a value which is known at runtime time or compile time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AValue {
     RValue(RValue, Span),
     CValue(CValue)
 }
 
+/// Represent a value which is known at compile time
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CValue {
     String(String, StructRef, Span),

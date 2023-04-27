@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use derivative::Derivative;
 use crate::language::ast::SpannedBool;
 
@@ -8,13 +9,15 @@ pub mod im;
 
 // pub mod converter;
 mod query;
+pub mod converter;
 
 pub type Span = std::ops::Range<usize>;
+pub type ImmutableString = Rc<String>;
 
 #[derive(Derivative, Debug, Hash, Clone, Eq)]
 #[derivative(PartialEq)]
 pub struct Ident {
-    pub value: String,
+    pub value: ImmutableString,
 
     #[derivative(PartialEq = "ignore")]
     pub span: Span

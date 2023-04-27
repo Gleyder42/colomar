@@ -108,7 +108,6 @@ impl QueryGraph {
     }
 }
 
-
 fn query_ast(ast: ast::Ast, parent: NodeIndex, graph: &mut QueryGraph) -> im::Im {
     let (cached, ast) = graph.retrieve(ast, ValidityGuarantee::Deep);
     if let Some(cached) = cached {

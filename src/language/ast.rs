@@ -1,5 +1,5 @@
 use derivative::Derivative;
-use crate::language::{Ident, Spanned};
+use crate::language::{Ident, ImmutableString, Spanned};
 use crate::Span;
 
 pub type Condition = CallChain;
@@ -181,7 +181,7 @@ pub struct DeclaredArgument {
 #[derive(Derivative, Debug, Hash, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct RuleDeclaration {
-    pub name: Spanned<String>,
+    pub name: Spanned<ImmutableString>,
     pub event: Ident,
     pub arguments: CallArguments,
 
@@ -257,11 +257,11 @@ pub enum Call {
     /// ## Example
     /// - "Hello World"
     /// - "Greetings"
-    String(String, Span),
+    String(ImmutableString, Span),
     /// A number literal
     /// ## Example
     /// - 12
     /// - 1.5
     /// - 0
-    Number(String, Span),
+    Number(ImmutableString, Span),
 }
