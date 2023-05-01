@@ -28,12 +28,11 @@ workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot
 }
 
 rule "Hello other world" OngoingEachPlayer(Hero.Ana, Slot.Slot1) {
-
 }
 
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading
 
-    player.displaySmallMessage("Hello World")
+    player.displaySmallMassage("Hello World")
     player.heal(100)
 }

@@ -14,7 +14,7 @@ use petgraph::visit::Visitable;
 use crate::language::{ast, Ident, im};
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, PartialOrd, Ord)]
-enum ValidityGuarantee {
+pub enum ValidityGuarantee {
     /// Guarantees that the fulls struct can be read from cache
     Deep,
     /// Guarantees that only struct itself can be read from the cache.
@@ -45,7 +45,7 @@ pub struct QueryGraph {
     map: HashMap<CacheKey, Weak<QueryCacheNode>>
 }
 
-trait NodeAdder<K, V> {
+pub trait NodeAdder<K, V> {
 
     fn add(&mut self, parent: NodeIndex, key: K, value: V) -> NodeIndex;
 
@@ -130,12 +130,12 @@ fn query_ast(ast: ast::Ast, parent: NodeIndex, graph: &mut QueryGraph) -> im::Im
     im
 }
 
-fn query_type(ident: Ident) -> im::Type {
+fn query_type(ident: Ident) -> im::CalledType {
     todo!()
 }
 
-fn query_types(types: ast::Types) -> im::Types {
-    im::Types {
+fn query_types(types: ast::Types) -> im::CalledTypes {
+    im::CalledTypes {
         types: types.values.into_iter()
             .map(|r#type| query_type(r#type))
             .collect::<Vec<_>>(),

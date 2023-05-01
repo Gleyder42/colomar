@@ -229,6 +229,18 @@ pub type CallArguments = Spanned<Vec<CallChain>>;
 /// - player.heal()
 pub type CallChain = Spanned<Vec<Box<Call>>>;
 
+impl From<Box<Call>> for CallChain {
+    fn from(value: Box<Call>) -> Self {
+        let span = match *value {
+            Call::Ident(ref ident) => ident.span.clone(),
+            Call::String(_, ref span) => span.clone(),
+            Call::Number(_, ref span ) => span.clone(),
+            Call::IdentArguments { ref span, .. } => span.clone()
+        };
+        Spanned { value: vec![value], span }
+    }
+}
+
 /// Represent a single ident with the intention to use it as a call.
 /// A call here means like referencing a variable or function.
 /// A call us usually not alone and is mostly user within [CallChain] and [CallArguments]
@@ -264,4 +276,10 @@ pub enum Call {
     /// - 1.5
     /// - 0
     Number(ImmutableString, Span),
+}
+
+impl From<Ident> for Box<Call> {
+    fn from(value: Ident) -> Self {
+        Box::new(Call::Ident(value))
+    }
 }

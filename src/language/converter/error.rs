@@ -1,6 +1,10 @@
-use crate::language::{ast, Ident};
+use crate::language::{ast, Ident, im, Span};
 
 pub enum ConverterError {
+    TypeNotSupported {
+        span: Span,
+        r#type: im::Type
+    },
     DuplicateIdent {
         first: Ident,
         second: Ident
@@ -10,9 +14,9 @@ pub enum ConverterError {
     },
     MismatchedTypes {
         requested_ident: Ident,
-        requested_type: ast::Types,
-        resolved: Ident,
-        resolved_type: ast::Types
+        requested_type: im::Type,
+        resolved_ident: Ident,
+        resolved_type: im::CalledTypes
     }
 }
 

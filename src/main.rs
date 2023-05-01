@@ -14,7 +14,6 @@ use crate::language::parser::parser;
 
 pub type Span = Range<usize>;
 
-
 pub mod workshop;
 pub mod language;
 pub mod test_assert;

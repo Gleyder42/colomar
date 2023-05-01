@@ -2,10 +2,10 @@ use std::fmt::{Debug, Display, Formatter};
 use std::rc::{Rc, Weak};
 use derivative::Derivative;
 use crate::language::ast::{SpannedBool, UseRestriction};
-use crate::language::{Ident, Span};
+use crate::language::{Ident, ImmutableString, Span};
 
 pub type RuleRef = Rc<RuleDeclaration>;
-pub type EnumRef = Rc<Enum>;
+pub type EnumRef = Rc<EnumDeclaration>;
 pub type EventRef = Rc<EventDeclaration>;
 pub type DeclaredArgumentRef = Rc<DeclaredArgument>;
 pub type FunctionRef = Rc<Function>;
@@ -42,24 +42,6 @@ impl Root {
             Root::Struct(_) => "Struct"
         }
     }
-
-    pub fn span(&self) -> Span {
-        match self {
-            Root::Rule(rule) => rule.span.clone(),
-            Root::Enum(r#enum) => r#enum.span.clone(),
-            Root::Event(event) => event.span.clone(),
-            Root::Struct(r#struct) => r#struct.span.clone(),
-        }
-    }
-}
-
-#[derive(Derivative, Debug)]
-#[derivative(PartialEq, Eq)]
-pub struct EnumConstant {
-    pub name: Ident,
-
-    #[derivative(PartialEq = "ignore")]
-    pub r#enum: Weak<Enum>
 }
 
 #[derive(Derivative, Debug, Clone)]
@@ -67,7 +49,8 @@ pub struct EnumConstant {
 pub struct Function {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub arguments: Vec<DeclaredArgumentRef>
+    pub arguments: Vec<DeclaredArgumentRef>,
+    pub return_type: Type
 }
 
 #[derive(Derivative, Debug, Clone)]
@@ -76,7 +59,7 @@ pub struct Property {
     pub is_workshop: SpannedBool,
     pub name: Ident,
     pub desc: UseRestriction,
-    pub r#type: Types
+    pub r#type: Type
 }
 
 #[derive(Derivative, Debug, Clone)]
@@ -92,26 +75,62 @@ pub struct Struct {
 
 #[derive(Derivative, Debug, Clone)]
 #[derivative(PartialEq, Eq)]
-pub struct Enum {
+pub struct EnumDeclaration {
     pub name: Ident,
     pub is_workshop: SpannedBool,
+}
+
+#[derive(Derivative, Debug, Clone)]
+#[derivative(PartialEq, Eq)]
+pub struct EnumDefinition {
     pub constants: Vec<Rc<EnumConstant>>,
+}
+
+#[derive(Derivative, Debug, Clone)]
+#[derivative(PartialEq, Eq)]
+pub struct Enum {
+    pub declaration: Rc<EnumDeclaration>,
+    pub definition: Rc<EnumDefinition>,
 
     #[derivative(PartialEq = "ignore")]
     pub span: Span,
 }
 
+#[derive(Derivative, Debug)]
+#[derivative(PartialEq, Eq)]
+pub struct EnumConstant {
+    pub name: Ident,
+
+    #[derivative(PartialEq = "ignore")]
+    pub r#enum: Rc<EnumDeclaration>
+}
+
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Type {
     Enum(EnumRef),
-    Struct(StructRef)
+    Struct(StructRef),
+    Event(EventRef)
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CalledType {
+    r#type: Type,
+    span: Span
+}
+
+impl Display for CalledType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.r#type.to_string())
+    }
 }
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Enum(_) => write!(f, "Enum"),
-            Type::Struct(_) => write!(f, "Struct")
+            Type::Struct(_) => write!(f, "Struct"),
+            Type::Event(_) => write!(f, "Event")
         }
     }
 }
@@ -120,27 +139,27 @@ impl Display for Type {
 #[derivative(PartialEq)]
 pub struct DeclaredArgument {
     pub name: Ident,
-    pub types: Types,
+    pub types: CalledTypes,
     pub default_value: Option<AValue>,
 }
 
 #[derive(Derivative, Debug, Clone, Eq)]
 #[derivative(PartialEq)]
-pub struct Types {
-    pub types: Vec<Type>,
+pub struct CalledTypes {
+    pub types: Vec<CalledType>,
 
     #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
-impl Types {
+impl CalledTypes {
 
     pub fn contains_type(&self, r#type: Type) -> bool {
-        self.types.iter().any(|it| it == &r#type)
+        self.types.iter().any(|it| it.r#type == r#type)
     }
 }
 
-impl Display for Types {
+impl Display for CalledTypes {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let output = self.types.iter()
             .map(|it| it.to_string())
@@ -157,6 +176,7 @@ pub struct CalledArgument {
     pub value: AValue,
 }
 
+
 #[derive(Derivative, Debug, Clone, Eq)]
 #[derivative(PartialEq)]
 pub struct EventDeclaration {
@@ -169,13 +189,23 @@ pub struct EventDeclaration {
 
 #[derive(Derivative, Debug, Eq)]
 #[derivative(PartialEq)]
+pub struct Rule {
+    pub declaration: RuleDeclaration,
+    pub definition: RuleDefinition
+}
+
+#[derive(Derivative, Debug, Eq)]
+#[derivative(PartialEq)]
+pub struct RuleDefinition {
+
+}
+
+#[derive(Derivative, Debug, Eq)]
+#[derivative(PartialEq)]
 pub struct RuleDeclaration {
     pub title: String,
     pub event: EventRef,
     pub arguments: Vec<CalledArgument>,
-
-    #[derivative(PartialEq = "ignore")]
-    pub span: Span,
 }
 
 /// Represents a value which is only known during runtime
@@ -199,6 +229,17 @@ impl RValue {
             RValue::EnumConstant(enum_constant) => enum_constant.name.clone(),
             RValue::Function(function) => function.name.clone(),
             RValue::Property(property) => property.name.clone()
+        }
+    }
+
+    pub fn r#type(&self) -> Type {
+        match self {
+            RValue::Enum(r#enum) => Type::Enum(Rc::clone(r#enum)),
+            RValue::Event(event) => Type::Event(Rc::clone(event)),
+            RValue::Struct(r#struct) => Type::Struct(Rc::clone(r#struct)),
+            RValue::EnumConstant(enum_constant) => Type::Enum(Rc::clone(&enum_constant.r#enum)),
+            RValue::Function(function) => function.return_type.clone(),
+            RValue::Property(property) => property.r#type.clone()
         }
     }
 }
@@ -228,10 +269,43 @@ pub enum AValue {
     CValue(CValue)
 }
 
+impl AValue {
+
+    pub fn name(&self) -> Ident {
+        match self {
+            AValue::RValue(rvalue, _) => rvalue.name(),
+            AValue::CValue(cvalue) => cvalue.name(),
+        }
+    }
+
+    pub fn r#type(&self) -> Type {
+        match self {
+            AValue::RValue(rvalue, _) => rvalue.r#type(),
+            AValue::CValue(cvalue) => cvalue.r#type()
+        }
+    }
+}
+
 /// Represent a value which is known at compile time
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CValue {
-    String(String, StructRef, Span),
-    Number(String, StructRef, Span),
+    String(ImmutableString, StructRef, Span),
+    Number(ImmutableString, StructRef, Span),
 }
 
+impl CValue {
+
+    pub fn name(&self) -> Ident {
+        match self {
+            CValue::String(_, r#struct, _) => r#struct.name.clone(),
+            CValue::Number(_, r#struct, _) => r#struct.name.clone()
+        }
+    }
+
+    pub fn r#type(&self) -> Type {
+        match self {
+            CValue::String(_, r#struct, _) => Type::Struct(Rc::clone(r#struct)),
+            CValue::Number(_, r#struct, _) => Type::Struct(Rc::clone(&r#struct))
+        }
+    }
+}
