@@ -54,24 +54,24 @@ fn event_parser(
     just(Token::Workshop).or_not().map_with_span(|o, span| Spanned::ignore_value(o, span))
         .then_ignore(just(Token::Event))
         .then(ident.clone())
+        .map_with_span(|(is_workshop, name), span| EventDeclaration { is_workshop, name, span })
         .then(declare_args)
         .then(just(Token::By).ignore_then(ident).then(args).or_not())
-        .map_with_span(|(((is_workshop, name), arguments), by), span| {
-            EventDeclaration { is_workshop, name, arguments, by, span }
-        })
-        .validate(|event_declaration, span, emit| {
-            if event_declaration.is_workshop.is_some() && event_declaration.by.is_some() {
+        .validate(|((a, b), c), span, emit| {
+            if a.is_workshop.is_some() && c.is_some() {
                 emit(Simple::custom(span, "Workshop functions cannot have a by clause"));
             }
-           event_declaration
+            ((a, b), c)
         })
         .then(block.clone())
-        .map_with_span(|(declaration, block), span| {
+        .map_with_span(|(((declaration, arguments), by), block), span| {
             Event {
                 declaration,
                 definition: EventDefinition {
                     actions: block.actions,
-                    conditions: block.conditions
+                    conditions: block.conditions,
+                    by,
+                    arguments
                 },
                 span
             }
@@ -266,17 +266,13 @@ pub fn rule_parser(
         .ignore_then(rule_name)
         .then(ident)
         .then(args.clone())
-        .map_with_span(|((name, event), arguments), span| {
-            RuleDeclaration { name, event, arguments, span }
-        })
         .then(block)
-        .map_with_span(|(declaration, block), span| Rule {
-            declaration,
-            definition: RuleDefinition {
-                conditions: block.conditions,
-                actions: block.actions
-            },
-            span,
+        .map_with_span(|(((rule_name, ident), arguments), block), _span| Rule {
+            conditions: block.conditions,
+            actions: block.actions,
+            name: rule_name,
+            event: ident,
+            arguments,
         })
 }
 

@@ -1,20 +1,25 @@
 use std::fmt::{Debug, Display, Formatter};
-use std::rc::{Rc, Weak};
-use derivative::Derivative;
-use crate::language::ast::{SpannedBool, UseRestriction};
+use crate::impl_intern_key;
+use crate::language::ast::{SpannedBool, Struct, UseRestriction};
 use crate::language::{Ident, ImmutableString, Span};
+use crate::language::analysis::interner::{Interner, IntoInternId};
+use crate::language::analysis::namespace::NamespacePlaceholder;
 
-pub type RuleRef = Rc<RuleDeclaration>;
-pub type EnumRef = Rc<EnumDeclaration>;
-pub type EventRef = Rc<EventDeclaration>;
-pub type DeclaredArgumentRef = Rc<DeclaredArgument>;
-pub type FunctionRef = Rc<Function>;
-pub type PropertyRef = Rc<Property>;
-pub type StructRef = Rc<Struct>;
-pub type EnumConstantRef = Rc<EnumConstant>;
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Im(pub Vec<Root>);
+
+impl FromIterator<Root> for Im {
+
+    fn from_iter<T: IntoIterator<Item=Root>>(iter: T) -> Self {
+        let mut vec = Vec::new();
+
+        for x in iter {
+            vec.push(x);
+        }
+
+        Im(vec)
+    }
+}
 
 impl IntoIterator for Im {
     type Item = Root;
@@ -25,12 +30,12 @@ impl IntoIterator for Im {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Root {
-    Rule(RuleRef),
-    Enum(EnumRef),
-    Event(EventRef),
-    Struct(StructRef)
+    Rule(Rule),
+    Enum(Enum),
+    Event(Event),
+    Struct(Struct)
 }
 
 impl Root {
@@ -44,17 +49,15 @@ impl Root {
     }
 }
 
-#[derive(Derivative, Debug, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Function {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub arguments: Vec<DeclaredArgumentRef>,
+    pub arguments: Vec<DeclaredArgumentId>,
     pub return_type: Type
 }
 
-#[derive(Derivative, Debug, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Property {
     pub is_workshop: SpannedBool,
     pub name: Ident,
@@ -62,61 +65,104 @@ pub struct Property {
     pub r#type: Type
 }
 
-#[derive(Derivative, Debug, Clone)]
-#[derivative(PartialEq, Eq)]
-pub struct Struct {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StructDeclaration {
     pub is_open: SpannedBool,
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub functions: Vec<FunctionRef>,
-    pub properties: Vec<PropertyRef>,
-    pub span: Span
 }
 
-#[derive(Derivative, Debug, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StructDefinition {
+    pub decl: StructDeclarationId,
+    pub functions: Vec<()>,
+    pub properties: Vec<()>,
+}
+
+impl IntoInternId for StructDeclaration  {
+    type Interned = StructDeclarationId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> StructDeclarationId {
+        db.intern_struct_decl(self)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct StructDeclarationId(salsa::InternId);
+
+impl_intern_key!(StructDeclarationId);
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct EnumDeclaration {
     pub name: Ident,
     pub is_workshop: SpannedBool,
 }
 
-#[derive(Derivative, Debug, Clone)]
-#[derivative(PartialEq, Eq)]
-pub struct EnumDefinition {
-    pub constants: Vec<Rc<EnumConstant>>,
+impl IntoInternId for EnumDeclaration {
+    type Interned = EnumDeclarationId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> EnumDeclarationId {
+        db.intern_enum_decl(self)
+    }
 }
 
-#[derive(Derivative, Debug, Clone)]
-#[derivative(PartialEq, Eq)]
-pub struct Enum {
-    pub declaration: Rc<EnumDeclaration>,
-    pub definition: Rc<EnumDefinition>,
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct EnumDeclarationId(salsa::InternId);
 
-    #[derivative(PartialEq = "ignore")]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct EnumConstantId(salsa::InternId);
+
+impl IntoInternId for EnumConstant {
+    type Interned = EnumConstantId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> EnumConstantId {
+        db.intern_enum_constant(self)
+    }
+}
+impl_intern_key!(EnumDeclarationId);
+
+impl_intern_key!(EnumConstantId);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EnumDefinition {
+    pub constants: Vec<EnumConstantId>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct EnumConstant {
+    pub name: Ident,
+    pub r#enum: EnumDeclarationId
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Enum {
+    pub declaration: EnumDeclarationId,
+    pub definition: EnumDefinition,
     pub span: Span,
 }
 
-#[derive(Derivative, Debug)]
-#[derivative(PartialEq, Eq)]
-pub struct EnumConstant {
-    pub name: Ident,
-
-    #[derivative(PartialEq = "ignore")]
-    pub r#enum: Rc<EnumDeclaration>
-}
-
-
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
-    Enum(EnumRef),
-    Struct(StructRef),
-    Event(EventRef)
+    Enum(EnumDeclarationId),
+    Struct(StructDeclarationId),
+    Event(EventDeclarationId)
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+impl Into<NamespacePlaceholder> for Type {
+
+    fn into(self) -> NamespacePlaceholder {
+        match self {
+            Type::Enum(r#enum) => NamespacePlaceholder::Enum(r#enum),
+            Type::Struct(r#struct) => NamespacePlaceholder::Struct(r#struct),
+            Type::Event(event) => NamespacePlaceholder::Event(event)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledType {
-    r#type: Type,
-    span: Span
+    pub r#type: Type,
+    pub span: Span
 }
 
 impl Display for CalledType {
@@ -135,20 +181,9 @@ impl Display for Type {
     }
 }
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
-pub struct DeclaredArgument {
-    pub name: Ident,
-    pub types: CalledTypes,
-    pub default_value: Option<AValue>,
-}
-
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledTypes {
     pub types: Vec<CalledType>,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -169,143 +204,101 @@ impl Display for CalledTypes {
     }
 }
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledArgument {
-    pub declared: DeclaredArgumentRef,
     pub value: AValue,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DeclaredArgument {
+    pub name: Ident,
+    pub types: CalledTypes,
+    pub default_value: Option<AValue>,
+}
 
-#[derive(Derivative, Debug, Clone, Eq)]
-#[derivative(PartialEq)]
+impl IntoInternId for DeclaredArgument {
+    type Interned = DeclaredArgumentId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> DeclaredArgumentId {
+        db.intern_decl_arg(self)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct DeclaredArgumentId(salsa::InternId);
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct EventDeclarationId(salsa::InternId);
+
+impl_intern_key!(DeclaredArgumentId);
+impl_intern_key!(EventDeclarationId);
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct EventDeclaration {
     pub name: Ident,
-    pub arguments: Vec<DeclaredArgumentRef>,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Eq)]
-#[derivative(PartialEq)]
+impl IntoInternId for EventDeclaration {
+    type Interned = EventDeclarationId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> EventDeclarationId {
+        db.intern_event_decl(self)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Event {
+    pub declaration: EventDeclarationId,
+    pub definition: EventDefinition
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EventDefinition {
+    pub arguments: Vec<DeclaredArgumentId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rule {
-    pub declaration: RuleDeclaration,
-    pub definition: RuleDefinition
+    pub title: ImmutableString,
+    pub event: EventDeclarationId,
+    pub arguments: Vec<AValue>,
 }
 
-#[derive(Derivative, Debug, Eq)]
-#[derivative(PartialEq)]
-pub struct RuleDefinition {
-
-}
-
-#[derive(Derivative, Debug, Eq)]
-#[derivative(PartialEq)]
-pub struct RuleDeclaration {
-    pub title: String,
-    pub event: EventRef,
-    pub arguments: Vec<CalledArgument>,
-}
-
-/// Represents a value which is only known during runtime
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Represents a value which is known at runtime time or compile time and it refers
+/// to some other code
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RValue {
-    Enum(EnumRef),
-    Event(EventRef),
-    Struct(StructRef),
-    EnumConstant(Rc<EnumConstant>),
-    Function(FunctionRef),
-    Property(PropertyRef),
+    Type(Type),
+    EnumConstant(EnumConstantId),
 }
 
 impl RValue {
 
-    pub fn name(&self) -> Ident {
-        match self {
-            RValue::Struct(r#struct) => r#struct.name.clone(),
-            RValue::Enum(r#enum) => r#enum.name.clone(),
-            RValue::Event(event) => event.name.clone(),
-            RValue::EnumConstant(enum_constant) => enum_constant.name.clone(),
-            RValue::Function(function) => function.name.clone(),
-            RValue::Property(property) => property.name.clone()
-        }
-    }
-
-    pub fn r#type(&self) -> Type {
-        match self {
-            RValue::Enum(r#enum) => Type::Enum(Rc::clone(r#enum)),
-            RValue::Event(event) => Type::Event(Rc::clone(event)),
-            RValue::Struct(r#struct) => Type::Struct(Rc::clone(r#struct)),
-            RValue::EnumConstant(enum_constant) => Type::Enum(Rc::clone(&enum_constant.r#enum)),
-            RValue::Function(function) => function.return_type.clone(),
-            RValue::Property(property) => property.r#type.clone()
+    pub fn name<I: Interner + ?Sized>(&self, db: &I) -> Ident {
+        match self.clone() {
+            RValue::Type(r#type) => {
+                match r#type {
+                    Type::Enum(r#enum) => db.lookup_intern_enum_decl(r#enum).name,
+                    Type::Struct(r#struct) => db.lookup_intern_struct_decl(r#struct).name,
+                    Type::Event(event) => db.lookup_intern_event_decl(event).name
+                }
+            }
+            RValue::EnumConstant(enum_constant) => db.lookup_intern_enum_constant(enum_constant).name
         }
     }
 }
 
-impl Into<StructRef> for RValue {
-    fn into(self) -> StructRef {
-        match self {
-            RValue::Struct(r#struct) => r#struct,
-            _ => panic!("Referable is not a struct, but a {:?}", self)
-        }
-    }
-}
-
-impl Display for RValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RValue::EnumConstant(enum_constant) => write!(f, "{}", enum_constant.name.value),
-            _ => panic!()
-        }
-    }
-}
-
-/// Represents a value which is known at runtime time or compile time.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Represents a value which is known at runtime time or compile time
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
     RValue(RValue, Span),
     CValue(CValue)
 }
 
-impl AValue {
-
-    pub fn name(&self) -> Ident {
-        match self {
-            AValue::RValue(rvalue, _) => rvalue.name(),
-            AValue::CValue(cvalue) => cvalue.name(),
-        }
-    }
-
-    pub fn r#type(&self) -> Type {
-        match self {
-            AValue::RValue(rvalue, _) => rvalue.r#type(),
-            AValue::CValue(cvalue) => cvalue.r#type()
-        }
-    }
-}
-
 /// Represent a value which is known at compile time
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CValue {
-    String(ImmutableString, StructRef, Span),
-    Number(ImmutableString, StructRef, Span),
-}
-
-impl CValue {
-
-    pub fn name(&self) -> Ident {
-        match self {
-            CValue::String(_, r#struct, _) => r#struct.name.clone(),
-            CValue::Number(_, r#struct, _) => r#struct.name.clone()
-        }
-    }
-
-    pub fn r#type(&self) -> Type {
-        match self {
-            CValue::String(_, r#struct, _) => Type::Struct(Rc::clone(r#struct)),
-            CValue::Number(_, r#struct, _) => Type::Struct(Rc::clone(&r#struct))
-        }
-    }
+    String(ImmutableString, StructDeclarationId, Span),
+    Number(ImmutableString, StructDeclarationId, Span),
 }

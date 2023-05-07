@@ -63,16 +63,14 @@ impl From<Vec<Ident>> for Types {
 pub struct EventDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub by: Option<(Ident, CallArguments)>,
-    pub arguments: Spanned<Vec<DeclaredArgument>>,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct EventDefinition {
+    pub by: Option<(Ident, CallArguments)>,
+    pub arguments: Spanned<Vec<DeclaredArgument>>,
     pub conditions: Vec<Condition>,
     pub actions: Vec<Action>,
 }
@@ -180,30 +178,12 @@ pub struct DeclaredArgument {
 
 #[derive(Derivative, Debug, Hash, Clone)]
 #[derivative(PartialEq, Eq)]
-pub struct RuleDeclaration {
+pub struct Rule {
     pub name: Spanned<ImmutableString>,
     pub event: Ident,
     pub arguments: CallArguments,
-
-    #[derivative(PartialEq = "ignore")]
-    pub span: Span
-}
-
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
-pub struct RuleDefinition {
     pub conditions: Vec<Condition>,
     pub actions: Vec<Action>,
-}
-
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
-pub struct Rule {
-    pub declaration: RuleDeclaration,
-    pub definition: RuleDefinition,
-
-    #[derivative(PartialEq = "ignore")]
-    pub span: Span
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]

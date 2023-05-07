@@ -6,12 +6,12 @@ workshop enum Team {
     Team1, Team2, All
 }
 
-workshop enum Slot {
-    Slot0, Slot1, All
-}
-
 workshop enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
+}
+
+workshop enum Slot {
+    Slot0, Slot1, All
 }
 
 open workshop struct Player {
@@ -28,11 +28,12 @@ workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot
 }
 
 rule "Hello other world" OngoingEachPlayer(Hero.Ana, Slot.Slot1) {
+
 }
 
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading
 
-    player.displaySmallMassage("Hello World")
+    player.displaySmallMessage("Hello World")
     player.heal(100)
 }

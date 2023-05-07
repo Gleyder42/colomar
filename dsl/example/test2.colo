@@ -1,5 +1,20 @@
-rule "Heal on reload" OngoingEachPlayer() {
-    cond player.isReloading
+struct MyStruct {
 
-    player.heal(10)
+}
+
+enum MyEnum {
+    Hello = 1,
+    World = 2
+}
+
+enum MyVariant {
+    Hello(string)
+    World(Player, string)
+}
+
+fn test(my: MyVariant) {
+   match (my) {
+        Hello(string) => log(string),
+        World(player, string) => player.smallMessage(string)
+   }
 }
