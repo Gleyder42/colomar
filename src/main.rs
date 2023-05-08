@@ -9,7 +9,6 @@ use std::fs;
 use std::io::{Read};
 use std::ops::Range;
 use std::path::Path;
-use std::time::Instant;
 use chumsky::prelude::*;
 use chumsky::Stream;
 use crate::language::analysis::AnalysisDatabase;

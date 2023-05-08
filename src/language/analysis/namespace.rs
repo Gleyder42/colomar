@@ -1,16 +1,14 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::process::id;
 use std::rc::Rc;
 use salsa::InternId;
 use crate::impl_intern_key;
 use crate::language::{Ident, im, ImmutableString};
 use crate::language::analysis::error::AnalysisError;
-use crate::language::analysis::file::RootFileQuery;
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::r#enum::EnumQuery;
 use crate::language::analysis::r#type::TypeQuery;
-use crate::language::im::{EnumConstant, EnumDeclarationId, EnumDefinition, EventDeclarationId, RValue, StructDeclarationId};
+use crate::language::im::{EnumConstant, EnumDeclarationId, EventDeclarationId, RValue, StructDeclarationId};
 
 #[salsa::query_group(NamespaceDatabase)]
 pub trait NamespaceQuery: TypeQuery + EnumQuery {
@@ -77,11 +75,11 @@ fn query_enum_namespace(db: &dyn NamespaceQuery, r#enum: EnumDeclarationId) -> R
     Ok(db.intern_namespace(Rc::new(namespace)))
 }
 
-fn query_event_namespace(db: &dyn NamespaceQuery, event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
+fn query_event_namespace(_db: &dyn NamespaceQuery, _event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
     todo!()
 }
 
-fn query_struct_namespace(db: &dyn NamespaceQuery, struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError> {
+fn query_struct_namespace(_db: &dyn NamespaceQuery, _struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError> {
     todo!()
 }
 

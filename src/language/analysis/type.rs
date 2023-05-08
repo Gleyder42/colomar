@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-use crate::language::ast::Types;
-use crate::language::{ast, Ident, im, ImmutableString};
+use crate::language::{ast, Ident, im};
 use crate::language::analysis::error::AnalysisError;
-use crate::language::analysis::event::{EventDeclQuery, EventQuery};
+use crate::language::analysis::event::{EventDeclQuery};
 use crate::language::analysis::file::RootFileQuery;
-use crate::language::analysis::r#enum::{EnumDeclQuery, EnumQuery};
+use crate::language::analysis::r#enum::{EnumDeclQuery};
 use crate::language::analysis::r#struct::StructDeclQuery;
 
 #[salsa::query_group(TypeDatabase)]

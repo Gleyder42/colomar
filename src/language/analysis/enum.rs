@@ -1,6 +1,4 @@
-use std::rc::Rc;
 use crate::language::{ast, im};
-use crate::language::analysis::file::RootFileQuery;
 use crate::language::analysis::interner::{Interner, IntoInternId};
 
 #[salsa::query_group(EnumDatabase)]

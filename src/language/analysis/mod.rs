@@ -1,4 +1,3 @@
-use salsa::InternKey;
 use file::FileDatabase;
 use r#enum::EnumDatabase;
 use r#enum::EnumDeclarationDatabase;

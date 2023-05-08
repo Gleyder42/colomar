@@ -1,4 +1,4 @@
-use crate::language::{analysis, ast, im};
+use crate::language::{ast, im};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 
 #[salsa::query_group(StructDatabase)]

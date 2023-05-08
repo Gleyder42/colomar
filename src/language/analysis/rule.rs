@@ -1,5 +1,5 @@
 use crate::language::{ast, im};
-use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::analysis::error::{AnalysisError};
 use crate::language::analysis::r#type::TypeQuery;
 
 #[salsa::query_group(RuleDatabase)]

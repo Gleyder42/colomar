@@ -1,6 +1,4 @@
-use crate::language::{ast, im};
-use crate::language::analysis::r#enum::EnumQuery;
-use crate::language::ast::Root;
+use crate::language::{ast};
 
 #[salsa::query_group(FileDatabase)]
 pub trait RootFileQuery {
