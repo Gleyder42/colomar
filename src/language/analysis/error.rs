@@ -24,6 +24,17 @@ pub enum QueryResult<T, E> {
     Err(Vec<E>)
 }
 
+impl<T, E> QueryResult<T, E> {
+
+    pub fn to_option(self) -> (Option<T>, Vec<E>) {
+        match self {
+            QueryResult::Ok(value) => (Some(value), Vec::new()),
+            QueryResult::Par(value, errors) => (Some(value), errors),
+            QueryResult::Err(errors) => (None, errors)
+        }
+    }
+}
+
 impl<Id, T: IntoInternId<Interned=Id>, E> QueryResult<T, E> {
 
     pub fn intern<Db: Interner + ?Sized>(self, db: &Db) -> QueryResult<Id, E> {

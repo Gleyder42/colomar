@@ -37,8 +37,6 @@ pub enum Action {
 #[derivative(PartialEq, Eq)]
 pub struct Types {
     pub values: Vec<Ident>,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -80,8 +78,6 @@ pub struct EventDefinition {
 pub struct Event {
     pub declaration: EventDeclaration,
     pub definition: EventDefinition,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -117,8 +113,6 @@ pub struct StructDeclaration {
     pub is_open: SpannedBool,
     pub is_workshop: SpannedBool,
     pub name: Ident,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -134,8 +128,6 @@ pub struct StructDefinition {
 pub struct Struct {
     pub declaration: StructDeclaration,
     pub definition: StructDefinition,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -144,8 +136,6 @@ pub struct Struct {
 pub struct EnumDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -160,8 +150,6 @@ pub struct EnumDefinition {
 pub struct Enum {
     pub declaration: EnumDeclaration,
     pub definition: EnumDefinition,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -171,8 +159,6 @@ pub struct DeclaredArgument {
     pub name: Ident,
     pub types: Types,
     pub default_value: Option<CallChain>,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -191,8 +177,6 @@ pub struct Rule {
 pub struct Block {
     pub actions: Vec<Action>,
     pub conditions: Vec<Condition>,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 

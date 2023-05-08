@@ -16,8 +16,6 @@ pub type ImmutableString = Rc<String>;
 #[derivative(PartialEq)]
 pub struct Ident {
     pub value: ImmutableString,
-
-    #[derivative(PartialEq = "ignore")]
     pub span: Span
 }
 
@@ -36,9 +34,6 @@ impl<T> Spanned<T> {
 #[derivative(PartialEq, Eq)]
 pub struct Spanned<T> {
     pub value: T,
-
-    /// The span of type T
-    #[derivative(PartialEq = "ignore")]
     pub span: crate::Span
 }
 

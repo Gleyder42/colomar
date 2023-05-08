@@ -1,11 +1,11 @@
 use std::rc::Rc;
 use crate::language::{ast, Ident, im};
 use crate::language::analysis::error::AnalysisError;
-use crate::language::analysis::namespace::{NamespaceId, NamespacePlaceholder, NamespaceTrait};
+use crate::language::analysis::namespace::{NamespaceId, NamespacePlaceholder, NamespaceQuery};
 use crate::language::im::{AValue, CValue, RValue, Type};
 
 #[salsa::query_group(CallDatabase)]
-pub trait Call: NamespaceTrait {
+pub trait Call: NamespaceQuery {
 
     fn query_ident(&self, ident: Ident) -> im::AValue;
 

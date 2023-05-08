@@ -9,6 +9,7 @@ use std::fs;
 use std::io::{Read};
 use std::ops::Range;
 use std::path::Path;
+use std::time::Instant;
 use chumsky::prelude::*;
 use chumsky::Stream;
 use crate::language::analysis::AnalysisDatabase;
@@ -18,6 +19,8 @@ use crate::language::im;
 use crate::language::im::Root;
 use crate::language::lexer::{lexer};
 use crate::language::parser::parser;
+use crate::language::analysis::file::RootFileQuery;
+use crate::language::analysis::im::Im;
 
 pub type Span = Range<usize>;
 
@@ -27,7 +30,7 @@ pub mod test_assert;
 mod compiler;
 
 fn main() {
-    let filename = "v1.colo";
+    let filename = "v2.colo";
     let filepath = format!("dsl/example/{filename}");
     let path = Path::new(&filepath);
     let mut file = fs::File::open(path).expect("Cannot read from file");
@@ -49,27 +52,29 @@ fn main() {
     if let Some(ast) = ast {
         println!("{:#?}", ast);
         let mut database = AnalysisDatabase::default();
-        use crate::language::analysis::file::RootFileQuery;
         database.set_input_content(ast);
 
-        use crate::language::analysis::im::Im;
         let im: QueryResult<im::Im, _> = database.query_im();
 
-        if let QueryResult::Ok(im) = im {
+        let output = im.to_option();
+
+        println!("{:#?}", output.1);
+
+        if let Some(im) = output.0 {
             for root in im {
                 match root {
                     Root::Rule(_rule) => todo!(),
                     Root::Event(event) => {
                         let decl = database.lookup_intern_event_decl(event.declaration);
 
-                        println!("Event\nDecl: {:?}\nDef: {:?}", decl, event.definition);
+                        println!("Event\nDecl: {:#?}\nDef: {:#?}", decl, event.definition);
                     }
                     Root::Enum(r#enum) => {
                         let decl = database.lookup_intern_enum_decl(r#enum.declaration);
 
                         let constants: Vec<_> = r#enum.definition.constants.into_iter().map(|it| database.lookup_intern_enum_constant(it)).collect();
 
-                        println!("Enum\nDecl: {:?}\nDef: {:?}\nSpan: {:?}", decl, constants, r#enum.span);
+                        println!("Enum\nDecl: {:#?}\nDef: {:#?}\nSpan: {:#?}", decl, constants, r#enum.span);
                     },
                     Root::Struct(_struct) => todo!(),
                 };

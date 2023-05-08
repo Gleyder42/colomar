@@ -13,21 +13,48 @@ use crate::language::analysis::r#type::TypeQuery;
 use crate::language::im::{EnumConstant, EnumDeclarationId, EnumDefinition, EventDeclarationId, RValue, StructDeclarationId};
 
 #[salsa::query_group(NamespaceDatabase)]
-pub trait NamespaceTrait: TypeQuery + EnumQuery {
+pub trait NamespaceQuery: TypeQuery + EnumQuery {
 
     fn query_root_namespace(&self) -> Result<NamespaceId, AnalysisError>;
 
     fn query_enum_namespace(&self, r#enum: EnumDeclarationId) -> Result<NamespaceId, AnalysisError>;
 
-    fn query_event_namespace(&self, event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError>;
+    fn query_event_namespace(
+        &self,
+        event_decl: EventDeclarationId
+    ) -> Result<NamespaceId, AnalysisError>;
 
-    fn query_struct_namespace(&self, struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError>;
+    fn query_struct_namespace(
+        &self,
+        struct_decl: StructDeclarationId
+    ) -> Result<NamespaceId, AnalysisError>;
 
-    fn query_namespaced_rvalue(&self, namespace_placeholder: NamespacePlaceholder, ident: Ident) -> Result<RValue, AnalysisError>;
+    fn query_namespaced_rvalue(
+        &self,
+        namespace_placeholder: NamespacePlaceholder,
+        ident: Ident
+    ) -> Result<RValue, AnalysisError>;
+
+    fn query_namespaced_type(
+        &self,
+        namespace_placeholder: NamespacePlaceholder,
+        ident: Ident
+    ) -> Result<im::Type, AnalysisError>;
 }
 
+fn query_namespaced_type(
+    db: &dyn NamespaceQuery,
+    namespace_placeholder: NamespacePlaceholder,
+    ident: Ident
+) -> Result<im::Type, AnalysisError> {
+    db.query_namespaced_rvalue(namespace_placeholder, ident)
+        .map(|it| match it {
+            RValue::Type(r#type) => Ok(r#type),
+            _ => AnalysisError::WrongType.into()
+        }).flatten()
+}
 
-fn query_root_namespace(db: &dyn NamespaceTrait) -> Result<NamespaceId, AnalysisError> {
+fn query_root_namespace(db: &dyn NamespaceQuery) -> Result<NamespaceId, AnalysisError> {
     let mut namespace = Namespace::new_root();
 
     for (ident, r#type) in db.query_type_map() {
@@ -37,7 +64,7 @@ fn query_root_namespace(db: &dyn NamespaceTrait) -> Result<NamespaceId, Analysis
     Ok(Rc::new(namespace).intern(db))
 }
 
-fn query_enum_namespace(db: &dyn NamespaceTrait, r#enum: EnumDeclarationId) -> Result<NamespaceId, AnalysisError> {
+fn query_enum_namespace(db: &dyn NamespaceQuery, r#enum: EnumDeclarationId) -> Result<NamespaceId, AnalysisError> {
     // TODO Maybe a reference here?
     let r#enum = db.find_enum_def(r#enum);
     let mut namespace = Namespace::new_root();
@@ -50,15 +77,15 @@ fn query_enum_namespace(db: &dyn NamespaceTrait, r#enum: EnumDeclarationId) -> R
     Ok(db.intern_namespace(Rc::new(namespace)))
 }
 
-fn query_event_namespace(db: &dyn NamespaceTrait, event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
+fn query_event_namespace(db: &dyn NamespaceQuery, event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
     todo!()
 }
 
-fn query_struct_namespace(db: &dyn NamespaceTrait, struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError> {
+fn query_struct_namespace(db: &dyn NamespaceQuery, struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError> {
     todo!()
 }
 
-fn query_namespaced_rvalue(db: &dyn NamespaceTrait, namespace_placeholder: NamespacePlaceholder, ident: Ident) -> Result<RValue, AnalysisError> {
+fn query_namespaced_rvalue(db: &dyn NamespaceQuery, namespace_placeholder: NamespacePlaceholder, ident: Ident) -> Result<RValue, AnalysisError> {
     let namespace: NamespaceId = match namespace_placeholder {
         NamespacePlaceholder::Root => db.query_root_namespace()?,
         NamespacePlaceholder::Enum(enum_decl) => db.query_enum_namespace(enum_decl)?,
