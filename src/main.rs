@@ -1,6 +1,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(box_patterns)]
 #![feature(result_flattening)]
+#![feature(map_try_insert)]
 
 extern crate core;
 extern crate salsa;
@@ -47,7 +48,7 @@ fn main() {
         (None, Vec::new())
     };
 
-    println!("{:#?}", parser_errors);
+
     if let Some(ast) = ast {
         println!("{:#?}", ast);
         let mut database = AnalysisDatabase::default();
@@ -80,5 +81,7 @@ fn main() {
                 println!("===")
             }
         }
+
+        println!("{:#?}", output.1);
     }
 }

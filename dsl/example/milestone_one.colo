@@ -6,10 +6,6 @@ workshop enum Team {
     Team1, Team2, All
 }
 
-workshop enum Hero {
-    Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
-}
-
 workshop enum Slot {
     Slot0, Slot1, All
 }
@@ -25,6 +21,10 @@ open workshop struct Player {
 
 workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
     val player: Player
+}
+
+workshop enum Hero {
+    Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
 }
 
 rule "Hello other world" OngoingEachPlayer(Hero.Ana, Slot.Slot1) {

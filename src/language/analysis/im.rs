@@ -16,7 +16,7 @@ fn query_im(db: &dyn Im) -> QueryResult<im::Im, AnalysisError> {
             match root {
                 ast::Root::Event(event) => { db.query_event(event).map(im::Root::Event) }
                 ast::Root::Rule(_) => { todo!() }
-                ast::Root::Enum(r#enum) => QueryResult::Ok(db.query_enum(r#enum)).map(im::Root::Enum),
+                ast::Root::Enum(r#enum) => db.query_enum(r#enum).map(im::Root::Enum),
                 ast::Root::Struct(_) => { todo!() }
             }
         })
