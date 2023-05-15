@@ -1,11 +1,11 @@
 extern crate core;
 
 use std::fmt::{Debug, Display, Formatter};
+use std::rc::Rc;
 use chumsky::prelude::*;
 use std::string::String;
-use chumsky::Error;
 use chumsky::text::Character;
-use crate::language::Span;
+use crate::language::{ImmutableString, Span};
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
@@ -22,9 +22,9 @@ pub enum Token {
     Fn,
     NewLine,
     Type,
-    Ident(String),
-    String(String),
-    Num(String),
+    Ident(ImmutableString),
+    String(ImmutableString),
+    Num(ImmutableString),
     Ctrl(char)
 }
 
@@ -56,12 +56,14 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     let num = text::int(10)
         .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
         .collect::<String>()
+        .map(Rc::new)
         .map(Token::Num);
 
     let string = just('"')
         .ignore_then(filter(|c| *c != '"').repeated())
         .then_ignore(just('"'))
         .collect::<String>()
+        .map(Rc::new)
         .map(Token::String);
 
     let ctrl = one_of("(){},.:|=")
@@ -80,7 +82,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         "fn" => Token::Fn,
         "type" => Token::Type,
         "val" => Token::Val,
-        _ => Token::Ident(ident),
+        _ => Token::Ident(ImmutableString::new(ident)),
     });
 
     let newline = text::newline()
@@ -121,10 +123,10 @@ mod tests {
 
         let actual = lexer().parse(code).unwrap();
         let expected = vec![
-            Token::Num("1".to_string()),
-            Token::Num("5".to_string()),
-            Token::Num("1.2".to_string()),
-            Token::Num("123.321".to_string())
+            Token::Num("1".to_string().into()),
+            Token::Num("5".to_string().into()),
+            Token::Num("1.2".to_string().into()),
+            Token::Num("123.321".to_string().into())
         ];
 
         assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
@@ -136,8 +138,8 @@ mod tests {
 
         let actual = lexer().parse(code).unwrap();
         let expected = vec![
-            Token::String("Hello".to_string()),
-            Token::String("Hello World".to_string()),
+            Token::String("Hello".to_string().into()),
+            Token::String("Hello World".to_string().into()),
         ];
 
         assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);

@@ -1,7 +1,3 @@
-workshop event OngoingEachPlayer(team: Team, slot: Slot | Hero) {
-
-}
-
 workshop enum Team {
     Team1, Team2, All
 }
