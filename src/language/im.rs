@@ -3,7 +3,7 @@ use crate::impl_intern_key;
 use crate::language::ast::{SpannedBool, Struct, UseRestriction};
 use crate::language::{Ident, ImmutableString, Span};
 use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::analysis::namespace::NamespacePlaceholder;
+use crate::language::analysis::namespace::{EnumPlaceholder, NamespacePlaceholder};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Im(pub Vec<Root>);
@@ -125,6 +125,7 @@ impl_intern_key!(EnumConstantId);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnumDefinition {
+    // TODO Maybe use a hashset or hashmap to show that names are unique
     pub constants: Vec<EnumConstantId>,
 }
 
@@ -152,7 +153,7 @@ impl Into<NamespacePlaceholder> for Type {
 
     fn into(self) -> NamespacePlaceholder {
         match self {
-            Type::Enum(r#enum) => NamespacePlaceholder::Enum(r#enum),
+            Type::Enum(r#enum) => NamespacePlaceholder::Enum(EnumPlaceholder::ByEnum(r#enum)),
             Type::Struct(r#struct) => NamespacePlaceholder::Struct(r#struct),
             Type::Event(event) => NamespacePlaceholder::Event(event)
         }
@@ -271,6 +272,16 @@ pub struct Rule {
 pub enum RValue {
     Type(Type),
     EnumConstant(EnumConstantId),
+}
+
+
+impl Into<NamespacePlaceholder> for RValue {
+    fn into(self) -> NamespacePlaceholder {
+        match self {
+            RValue::Type(r#type) => r#type.into(),
+            RValue::EnumConstant(enum_constant_id) => EnumPlaceholder::ByConstant(enum_constant_id).into()
+        }
+    }
 }
 
 impl RValue {

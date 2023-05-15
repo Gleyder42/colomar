@@ -2,20 +2,20 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use salsa::InternId;
-use crate::impl_intern_key;
+use crate::{impl_intern_key, query_error};
 use crate::language::{Ident, im, ImmutableString};
-use crate::language::analysis::error::AnalysisError;
+use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::r#enum::EnumQuery;
 use crate::language::analysis::r#type::TypeQuery;
-use crate::language::im::{EnumConstant, EnumDeclarationId, EventDeclarationId, RValue, StructDeclarationId};
+use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId, RValue, StructDeclarationId};
 
 #[salsa::query_group(NamespaceDatabase)]
 pub trait NamespaceQuery: TypeQuery + EnumQuery {
 
     fn query_root_namespace(&self) -> Result<NamespaceId, AnalysisError>;
 
-    fn query_enum_namespace(&self, r#enum: EnumDeclarationId) -> Result<NamespaceId, AnalysisError>;
+    fn query_enum_namespace(&self, r#enum: EnumDeclarationId) -> QueryResult<NamespaceId, AnalysisError>;
 
     fn query_event_namespace(
         &self,
@@ -31,25 +31,25 @@ pub trait NamespaceQuery: TypeQuery + EnumQuery {
         &self,
         namespace_placeholder: NamespacePlaceholder,
         ident: Ident
-    ) -> Result<RValue, AnalysisError>;
+    ) -> QueryResult<RValue, AnalysisError>;
 
     fn query_namespaced_type(
         &self,
         namespace_placeholder: NamespacePlaceholder,
         ident: Ident
-    ) -> Result<im::Type, AnalysisError>;
+    ) -> QueryResult<im::Type, AnalysisError>;
 }
 
 fn query_namespaced_type(
     db: &dyn NamespaceQuery,
     namespace_placeholder: NamespacePlaceholder,
     ident: Ident
-) -> Result<im::Type, AnalysisError> {
+) -> QueryResult<im::Type, AnalysisError> {
     db.query_namespaced_rvalue(namespace_placeholder, ident)
-        .map(|it| match it {
-            RValue::Type(r#type) => Ok(r#type),
-            _ => AnalysisError::WrongType.into()
-        }).flatten()
+        .then(|rvalue| match rvalue {
+            RValue::Type(r#type) => QueryResult::Ok(r#type),
+            RValue::EnumConstant(_) => AnalysisError::WrongType.into()
+        })
 }
 
 fn query_root_namespace(db: &dyn NamespaceQuery) -> Result<NamespaceId, AnalysisError> {
@@ -62,17 +62,10 @@ fn query_root_namespace(db: &dyn NamespaceQuery) -> Result<NamespaceId, Analysis
     Ok(Rc::new(namespace).intern(db))
 }
 
-fn query_enum_namespace(db: &dyn NamespaceQuery, r#enum: EnumDeclarationId) -> Result<NamespaceId, AnalysisError> {
-    // TODO Maybe a reference here?
-    let r#enum = db.find_enum_def(r#enum);
-    let mut namespace = Namespace::new_root();
-
-    for enum_constant_id in r#enum.definition.constants {
-        let enum_constant: EnumConstant = db.lookup_intern_enum_constant(enum_constant_id);
-        namespace.add(enum_constant.name, RValue::EnumConstant(enum_constant_id), db)?;
-    }
-
-    Ok(db.intern_namespace(Rc::new(namespace)))
+fn query_enum_namespace(db: &dyn NamespaceQuery, r#enum: EnumDeclarationId) -> QueryResult<NamespaceId, AnalysisError> {
+    db.query_enum_def(r#enum)
+        .map(|r#enum| Rc::new(Namespace::from_enum_definition(db, r#enum.definition)))
+        .intern(db)
 }
 
 fn query_event_namespace(_db: &dyn NamespaceQuery, _event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
@@ -83,25 +76,52 @@ fn query_struct_namespace(_db: &dyn NamespaceQuery, _struct_decl: StructDeclarat
     todo!()
 }
 
-fn query_namespaced_rvalue(db: &dyn NamespaceQuery, namespace_placeholder: NamespacePlaceholder, ident: Ident) -> Result<RValue, AnalysisError> {
-    let namespace: NamespaceId = match namespace_placeholder {
-        NamespacePlaceholder::Root => db.query_root_namespace()?,
-        NamespacePlaceholder::Enum(enum_decl) => db.query_enum_namespace(enum_decl)?,
-        NamespacePlaceholder::Struct(struct_decl) => db.query_struct_namespace(struct_decl)?,
-        NamespacePlaceholder::Event(event_decl) => db.query_event_namespace(event_decl)?,
-        NamespacePlaceholder::Empty => return Err(AnalysisError::CannotFindIdent(ident))
-    };
-    let namespace: Rc<Namespace> = db.lookup_intern_namespace(namespace);
-    namespace.get(&ident).ok_or(AnalysisError::CannotFindIdent(ident))
+fn query_namespaced_rvalue(db: &dyn NamespaceQuery, namespace_placeholder: NamespacePlaceholder, ident: Ident) -> QueryResult<RValue, AnalysisError> {
+    QueryResult::empty()
+        .then(|_| {
+            let namespace: QueryResult<_, _> = match namespace_placeholder {
+                NamespacePlaceholder::Root => db.query_root_namespace().into(),
+                NamespacePlaceholder::Enum(enum_placeholder) => match enum_placeholder {
+                    // TODO Current match should return the enum constant id and not the namespace id
+                    EnumPlaceholder::ByEnum(enum_decl) => db.query_enum_namespace(enum_decl),
+                    EnumPlaceholder::ByConstant(enum_constant_id) => {
+                        // Clion cannot verify functions generated by proc macros
+                        // TODO Add this maybe to every lookup method?
+                        let enum_constant: EnumConstant = db.lookup_intern_enum_constant(enum_constant_id);
+                        db.query_enum_namespace(enum_constant.r#enum)
+                    }
+                },
+                NamespacePlaceholder::Struct(struct_decl) => db.query_struct_namespace(struct_decl).into(),
+                NamespacePlaceholder::Event(event_decl) => db.query_event_namespace(event_decl).into(),
+                NamespacePlaceholder::Empty => query_error!(AnalysisError::CannotFindIdent(ident.clone()))
+            };
+            namespace
+        })
+        .then(|namespace_id| {
+            let namespace: Rc<Namespace> = db.lookup_intern_namespace(namespace_id);
+            namespace.get(&ident).ok_or(AnalysisError::CannotFindIdent(ident)).into()
+        })
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum NamespacePlaceholder {
     Root,
     Empty,
-    Enum(EnumDeclarationId),
+    Enum(EnumPlaceholder),
     Struct(StructDeclarationId),
     Event(EventDeclarationId)
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum EnumPlaceholder {
+    ByEnum(EnumDeclarationId),
+    ByConstant(EnumConstantId)
+}
+
+impl Into<NamespacePlaceholder> for EnumPlaceholder {
+    fn into(self) -> NamespacePlaceholder {
+        NamespacePlaceholder::Enum(self)
+    }
 }
 
 pub struct NamespaceProvider;
@@ -124,7 +144,19 @@ pub struct Namespace {
     map: HashMap<ImmutableString, RValue>,
 }
 
+
 impl Namespace {
+    pub fn from_enum_definition(db: &(impl Interner + ?Sized), definition: EnumDefinition) -> Namespace {
+        let map = definition.constants.into_iter()
+            .map::<(_, EnumConstant), _>(|enum_constant_id| (
+                enum_constant_id,
+                db.lookup_intern_enum_constant(enum_constant_id)
+            ))
+            .map(|it| (it.1.name.value.clone(), RValue::EnumConstant(it.0)))
+            .collect();
+        Namespace { parent: Vec::new(), map }
+    }
+
     fn sorted_map_entries(&self) -> Vec<(&ImmutableString, &RValue)> {
         let mut content = self.map.iter().collect::<Vec<_>>();
         content.sort_by_key(|it| it.0);

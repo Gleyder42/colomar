@@ -1,5 +1,5 @@
 workshop enum Team {
-    Team1, Team2, All, All
+    Team1, Team2, All
 }
 
 workshop enum Slot {

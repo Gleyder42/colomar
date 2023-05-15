@@ -215,7 +215,7 @@ impl From<Box<Call>> for CallChain {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Call {
     /// An ident followed by call arguments.
-    /// [CallArguments] might is recursive to [Call] so call must be used behind a pointer.
+    /// [CallArguments] might be recursive, so [Call] must be used behind a pointer.
     /// ## Example
     /// - heal(player, 100)
     /// - display(player, message)

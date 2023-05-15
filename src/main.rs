@@ -16,7 +16,7 @@ use crate::language::analysis::AnalysisDatabase;
 use crate::language::analysis::error::QueryResult;
 use crate::language::analysis::interner::Interner;
 use crate::language::im;
-use crate::language::im::Root;
+use crate::language::im::{DeclaredArgument, Root};
 use crate::language::lexer::{lexer};
 use crate::language::parser::parser;
 use crate::language::analysis::file::RootFileQuery;
@@ -30,7 +30,7 @@ pub mod test_assert;
 mod compiler;
 
 fn main() {
-    let filename = "v2.colo";
+    let filename = "v3.colo";
     let filepath = format!("dsl/example/{filename}");
     let path = Path::new(&filepath);
     let mut file = fs::File::open(path).expect("Cannot read from file");
@@ -67,12 +67,18 @@ fn main() {
                     Root::Event(event) => {
                         let decl = database.lookup_intern_event_decl(event.declaration);
 
-                        println!("Event\nDecl: {:#?}\nDef: {:#?}", decl, event.definition);
+                        let vec = event.definition.arguments.into_iter()
+                            .map(|it| database.lookup_intern_decl_arg(it))
+                            .collect::<Vec<DeclaredArgument>>();
+
+                        println!("Event\nDecl: {:#?}\nDef: {:#?}", decl, vec);
                     }
                     Root::Enum(r#enum) => {
                         let decl = database.lookup_intern_enum_decl(r#enum.declaration);
 
-                        let constants: Vec<_> = r#enum.definition.constants.into_iter().map(|it| database.lookup_intern_enum_constant(it)).collect();
+                        let constants: Vec<_> = r#enum.definition.constants.into_iter()
+                            .map(|it| database.lookup_intern_enum_constant(it))
+                            .collect();
 
                         println!("Enum\nDecl: {:#?}\nDef: {:#?}\nSpan: {:#?}", decl, constants, r#enum.span);
                     },

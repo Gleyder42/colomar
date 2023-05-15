@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::hint;
-use crate::language::{Ident};
+use crate::language::{ast, Ident};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 
 enum Meter {
@@ -22,20 +21,19 @@ impl<T> Measurable<T> {
         }
     }
 
-    unsafe fn unwrap_vec_unchecked(self) -> Vec<T> {
+    fn unwrap_to_vec_unchecked(self) -> Vec<T> {
         match self {
             Measurable::Vec(vec) => vec,
-            Measurable::Set(_) => unsafe { hint::unreachable_unchecked() }
+            Measurable::Set(_) => unreachable!()
         }
     }
 
-    unsafe fn unwrap_set_unchecked(self) -> HashSet<T> {
+    fn unwrap_to_set_unchecked(self) -> HashSet<T> {
         match self {
-            Measurable::Vec(_) => unsafe { hint::unreachable_unchecked() },
+            Measurable::Vec(_) => unreachable!(),
             Measurable::Set(set) => set
         }
     }
-
 }
 
 impl Meter {
@@ -54,9 +52,43 @@ pub enum QueryResult<T, E> {
     Err(Vec<E>),
 }
 
-impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
+impl<Id, T: IntoInternId<Interned=Id>, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
 
-    pub fn map_inner<F: Fn(T)->U, U>(self, func: F) -> QueryResult<Vec<U>, E> {
+    pub fn intern_inner<Db: Interner + ?Sized>(self, db: &Db) -> QueryResult<Vec<Id>, E> {
+        self.map_inner(|t| t.intern(db))
+    }
+}
+
+
+impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
+    pub fn fold_map<U, A, F, M>(self, initial: A, map_func: M, func: F) -> QueryResult<U, E>
+        where F: Fn(A, T) -> QueryResult<A, E>,
+              M: FnOnce(A) -> U,
+    {
+        self.then(|iter| {
+            let mut errors = Vec::new();
+            let mut current = initial;
+
+            for item in iter.into_iter() {
+                let result = func(current, item);
+                match result {
+                    QueryResult::Ok(value) => current = value,
+                    QueryResult::Par(value, mut result_errors) => {
+                        current = value;
+                        errors.append(&mut result_errors);
+                    }
+                    QueryResult::Err(mut result_errors) => {
+                        errors.append(&mut result_errors);
+                        return QueryResult::Err(errors);
+                    }
+                }
+            }
+
+            QueryResult::Ok(map_func(current))
+        })
+    }
+
+    pub fn map_inner<F: Fn(T) -> U, U>(self, func: F) -> QueryResult<Vec<U>, E> {
         self.map(|iter| iter.into_iter().map(|it| func(it)).collect::<Vec<U>>())
     }
 }
@@ -74,6 +106,30 @@ impl<T, E> QueryResult<T, E> {
 impl<Id, T: IntoInternId<Interned=Id>, E> QueryResult<T, E> {
     pub fn intern<Db: Interner + ?Sized>(self, db: &Db) -> QueryResult<Id, E> {
         self.map(|it| it.intern(db))
+    }
+}
+
+impl<E> From<ast::CallChain> for QueryResult<ast::CallChain, E> {
+    fn from(value: ast::CallChain) -> Self {
+        QueryResult::Ok(value)
+    }
+}
+
+impl<T, E> From<Result<QueryResult<T, E>, E>> for QueryResult<T, E> {
+    fn from(value: Result<QueryResult<T, E>, E>) -> Self {
+        match value {
+            Ok(query_result) => query_result,
+            Err(error) => QueryResult::Err(vec![error])
+        }
+    }
+}
+
+impl<T, E> From<Result<T, E>> for QueryResult<T, E> {
+    fn from(value: Result<T, E>) -> Self {
+        match value {
+            Ok(value) => QueryResult::Ok(value),
+            Err(error) => QueryResult::Err(vec![error])
+        }
     }
 }
 
@@ -129,10 +185,9 @@ fn from_results<T, E, F, U>(
 }
 
 impl<T, E> QueryResult<Vec<T>, E> {
-
     fn from_results_vec(results: Vec<T>, errors: Vec<E>) -> QueryResult<Vec<T>, E> {
         // We can unwrap unchecked here, because we know Measurable is a vec
-        let func = |it: Measurable<T>| unsafe { it.unwrap_vec_unchecked() };
+        let func = |it: Measurable<T>| it.unwrap_to_vec_unchecked();
         from_results(Measurable::Vec(results), errors, func)
     }
 }
@@ -144,15 +199,113 @@ impl<T, E> From<(Vec<T>, Vec<E>)> for QueryResult<Vec<T>, E> {
 }
 
 impl<T, E> QueryResult<HashSet<T>, E> {
-
     fn from_results_set(results: HashSet<T>, errors: Vec<E>) -> QueryResult<HashSet<T>, E> {
         // We can unwrap unchecked here, because we know Measurable is a set
-        let func = |it: Measurable<T>| unsafe { it.unwrap_set_unchecked() };
+        let func = |it: Measurable<T>| it.unwrap_to_set_unchecked();
         from_results(Measurable::Set(results), errors, func)
     }
 }
 
+impl<E> QueryResult<(), E> {
+    pub fn empty() -> QueryResult<(), E> {
+        QueryResult::Ok(())
+    }
+}
+
+
+#[macro_export]
+macro_rules! query_error {
+    ($($x:expr),+ $(,)?) => {
+        QueryResult::Err(vec![$($x),+])
+    };
+}
+
 impl<T, E> QueryResult<T, E> {
+    pub fn maybe_add_error(self, option: Option<E>) -> QueryResult<T, E> {
+        match option {
+            Some(error) => self.add_error(error),
+            None => self
+        }
+    }
+
+    pub fn add_error(self, error: E) -> QueryResult<T, E> {
+        match self {
+            QueryResult::Ok(value) => QueryResult::Par(value, vec![error]),
+            QueryResult::Par(value, mut errors) => {
+                errors.push(error);
+                QueryResult::Par(value, errors)
+            }
+            QueryResult::Err(mut errors) => {
+                errors.push(error);
+                QueryResult::Err(errors)
+            }
+        }
+    }
+
+    /// Combines the current result value with another result value, returning a result which
+    /// contains both values
+    pub fn and_or_default<O, F>(self, default: F, other: QueryResult<O, E>) -> QueryResult<(T, O), E>
+        where F: FnOnce() -> O
+    {
+        use QueryResult::*;
+
+        match (self, other) {
+            (Ok(value), Ok(other_value)) => Ok((value, other_value)),
+            (Ok(value), Par(other_value, other_errors)) => Par((value, other_value), other_errors),
+            (Ok(value), Err(errors)) => Par((value, default()), errors),
+            (Par(value, errors), Ok(other_value)) => Par((value, other_value), errors),
+            (Par(value, mut errors), Par(other_value, mut other_errors)) => {
+                errors.append(&mut other_errors);
+                Par((value, other_value), errors)
+            }
+            (Par(value, mut errors), Err(mut other_errors)) => {
+                errors.append(&mut other_errors);
+                Par((value, default()), errors)
+            }
+            (Err(errors), Ok(_other_value)) => Err(errors),
+            (Err(mut errors), Par(_other_value, mut other_errors)) => {
+                errors.append(&mut other_errors);
+                Err(errors)
+            }
+            (Err(mut errors), Err(mut other_errors)) => {
+                errors.append(&mut other_errors);
+                Err(errors)
+            }
+        }
+    }
+
+    pub fn maybe_and<O>(
+        self,
+        option: Option<QueryResult<O, E>>,
+    ) -> QueryResult<(T, Option<O>), E> {
+        match option {
+            Some(result) => self.and_or_default(|| None, result.map(|it| Some(it))),
+            None => self.map(|t| (t, None))
+        }
+    }
+
+    pub fn map_with_result_option<O, U, F>(
+        self,
+        option: Option<Result<O, E>>,
+        func: F,
+    ) -> QueryResult<U, E>
+        where F: FnOnce(T, Option<O>) -> U
+    {
+        let (value, error) = match option {
+            None => (None, None),
+            Some(result) => {
+                match result {
+                    Ok(result_value) => (Some(result_value), None),
+                    Err(error) => (None, Some(error))
+                }
+            }
+        };
+
+        self
+            .maybe_add_error(error)
+            .map(|it| func(it, value))
+    }
+
     pub fn map<U, F: FnOnce(T) -> U>(self, func: F) -> QueryResult<U, E> {
         match self {
             QueryResult::Ok(value) => QueryResult::Ok(func(value)),
@@ -196,6 +349,12 @@ pub enum AnalysisError {
 impl<T> Into<Result<T, AnalysisError>> for AnalysisError {
     fn into(self) -> Result<T, AnalysisError> {
         Err(self)
+    }
+}
+
+impl<T> Into<QueryResult<T, AnalysisError>> for AnalysisError {
+    fn into(self) -> QueryResult<T, AnalysisError> {
+        query_error!(self)
     }
 }
 

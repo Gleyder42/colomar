@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use file::FileDatabase;
 use r#enum::EnumDatabase;
 use r#enum::EnumDeclarationDatabase;
@@ -11,6 +12,8 @@ use rule::RuleDatabase;
 use r#struct::StructDatabase;
 use r#type::TypeDatabase;
 use interner::InternerDatabase;
+use crate::language::analysis::interner::Interner;
+use crate::language::im::StructDefinition;
 
 pub mod r#enum;
 pub mod file;
