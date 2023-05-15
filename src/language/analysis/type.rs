@@ -13,7 +13,8 @@ pub trait TypeQuery: RootFileQuery + EnumDeclQuery + EventDeclQuery + StructDecl
     /// If you want to find a type by ident, use [query_type] instead.
     fn query_type_map(&self) -> HashMap<Ident, im::Type>;
 
-    /// Tries to find a type by ident, otherwise returns an error
+    /// This query doesn't work correctly, use [super::namespace::NamespaceQuery::query_namespaced_type] instead
+    /// Tries to find a type by ident, otherwise returns an error.
     fn query_type(&self, ident: Ident) -> Result<im::Type, AnalysisError>;
 
     fn query_type_event_decl(&self, ident: Ident) -> Result<im::EventDeclarationId, AnalysisError>;

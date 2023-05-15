@@ -12,6 +12,7 @@ use rule::RuleDatabase;
 use r#struct::StructDatabase;
 use r#type::TypeDatabase;
 use interner::InternerDatabase;
+use property::PropertyDatabase;
 use crate::language::analysis::interner::Interner;
 use crate::language::im::StructDefinition;
 
@@ -27,6 +28,7 @@ pub mod im;
 pub mod r#struct;
 pub mod error;
 pub mod rule;
+pub mod property;
 
 #[salsa::database(
     InternerDatabase,
@@ -41,7 +43,8 @@ pub mod rule;
     NamespaceDatabase,
     RuleDatabase,
     StructDatabase,
-    TypeDatabase
+    TypeDatabase,
+    PropertyDatabase
 )]
 #[derive(Default)]
 pub struct AnalysisDatabase {

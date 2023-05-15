@@ -13,6 +13,5 @@ fn query_rule_decl(db: &dyn Rule, rule: ast::Rule) -> Result<im::Rule, AnalysisE
             event,
             title: rule.name.value,
             arguments: Vec::new(), // Add arguments resolver
-        }
-        )
+        })
 }

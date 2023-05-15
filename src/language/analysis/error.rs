@@ -65,7 +65,7 @@ impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
         where F: Fn(A, T) -> QueryResult<A, E>,
               M: FnOnce(A) -> U,
     {
-        self.then(|iter| {
+        self.flat_map(|iter| {
             let mut errors = Vec::new();
             let mut current = initial;
 
@@ -242,6 +242,10 @@ impl<T, E> QueryResult<T, E> {
         }
     }
 
+    pub fn and<O: Default>(self, other: QueryResult<O, E>) -> QueryResult<(T, O), E> {
+        self.and_or_default(|| O::default(), other)
+    }
+
     /// Combines the current result value with another result value, returning a result which
     /// contains both values
     pub fn and_or_default<O, F>(self, default: F, other: QueryResult<O, E>) -> QueryResult<(T, O), E>
@@ -274,7 +278,7 @@ impl<T, E> QueryResult<T, E> {
         }
     }
 
-    pub fn maybe_and<O>(
+    pub fn and_maybe<O>(
         self,
         option: Option<QueryResult<O, E>>,
     ) -> QueryResult<(T, Option<O>), E> {
@@ -314,7 +318,7 @@ impl<T, E> QueryResult<T, E> {
         }
     }
 
-    pub fn then<U, F: FnOnce(T) -> QueryResult<U, E>>(self, func: F) -> QueryResult<U, E> {
+    pub fn flat_map<U, F: FnOnce(T) -> QueryResult<U, E>>(self, func: F) -> QueryResult<U, E> {
         match self {
             QueryResult::Ok(value) => func(value),
             QueryResult::Par(value, mut errors) => {

@@ -23,7 +23,7 @@ fn query_declared_arg(db: &dyn ArgQuery, decl_arg: ast::DeclaredArgument) -> Que
             ).map(|r#type| CalledType { r#type, span: ident.span.clone() })
         )
         .collect::<QueryResult<Vec<CalledType>, AnalysisError>>()
-        .maybe_and(default_value_option)
+        .and_maybe(default_value_option)
         .map(|(types, default_value)| {
             im::DeclaredArgument {
                 name: decl_arg.name,

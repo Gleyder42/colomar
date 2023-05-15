@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use crate::impl_intern_key;
-use crate::language::ast::{SpannedBool, Struct, UseRestriction};
-use crate::language::{Ident, ImmutableString, Span};
+use crate::language::ast::{SpannedBool, UseRestriction};
+use crate::language::{Ident, ImmutableString, Span, Spanned};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::{EnumPlaceholder, NamespacePlaceholder};
 
@@ -35,7 +35,7 @@ pub enum Root {
     Rule(Rule),
     Enum(Enum),
     Event(Event),
-    Struct(Struct)
+    Struct(StructDefinition)
 }
 
 impl Root {
@@ -61,7 +61,7 @@ pub struct Function {
 pub struct Property {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub desc: UseRestriction,
+    pub desc: Spanned<UseRestriction>,
     pub r#type: Type
 }
 
@@ -257,6 +257,7 @@ pub struct Event {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EventDefinition {
     pub arguments: Vec<DeclaredArgumentId>,
+    pub properties: Vec<Property>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

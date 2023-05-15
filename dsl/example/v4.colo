@@ -11,5 +11,7 @@ workshop enum Hero {
 }
 
 workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
-    val player: Player
+    workshop val player: Player
 }
+
+struct Player { }

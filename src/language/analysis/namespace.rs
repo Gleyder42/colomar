@@ -46,7 +46,7 @@ fn query_namespaced_type(
     ident: Ident
 ) -> QueryResult<im::Type, AnalysisError> {
     db.query_namespaced_rvalue(namespace_placeholder, ident)
-        .then(|rvalue| match rvalue {
+        .flat_map(|rvalue| match rvalue {
             RValue::Type(r#type) => QueryResult::Ok(r#type),
             RValue::EnumConstant(_) => AnalysisError::WrongType.into()
         })
@@ -78,7 +78,7 @@ fn query_struct_namespace(_db: &dyn NamespaceQuery, _struct_decl: StructDeclarat
 
 fn query_namespaced_rvalue(db: &dyn NamespaceQuery, namespace_placeholder: NamespacePlaceholder, ident: Ident) -> QueryResult<RValue, AnalysisError> {
     QueryResult::empty()
-        .then(|_| {
+        .flat_map(|_| {
             let namespace: QueryResult<_, _> = match namespace_placeholder {
                 NamespacePlaceholder::Root => db.query_root_namespace().into(),
                 NamespacePlaceholder::Enum(enum_placeholder) => match enum_placeholder {
@@ -97,7 +97,7 @@ fn query_namespaced_rvalue(db: &dyn NamespaceQuery, namespace_placeholder: Names
             };
             namespace
         })
-        .then(|namespace_id| {
+        .flat_map(|namespace_id| {
             let namespace: Rc<Namespace> = db.lookup_intern_namespace(namespace_id);
             namespace.get(&ident).ok_or(AnalysisError::CannotFindIdent(ident)).into()
         })
