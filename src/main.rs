@@ -1,4 +1,3 @@
-#![feature(box_patterns)]
 #![feature(result_flattening)]
 #![feature(map_try_insert)]
 
