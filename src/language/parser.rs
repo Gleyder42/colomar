@@ -5,9 +5,6 @@ use crate::language::lexer::Token;
 use crate::language::ast::*;
 use crate::language::{Ident, Spanned};
 
-type IdentChainParser = impl Parser<Token, CallChain, Error=Simple<Token>> + Clone;
-type ArgsParser = impl Parser<Token, CallArguments, Error=Simple<Token>> + Clone;
-
 fn ident() -> impl Parser<Token, Ident, Error=Simple<Token>> {
     filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(Ident { value: ident.clone(), span }),
@@ -15,11 +12,11 @@ fn ident() -> impl Parser<Token, Ident, Error=Simple<Token>> {
     })
 }
 
-fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error=Simple<Token>>  {
+fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error=Simple<Token>> {
     ident()
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident().separated_by(just(Token::Ctrl('|'))).map_with_span(|types, span| Types { values: types, span }))
-        .then(just(Token::Ctrl('=')).ignore_then(chain().ident_chain_parser()).or_not())
+        .then(just(Token::Ctrl('=')).ignore_then(chain().ident_chain()).or_not())
         .map_with_span(|((name, types), default_value), span|
             DeclaredArgument { name, types, default_value, span }
         )
@@ -40,7 +37,7 @@ fn event() -> impl Parser<Token, Event, Error=Simple<Token>> {
         .then(ident())
         .map_with_span(|(is_workshop, name), span| EventDeclaration { is_workshop, name, span })
         .then(declared_arguments())
-        .then(just(Token::By).ignore_then(ident()).then(chain().args_parser()).or_not())
+        .then(just(Token::By).ignore_then(ident()).then(chain().args()).or_not())
         .validate(|((a, b), c), span, emit| {
             if a.is_workshop.is_some() && c.is_some() {
                 emit(Simple::custom(span, "Workshop functions cannot have a by clause"));
@@ -55,9 +52,9 @@ fn event() -> impl Parser<Token, Event, Error=Simple<Token>> {
                     actions: block.actions,
                     conditions: block.conditions,
                     by,
-                    arguments
+                    arguments,
                 },
-                span
+                span,
             }
         })
 }
@@ -82,7 +79,7 @@ fn r#enum() -> impl Parser<Token, Enum, Error=Simple<Token>> {
             Enum {
                 declaration,
                 definition: EnumDefinition { constants },
-                span
+                span,
             }
         })
 }
@@ -96,7 +93,7 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error=Simple<Token>> {
         .map(|(((is_workshop, property_type), name), r#type)| {
             let use_restriction = match property_type {
                 // Write a test which tries to put other tokens here
-                Spanned { value: Token::GetVal, span} => Spanned::new(UseRestriction::GetVal, span),
+                Spanned { value: Token::GetVal, span } => Spanned::new(UseRestriction::GetVal, span),
                 Spanned { value: Token::Val, span } => Spanned::new(UseRestriction::Val, span),
                 _ => panic!("Compiler Error: Unexpected token as property type {:?}", property_type)
             };
@@ -164,23 +161,23 @@ fn newline_repeated() -> impl Parser<Token, (), Error=Simple<Token>> + Clone {
         .ignored()
 }
 
-struct IdentChainParserResult {
-    ident_chain: IdentChainParser,
-    args_parser: ArgsParser
+struct IdentChainParserResult<'a> {
+    ident_chain: BoxedParser<'a, Token, CallChain, Simple<Token>>,
+    args: BoxedParser<'a, Token, CallArguments, Simple<Token>>,
 }
 
-impl IdentChainParserResult {
+impl<'a > IdentChainParserResult<'a> {
 
-    fn ident_chain_parser(self) -> IdentChainParser {
+    fn ident_chain(self) -> BoxedParser<'a, Token, CallChain, Simple<Token>> {
         self.ident_chain
     }
 
-    fn args_parser(self) -> ArgsParser {
-        self.args_parser
+    fn args(self) -> BoxedParser<'a, Token, CallArguments, Simple<Token>> {
+        self.args
     }
 }
 
-fn chain() -> IdentChainParserResult {
+fn chain<'a>() -> IdentChainParserResult<'a>  {
     let mut ident_chain = Recursive::<_, CallChain, _>::declare();
     let args = ident_chain
         .clone()
@@ -211,25 +208,26 @@ fn chain() -> IdentChainParserResult {
             .at_least(1)
             .map_with_span(|it, span| CallChain::new(it, span)));
 
+
     IdentChainParserResult {
-        ident_chain,
-        args_parser: args
+        ident_chain: ident_chain.boxed(),
+        args: args.boxed(),
     }
 }
 
 fn block() -> impl Parser<Token, Block, Error=Simple<Token>> {
     let cond = just(Token::Cond)
-        .ignore_then(chain().ident_chain_parser())
+        .ignore_then(chain().ident_chain())
         .map(|it| it as Condition);
 
-    let action = chain().ident_chain_parser().map(Action::CallChain)
-            .or(property().map(Action::Property));
+    let action = chain().ident_chain().map(Action::CallChain)
+        .or(property().map(Action::Property));
 
     cond.then_ignore(at_least_newlines()).repeated()
         .then(action.then_ignore(at_least_newlines()).repeated())
         .delimited_by(
             just(Token::Ctrl('{')).padded_by(newline_repeated()),
-            just(Token::Ctrl('}')).padded_by(newline_repeated())
+            just(Token::Ctrl('}')).padded_by(newline_repeated()),
         )
         .map_with_span(|(conditions, actions), span| Block { actions, conditions, span })
 }
@@ -250,7 +248,7 @@ fn rule() -> impl Parser<Token, Rule, Error=Simple<Token>> {
     just(Token::Rule)
         .ignore_then(rule_name)
         .then(ident())
-        .then(chain().args_parser())
+        .then(chain().args())
         .then(block())
         .map_with_span(|(((rule_name, ident), arguments), block), _span| Rule {
             conditions: block.conditions,
