@@ -5,32 +5,21 @@ use crate::language::lexer::Token;
 use crate::language::ast::*;
 use crate::language::{Ident, Spanned};
 
-type IdentParser = impl Parser<Token, Ident, Error=Simple<Token>> + Clone;
 type IdentChainParser = impl Parser<Token, CallChain, Error=Simple<Token>> + Clone;
 type ArgsParser = impl Parser<Token, CallArguments, Error=Simple<Token>> + Clone;
-type EventParser = impl Parser<Token, Event, Error=Simple<Token>> + Clone;
-type EnumParser = impl Parser<Token, Enum, Error=Simple<Token>> + Clone;
-type BlockParser = impl Parser<Token, Block, Error=Simple<Token>> + Clone;
-type RuleParser = impl Parser<Token, Rule, Error=Simple<Token>> + Clone;
-type StructParser = impl Parser<Token, Struct, Error=Simple<Token>> + Clone;
-type DeclaredArgumentParser = impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error=Simple<Token>> + Clone;
-type PropertyParser = impl Parser<Token, PropertyDeclaration, Error=Simple<Token>> + Clone;
 
-pub fn ident_parser() -> IdentParser {
+fn ident() -> impl Parser<Token, Ident, Error=Simple<Token>> {
     filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(Ident { value: ident.clone(), span }),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     })
 }
 
-fn declare_arguments_parser(
-    ident: IdentParser,
-    ident_chain: IdentChainParser,
-) -> DeclaredArgumentParser {
-    ident.clone()
+fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error=Simple<Token>>  {
+    ident()
         .then_ignore(just(Token::Ctrl(':')))
-        .then(ident.clone().separated_by(just(Token::Ctrl('|'))).map_with_span(|types, span| Types { values: types, span }))
-        .then(just(Token::Ctrl('=')).ignore_then(ident_chain).or_not())
+        .then(ident().separated_by(just(Token::Ctrl('|'))).map_with_span(|types, span| Types { values: types, span }))
+        .then(just(Token::Ctrl('=')).ignore_then(chain().ident_chain_parser()).or_not())
         .map_with_span(|((name, types), default_value), span|
             DeclaredArgument { name, types, default_value, span }
         )
@@ -39,31 +28,26 @@ fn declare_arguments_parser(
         .map_with_span(|it, span| Spanned::new(it, span))
 }
 
-fn workshop_keyword() -> impl Parser<Token, SpannedBool, Error=Simple<Token>> + Clone {
+fn workshop_or_not() -> impl Parser<Token, SpannedBool, Error=Simple<Token>> {
     just(Token::Workshop)
         .or_not()
         .map_with_span(|it, span| Spanned::ignore_value(it, span))
 }
 
-fn event_parser(
-    block: BlockParser,
-    declare_args: DeclaredArgumentParser,
-    ident: IdentParser,
-    args: ArgsParser
-) -> EventParser {
+fn event() -> impl Parser<Token, Event, Error=Simple<Token>> {
     just(Token::Workshop).or_not().map_with_span(|o, span| Spanned::ignore_value(o, span))
         .then_ignore(just(Token::Event))
-        .then(ident.clone())
+        .then(ident())
         .map_with_span(|(is_workshop, name), span| EventDeclaration { is_workshop, name, span })
-        .then(declare_args)
-        .then(just(Token::By).ignore_then(ident).then(args).or_not())
+        .then(declared_arguments())
+        .then(just(Token::By).ignore_then(ident()).then(chain().args_parser()).or_not())
         .validate(|((a, b), c), span, emit| {
             if a.is_workshop.is_some() && c.is_some() {
                 emit(Simple::custom(span, "Workshop functions cannot have a by clause"));
             }
             ((a, b), c)
         })
-        .then(block.clone())
+        .then(block())
         .map_with_span(|(((declaration, arguments), by), block), span| {
             Event {
                 declaration,
@@ -78,17 +62,15 @@ fn event_parser(
         })
 }
 
-fn enum_parser(
-    ident: IdentParser
-) -> EnumParser {
-    let constants = ident.clone()
+fn r#enum() -> impl Parser<Token, Enum, Error=Simple<Token>> {
+    let constants = ident()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
-        .padded_by(newlines());
+        .padded_by(newline_repeated());
 
-    workshop_keyword()
+    workshop_or_not()
         .then_ignore(just(Token::Enum))
-        .then(ident.clone())
+        .then(ident())
         .map_with_span(|(is_workshop, name), span| {
             EnumDeclaration { is_workshop, name, span }
         })
@@ -105,12 +87,12 @@ fn enum_parser(
         })
 }
 
-fn property_parser(ident: IdentParser) -> PropertyParser {
-    workshop_keyword()
+fn property() -> impl Parser<Token, PropertyDeclaration, Error=Simple<Token>> {
+    workshop_or_not()
         .then(choice((just(Token::GetVal), just(Token::Val))).map_with_span(|it, span| Spanned::new(it, span)))
-        .then(ident.clone())
+        .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
-        .then(ident.clone())
+        .then(ident())
         .map(|(((is_workshop, property_type), name), r#type)| {
             let use_restriction = match property_type {
                 // Write a test which tries to put other tokens here
@@ -122,15 +104,11 @@ fn property_parser(ident: IdentParser) -> PropertyParser {
         })
 }
 
-fn struct_parser(
-    ident: IdentParser,
-    declared_args: DeclaredArgumentParser,
-    property: PropertyParser,
-) -> StructParser {
-    let member_function = workshop_keyword()
+fn r#struct() -> impl Parser<Token, Struct, Error=Simple<Token>> {
+    let member_function = workshop_or_not()
         .then_ignore(just(Token::Fn))
-        .then(ident.clone())
-        .then(declared_args.clone())
+        .then(ident())
+        .then(declared_arguments())
         .map(|((is_workshop, name), arguments)| {
             FunctionDeclaration { name, is_workshop, arguments }
         });
@@ -145,14 +123,14 @@ fn struct_parser(
         .map_with_span(|it, span| Spanned::ignore_value(it, span));
 
     let struct_parser = open_keyword
-        .then(workshop_keyword())
+        .then(workshop_or_not())
         .then_ignore(just(Token::Struct))
-        .then(ident.clone())
+        .then(ident())
         .map_with_span(|((is_open, is_workshop), name), span| {
             StructDeclaration { is_open, is_workshop, name, span }
         })
         .then(
-            property.map(StructMember::Property)
+            property().map(StructMember::Property)
                 .or(member_function.map(StructMember::Function))
                 .padded_by(just(Token::NewLine).repeated())
                 .repeated()
@@ -180,18 +158,29 @@ fn struct_parser(
     struct_parser
 }
 
-fn newlines() -> impl Parser<Token, (), Error=Simple<Token>> + Clone {
+fn newline_repeated() -> impl Parser<Token, (), Error=Simple<Token>> + Clone {
     just(Token::NewLine)
         .repeated()
         .ignored()
 }
 
-fn ident_chain_parser(
-    ident: IdentParser
-) -> (
-    IdentChainParser,
-    ArgsParser
-) {
+struct IdentChainParserResult {
+    ident_chain: IdentChainParser,
+    args_parser: ArgsParser
+}
+
+impl IdentChainParserResult {
+
+    fn ident_chain_parser(self) -> IdentChainParser {
+        self.ident_chain
+    }
+
+    fn args_parser(self) -> ArgsParser {
+        self.args_parser
+    }
+}
+
+fn chain() -> IdentChainParserResult {
     let mut ident_chain = Recursive::<_, CallChain, _>::declare();
     let args = ident_chain
         .clone()
@@ -199,7 +188,7 @@ fn ident_chain_parser(
         .allow_trailing()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
         .map_with_span(|it, span| CallArguments::new(it, span))
-        .labelled("function args");
+        .labelled("args");
 
     let literal = filter_map(|span, token| match token {
         Token::String(string) => Ok(Box::new(Call::String(string, span))),
@@ -208,7 +197,7 @@ fn ident_chain_parser(
     });
 
     ident_chain.define(
-        ident
+        ident()
             .then(args.clone().or_not())
             .map_with_span(|(ident, arguments), span| {
                 let call = match arguments {
@@ -222,41 +211,37 @@ fn ident_chain_parser(
             .at_least(1)
             .map_with_span(|it, span| CallChain::new(it, span)));
 
-    (ident_chain, args)
+    IdentChainParserResult {
+        ident_chain,
+        args_parser: args
+    }
 }
 
-fn block_parser(
-    ident_chain: IdentChainParser,
-    property: PropertyParser,
-) -> BlockParser {
+fn block() -> impl Parser<Token, Block, Error=Simple<Token>> {
     let cond = just(Token::Cond)
-        .ignore_then(ident_chain.clone())
+        .ignore_then(chain().ident_chain_parser())
         .map(|it| it as Condition);
 
-    let action = ident_chain.map(Action::CallChain)
-            .or(property.map(Action::Property));
+    let action = chain().ident_chain_parser().map(Action::CallChain)
+            .or(property().map(Action::Property));
 
     cond.then_ignore(at_least_newlines()).repeated()
         .then(action.then_ignore(at_least_newlines()).repeated())
         .delimited_by(
-            just(Token::Ctrl('{')).padded_by(newlines()),
-            just(Token::Ctrl('}')).padded_by(newlines())
+            just(Token::Ctrl('{')).padded_by(newline_repeated()),
+            just(Token::Ctrl('}')).padded_by(newline_repeated())
         )
         .map_with_span(|(conditions, actions), span| Block { actions, conditions, span })
 }
 
-fn at_least_newlines() -> impl Parser<Token, (), Error=Simple<Token>> + Clone {
+fn at_least_newlines() -> impl Parser<Token, (), Error=Simple<Token>> {
     just(Token::NewLine)
         .repeated()
         .at_least(1)
         .map(|_| ())
 }
 
-pub fn rule_parser(
-    ident: IdentParser,
-    block: BlockParser,
-    args: ArgsParser,
-) -> RuleParser {
+fn rule() -> impl Parser<Token, Rule, Error=Simple<Token>> {
     let rule_name = filter_map(|span, token| match token {
         Token::String(string) => Ok(Spanned::new(string.clone(), span)),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
@@ -264,9 +249,9 @@ pub fn rule_parser(
 
     just(Token::Rule)
         .ignore_then(rule_name)
-        .then(ident)
-        .then(args.clone())
-        .then(block)
+        .then(ident())
+        .then(chain().args_parser())
+        .then(block())
         .map_with_span(|(((rule_name, ident), arguments), block), _span| Rule {
             conditions: block.conditions,
             actions: block.actions,
@@ -277,20 +262,10 @@ pub fn rule_parser(
 }
 
 pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
-    let ident = ident_parser();
-    let (ident_chain, args) = ident_chain_parser(ident.clone());
-    let property = property_parser(ident.clone());
-    let block = block_parser(ident_chain.clone(), property.clone());
-    let declared_argument = declare_arguments_parser(ident.clone(), ident_chain.clone());
-
-    let rule_parser = rule_parser(ident.clone(), block.clone(), args.clone())
-        .map(Root::Rule);
-    let event_parser = event_parser(block.clone(), declared_argument.clone(), ident.clone(), args)
-        .map(Root::Event);
-    let enum_parser = enum_parser(ident.clone())
-        .map(Root::Enum);
-    let struct_parser = struct_parser(ident.clone(), declared_argument.clone(), property.clone())
-        .map(Root::Struct);
+    let rule_parser = rule().map(Root::Rule);
+    let event_parser = event().map(Root::Event);
+    let enum_parser = r#enum().map(Root::Enum);
+    let struct_parser = r#struct().map(Root::Struct);
 
     choice((rule_parser, event_parser, enum_parser, struct_parser))
         .separated_by(just(Token::NewLine).repeated())
