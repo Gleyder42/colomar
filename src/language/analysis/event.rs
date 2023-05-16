@@ -1,10 +1,9 @@
 use crate::language::{ast, im};
 use crate::language::analysis::arg::ArgQuery;
-use crate::language::analysis::error::{AnalysisError, QueryResult, Sbe};
+use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::property::PropertyQuery;
 use crate::language::ast::Action;
-use crate::language::im::DeclaredArgument;
 
 #[salsa::query_group(EventDatabase)]
 pub trait EventQuery: EventDeclQuery + ArgQuery + PropertyQuery {

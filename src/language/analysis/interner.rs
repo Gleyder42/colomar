@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use crate::language::analysis::namespace::{Namespace, NamespaceId};
-use crate::language::im;
 use crate::language::im::{DeclaredArgument, DeclaredArgumentId, EnumConstant, EnumConstantId, EnumDeclaration, EnumDeclarationId, EventDeclaration, EventDeclarationId, StructDeclaration, StructDeclarationId};
 
 #[salsa::query_group(InternerDatabase)]

@@ -1,6 +1,5 @@
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::namespace::{NamespacePlaceholder, NamespaceQuery};
-use crate::language::analysis::r#type::TypeQuery;
 use crate::language::ast;
 use crate::language::im::Property;
 

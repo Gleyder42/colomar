@@ -1,7 +1,6 @@
-use std::rc::Rc;
-use crate::language::{ast, Ident, im};
+use crate::language::{ast, im};
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::namespace::{NamespaceId, NamespacePlaceholder, NamespaceQuery};
+use crate::language::analysis::namespace::{NamespacePlaceholder, NamespaceQuery};
 
 #[salsa::query_group(CallDatabase)]
 pub trait CallQuery: NamespaceQuery {

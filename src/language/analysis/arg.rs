@@ -1,9 +1,7 @@
 use crate::language::{ast, im};
 use crate::language::analysis::call::CallQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::{NamespacePlaceholder, NamespaceQuery};
-use crate::language::analysis::r#type::TypeQuery;
 use crate::language::im::{CalledType, CalledTypes};
 
 #[salsa::query_group(ArgDatabase)]

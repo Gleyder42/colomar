@@ -1,11 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::rc::Rc;
-use crate::language::{ast, HalfHashed, Ident, im, Span};
+use crate::language::{ast, Ident, im};
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::file::RootFileQuery;
 use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::ast::{EnumDeclaration, EnumDefinition};
-use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId};
+use crate::language::im::{EnumConstant, EnumDeclarationId};
 
 #[salsa::query_group(EnumDatabase)]
 pub trait EnumQuery: EnumDeclQuery + Interner + RootFileQuery {
