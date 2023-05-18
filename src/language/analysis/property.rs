@@ -1,20 +1,22 @@
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::namespace::{NamespacePlaceholder, NamespaceQuery};
 use crate::language::ast;
-use crate::language::im::Property;
+use crate::language::im::PropertyDecl;
 
 #[salsa::query_group(PropertyDatabase)]
-pub trait PropertyQuery: NamespaceQuery {
-    fn query_property(&self, property_decl: ast::PropertyDeclaration) -> QueryResult<Property, AnalysisError>;
+pub trait PropertyDeclQuery: NamespaceQuery {
+
+    fn query_property(&self, property_decl: ast::PropertyDeclaration) -> QueryResult<PropertyDecl, AnalysisError>;
 }
 
 fn query_property(
-    db: &dyn PropertyQuery,
+    db: &dyn PropertyDeclQuery,
     property_decl: ast::PropertyDeclaration,
-) -> QueryResult<Property, AnalysisError> {
+) -> QueryResult<PropertyDecl, AnalysisError> {
+
     db.query_namespaced_type(NamespacePlaceholder::Root, property_decl.r#type)
         .map(|r#type| {
-            Property {
+            PropertyDecl {
                 is_workshop: property_decl.is_workshop,
                 name: property_decl.name,
                 desc: property_decl.use_restriction,

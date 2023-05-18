@@ -14,4 +14,12 @@ workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot
     workshop val player: Player
 }
 
-struct Player { }
+struct bool { }
+struct string { }
+
+struct Player {
+
+    workshop getval isReloading: bool
+
+    workshop fn displaySmallMessage(message: string)
+}

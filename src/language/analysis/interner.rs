@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use crate::language::analysis::namespace::{Namespace, NamespaceId};
-use crate::language::im::{DeclaredArgument, DeclaredArgumentId, EnumConstant, EnumConstantId, EnumDeclaration, EnumDeclarationId, EventDeclaration, EventDeclarationId, StructDeclaration, StructDeclarationId};
+use crate::language::im::{DeclaredArgument, DeclaredArgumentId, EnumConstant, EnumConstantId, EnumDeclaration, EnumDeclarationId, EventDeclaration, EventDeclarationId, FunctionDecl, FunctionDeclId, PropertyDecl, PropertyDeclId, StructDeclaration, StructDeclarationId};
 
 #[salsa::query_group(InternerDatabase)]
 pub trait Interner {
@@ -19,6 +19,12 @@ pub trait Interner {
 
     #[salsa::interned]
     fn intern_enum_constant(&self, enum_constant: EnumConstant) -> EnumConstantId;
+
+    #[salsa::interned]
+    fn intern_property_decl(&self, decl: PropertyDecl) -> PropertyDeclId;
+
+    #[salsa::interned]
+    fn intern_function_decl(&self, decl: FunctionDecl) -> FunctionDeclId;
 
     #[salsa::interned]
     fn intern_namespace(&self, namespace: Rc<Namespace>) -> NamespaceId;

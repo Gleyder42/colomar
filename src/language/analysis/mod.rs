@@ -8,10 +8,13 @@ use event::EventDatabase;
 use event::EventDeclarationDatabase;
 use namespace::NamespaceDatabase;
 use rule::RuleDatabase;
+use r#struct::StructDefDatabase;
+use r#struct::StructDeclDatabase;
 use r#struct::StructDatabase;
 use r#type::TypeDatabase;
 use interner::InternerDatabase;
 use property::PropertyDatabase;
+use function::FunctionDatabase;
 
 pub mod r#enum;
 pub mod file;
@@ -26,22 +29,22 @@ pub mod r#struct;
 pub mod error;
 pub mod rule;
 pub mod property;
+pub mod function;
 
 #[salsa::database(
     InternerDatabase,
     FileDatabase,
-    EnumDatabase,
-    EnumDeclarationDatabase,
+    EnumDatabase, EnumDeclarationDatabase,
     ImDatabase,
     ArgDatabase,
     CallDatabase,
-    EventDatabase,
-    EventDeclarationDatabase,
+    EventDatabase, EventDeclarationDatabase,
     NamespaceDatabase,
     RuleDatabase,
-    StructDatabase,
+    StructDatabase, StructDeclDatabase, StructDefDatabase,
     TypeDatabase,
-    PropertyDatabase
+    PropertyDatabase,
+    FunctionDatabase
 )]
 #[derive(Default)]
 pub struct AnalysisDatabase {

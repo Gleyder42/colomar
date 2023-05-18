@@ -3,12 +3,11 @@ use crate::language::analysis::r#enum::EnumQuery;
 use crate::language::{ast, im};
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::event::EventQuery;
-use crate::language::analysis::r#struct::StructDeclQuery;
-use crate::language::im::StructDefinition;
+use crate::language::analysis::r#struct::{StructDeclQuery, StructDefQuery, StructQuery};
+use crate::language::im::{Struct, StructDefinition};
 
 #[salsa::query_group(ImDatabase)]
-pub trait Im: EnumQuery + EventQuery + StructDeclQuery + RootFileQuery {
-
+pub trait Im: EnumQuery + EventQuery + StructQuery + RootFileQuery {
     fn query_im(&self) -> QueryResult<im::Im, AnalysisError>;
 }
 
@@ -19,14 +18,7 @@ fn query_im(db: &dyn Im) -> QueryResult<im::Im, AnalysisError> {
                 ast::Root::Event(event) => { db.query_event(event).map(im::Root::Event) }
                 ast::Root::Rule(_) => { todo!() }
                 ast::Root::Enum(r#enum) => db.query_enum(r#enum).map(im::Root::Enum),
-                ast::Root::Struct(r#struct) => {
-                    let struct_definition = StructDefinition {
-                        decl: db.query_struct_decl(r#struct.declaration),
-                        properties: Vec::new(),
-                        functions: Vec::new()
-                    };
-                    QueryResult::Ok(im::Root::Struct(struct_definition))
-                }
+                ast::Root::Struct(r#struct) => db.query_struct(r#struct).map(im::Root::Struct),
             }
         })
         .collect::<QueryResult<Vec<_>, _>>()

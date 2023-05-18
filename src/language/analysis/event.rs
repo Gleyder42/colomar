@@ -2,11 +2,11 @@ use crate::language::{ast, im};
 use crate::language::analysis::arg::ArgQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::analysis::property::PropertyQuery;
+use crate::language::analysis::property::PropertyDeclQuery;
 use crate::language::ast::Action;
 
 #[salsa::query_group(EventDatabase)]
-pub trait EventQuery: EventDeclQuery + ArgQuery + PropertyQuery {
+pub trait EventQuery: EventDeclQuery + ArgQuery + PropertyDeclQuery {
 
     fn query_event_def(&self, event_def: ast::EventDefinition) -> QueryResult<im::EventDefinition, AnalysisError>;
 

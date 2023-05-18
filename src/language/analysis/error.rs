@@ -3,48 +3,6 @@ use std::fmt::Debug;
 use crate::language::{ast, Ident};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 
-enum Meter {
-    Empty,
-    Filled,
-}
-
-enum Measurable<T> {
-    Vec(Vec<T>),
-    Set(HashSet<T>),
-}
-
-impl<T> Measurable<T> {
-    fn is_empty(&self) -> bool {
-        match self {
-            Measurable::Vec(vec) => vec.is_empty(),
-            Measurable::Set(set) => set.is_empty()
-        }
-    }
-
-    fn unwrap_to_vec_unchecked(self) -> Vec<T> {
-        match self {
-            Measurable::Vec(vec) => vec,
-            Measurable::Set(_) => unreachable!()
-        }
-    }
-
-    fn unwrap_to_set_unchecked(self) -> HashSet<T> {
-        match self {
-            Measurable::Vec(_) => unreachable!(),
-            Measurable::Set(set) => set
-        }
-    }
-}
-
-impl Meter {
-    fn measure<T, E>(results: &Measurable<T>, errors: &Vec<E>) -> (Meter, Meter) {
-        (
-            if results.is_empty() { Meter::Empty } else { Meter::Filled },
-            if errors.is_empty() { Meter::Empty } else { Meter::Filled }
-        )
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum QueryResult<T, E> {
     Ok(T),
@@ -53,7 +11,6 @@ pub enum QueryResult<T, E> {
 }
 
 impl<Id, T: IntoInternId<Interned=Id>, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
-
     pub fn intern_inner<Db: Interner + ?Sized>(self, db: &Db) -> QueryResult<Vec<Id>, E> {
         self.map_inner(|t| t.intern(db))
     }
@@ -145,9 +102,10 @@ impl<T, E> FromIterator<Result<T, E>> for QueryResult<Vec<T>, E> {
             }
         }
 
-        QueryResult::from_results_vec(results, errors)
+        from_results(results, errors)
     }
 }
+
 
 impl<T, E> FromIterator<QueryResult<T, E>> for QueryResult<Vec<T>, E> {
     fn from_iter<I: IntoIterator<Item=QueryResult<T, E>>>(iter: I) -> Self {
@@ -164,45 +122,24 @@ impl<T, E> FromIterator<QueryResult<T, E>> for QueryResult<Vec<T>, E> {
             }
         }
 
-        QueryResult::from_results_vec(results, errors)
+        from_results(results, errors)
     }
 }
 
-fn from_results<T, E, F, U>(
-    measurable: Measurable<T>,
-    errors: Vec<E>,
-    func: F,
-) -> QueryResult<U, E>
-    where F: FnOnce(Measurable<T>) -> U
-{
-    use Meter::*;
-    match Meter::measure(&measurable, &errors) {
-        (Empty, Empty) => QueryResult::Ok(func(measurable)),
-        (Filled, Empty) => QueryResult::Ok(func(measurable)),
-        (Empty, Filled) => QueryResult::Err(errors),
-        (Filled, Filled) => QueryResult::Par(func(measurable), errors)
-    }
-}
-
-impl<T, E> QueryResult<Vec<T>, E> {
-    fn from_results_vec(results: Vec<T>, errors: Vec<E>) -> QueryResult<Vec<T>, E> {
-        // We can unwrap unchecked here, because we know Measurable is a vec
-        let func = |it: Measurable<T>| it.unwrap_to_vec_unchecked();
-        from_results(Measurable::Vec(results), errors, func)
+/// Creates a [QueryResult] from a result and error [Vec].
+/// The result is
+/// * [QueryResult::Ok], if no errors are found
+/// * [QueryResult::Par], if errors are found.
+fn from_results<T, E>(results: Vec<T>, errors: Vec<E>) -> QueryResult<Vec<T>, E> {
+    match errors.is_empty() {
+        true => QueryResult::Ok(results),
+        false => QueryResult::Par(results, errors)
     }
 }
 
 impl<T, E> From<(Vec<T>, Vec<E>)> for QueryResult<Vec<T>, E> {
     fn from(value: (Vec<T>, Vec<E>)) -> Self {
-        QueryResult::from_results_vec(value.0, value.1)
-    }
-}
-
-impl<T, E> QueryResult<HashSet<T>, E> {
-    fn from_results_set(results: HashSet<T>, errors: Vec<E>) -> QueryResult<HashSet<T>, E> {
-        // We can unwrap unchecked here, because we know Measurable is a set
-        let func = |it: Measurable<T>| it.unwrap_to_set_unchecked();
-        from_results(Measurable::Set(results), errors, func)
+        from_results(value.0, value.1)
     }
 }
 
@@ -211,7 +148,6 @@ impl<E> QueryResult<(), E> {
         QueryResult::Ok(())
     }
 }
-
 
 #[macro_export]
 macro_rules! query_error {

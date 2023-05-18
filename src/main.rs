@@ -14,7 +14,7 @@ use crate::language::analysis::AnalysisDatabase;
 use crate::language::analysis::error::QueryResult;
 use crate::language::analysis::interner::Interner;
 use crate::language::im;
-use crate::language::im::{DeclaredArgument, Root, StructDeclaration};
+use crate::language::im::{DeclaredArgument, FunctionDecl, FunctionDeclId, PropertyDecl, Root, StructDeclaration};
 use crate::language::lexer::{lexer};
 use crate::language::parser::parser;
 use crate::language::analysis::file::RootFileQuery;
@@ -84,7 +84,16 @@ fn main() {
                     Root::Struct(r#struct) => {
                         let struct_decl: StructDeclaration = database.lookup_intern_struct_decl(r#struct.decl);
 
-                        println!("Struct {:#?}", struct_decl);
+                        let properties = r#struct.def.properties.into_iter()
+                            .map(|it| database.lookup_intern_property_decl(it))
+                            .collect::<Vec<PropertyDecl>>();
+
+                        let functions = r#struct.def.functions.into_iter()
+                            .map(|it| database.lookup_intern_function_decl(it))
+                            .collect::<Vec<FunctionDecl>>();
+
+                        println!("Struct {:#?}, Properties: {:#?}, Functions: {:#?}", struct_decl, properties, functions);
+
                     },
                 };
                 println!("===")

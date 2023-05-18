@@ -35,7 +35,7 @@ pub enum Root {
     Rule(Rule),
     Enum(Enum),
     Event(Event),
-    Struct(StructDefinition)
+    Struct(Struct)
 }
 
 impl Root {
@@ -50,19 +50,51 @@ impl Root {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Function {
+pub struct FunctionDecl {
     pub is_workshop: SpannedBool,
     pub name: Ident,
     pub arguments: Vec<DeclaredArgumentId>,
     pub return_type: Type
 }
 
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct FunctionDeclId(salsa::InternId);
+
+impl_intern_key!(FunctionDeclId);
+
+impl IntoInternId for FunctionDecl {
+    type Interned = FunctionDeclId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
+        db.intern_function_decl(self)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Property {
+pub struct PropertyDecl {
     pub is_workshop: SpannedBool,
     pub name: Ident,
     pub desc: Spanned<UseRestriction>,
     pub r#type: Type
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct PropertyDeclId(salsa::InternId);
+
+impl_intern_key!(PropertyDeclId);
+
+impl IntoInternId for PropertyDecl {
+    type Interned = PropertyDeclId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
+        db.intern_property_decl(self)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Struct {
+    pub decl: StructDeclarationId,
+    pub def: StructDefinition
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -74,9 +106,8 @@ pub struct StructDeclaration {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StructDefinition {
-    pub decl: StructDeclarationId,
-    pub functions: Vec<()>,
-    pub properties: Vec<()>,
+    pub functions: Vec<FunctionDeclId>,
+    pub properties: Vec<PropertyDeclId>,
 }
 
 impl IntoInternId for StructDeclaration  {
@@ -146,7 +177,8 @@ pub struct Enum {
 pub enum Type {
     Enum(EnumDeclarationId),
     Struct(StructDeclarationId),
-    Event(EventDeclarationId)
+    Event(EventDeclarationId),
+    Unit
 }
 
 impl Into<NamespacePlaceholder> for Type {
@@ -155,7 +187,8 @@ impl Into<NamespacePlaceholder> for Type {
         match self {
             Type::Enum(r#enum) => NamespacePlaceholder::Enum(EnumPlaceholder::ByEnum(r#enum)),
             Type::Struct(r#struct) => NamespacePlaceholder::Struct(r#struct),
-            Type::Event(event) => NamespacePlaceholder::Event(event)
+            Type::Event(event) => NamespacePlaceholder::Event(event),
+            Type::Unit => NamespacePlaceholder::Empty
         }
     }
 }
@@ -177,7 +210,8 @@ impl Display for Type {
         match self {
             Type::Enum(_) => write!(f, "Enum"),
             Type::Struct(_) => write!(f, "Struct"),
-            Type::Event(_) => write!(f, "Event")
+            Type::Event(_) => write!(f, "Event"),
+            Type::Unit => write!(f, "Unit")
         }
     }
 }
@@ -257,7 +291,7 @@ pub struct Event {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EventDefinition {
     pub arguments: Vec<DeclaredArgumentId>,
-    pub properties: Vec<Property>
+    pub properties: Vec<PropertyDecl>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -293,7 +327,8 @@ impl RValue {
                 match r#type {
                     Type::Enum(r#enum) => db.lookup_intern_enum_decl(r#enum).name,
                     Type::Struct(r#struct) => db.lookup_intern_struct_decl(r#struct).name,
-                    Type::Event(event) => db.lookup_intern_event_decl(event).name
+                    Type::Event(event) => db.lookup_intern_event_decl(event).name,
+                    Type::Unit => panic!("Unit type has no name")
                 }
             }
             RValue::EnumConstant(enum_constant) => db.lookup_intern_enum_constant(enum_constant).name

@@ -7,6 +7,14 @@ use crate::language::im::{CalledType, CalledTypes};
 #[salsa::query_group(ArgDatabase)]
 pub trait ArgQuery: NamespaceQuery + CallQuery {
     fn query_declared_arg(&self, decl_arg: ast::DeclaredArgument) -> QueryResult<im::DeclaredArgumentId, AnalysisError>;
+
+    fn query_declared_args(&self, decl_args: Vec<ast::DeclaredArgument>) -> QueryResult<Vec<im::DeclaredArgumentId>, AnalysisError>;
+}
+
+fn query_declared_args(db: &dyn ArgQuery, decl_args: Vec<ast::DeclaredArgument>) -> QueryResult<Vec<im::DeclaredArgumentId>, AnalysisError> {
+    decl_args.into_iter()
+        .map(|decl_arg| db.query_declared_arg(decl_arg))
+        .collect::<QueryResult<Vec<_>, _>>()
 }
 
 fn query_declared_arg(db: &dyn ArgQuery, decl_arg: ast::DeclaredArgument) -> QueryResult<im::DeclaredArgumentId, AnalysisError> {
