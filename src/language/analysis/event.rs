@@ -1,16 +1,25 @@
-use crate::language::{ast, im};
+use crate::language::{ast, Ident, im};
 use crate::language::analysis::arg::ArgQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::analysis::file::AstDefQuery;
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::property::PropertyDeclQuery;
 use crate::language::ast::Action;
+use crate::language::im::EventDeclarationId;
 
 #[salsa::query_group(EventDatabase)]
-pub trait EventQuery: EventDeclQuery + ArgQuery + PropertyDeclQuery {
+pub trait EventQuery: EventDeclQuery + ArgQuery + PropertyDeclQuery + AstDefQuery {
+
+    fn query_event_def_by_id(&self, event_decl_id: EventDeclarationId) -> QueryResult<im::EventDefinition, AnalysisError>;
 
     fn query_event_def(&self, event_def: ast::EventDefinition) -> QueryResult<im::EventDefinition, AnalysisError>;
 
     fn query_event(&self, event: ast::Event) -> QueryResult<im::Event, AnalysisError>;
+}
+
+fn query_event_def_by_id(db: &dyn EventQuery, event_decl_id: EventDeclarationId) -> QueryResult<im::EventDefinition, AnalysisError> {
+    db.query_ast_event_def(event_decl_id)
+        .flat_map(|def| db.query_event_def(def))
 }
 
 fn query_event_def(db: &dyn EventQuery, event_def: ast::EventDefinition) -> QueryResult<im::EventDefinition, AnalysisError> {
@@ -24,7 +33,7 @@ fn query_event_def(db: &dyn EventQuery, event_def: ast::EventDefinition) -> Quer
     event_def.arguments.into_iter()
         .map(|decl_arg| db.query_declared_arg(decl_arg))
         .collect::<QueryResult<Vec<_>, _>>()
-        .and(properties)
+        .and_or_default(properties)
         .map(|(arguments, properties)| im::EventDefinition { arguments, properties })
 }
 

@@ -51,6 +51,14 @@ impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
 }
 
 impl<T, E> QueryResult<T, E> {
+
+    pub fn from_option(option: Option<T>, error: E) -> QueryResult<T, E> {
+        match option {
+            Some(value) => QueryResult::Ok(value),
+            None => QueryResult::Err(vec![error])
+        }
+    }
+
     pub fn to_option(self) -> (Option<T>, Vec<E>) {
         match self {
             QueryResult::Ok(value) => (Some(value), Vec::new()),
@@ -156,6 +164,15 @@ macro_rules! query_error {
     };
 }
 
+impl<T: Clone, E> QueryResult<T, E> {
+
+    pub fn map_and_require<O, F>(self, func: F) -> QueryResult<(T, O), E>
+        where F: FnOnce(T) -> QueryResult<O, E>
+    {
+        self.flat_map(|t| func(t.clone()).map(|o| (t, o)))
+    }
+}
+
 impl<T, E> QueryResult<T, E> {
     pub fn maybe_add_error(self, option: Option<E>) -> QueryResult<T, E> {
         match option {
@@ -178,21 +195,41 @@ impl<T, E> QueryResult<T, E> {
         }
     }
 
-    pub fn and<O: Default>(self, other: QueryResult<O, E>) -> QueryResult<(T, O), E> {
-        self.and_or_default(|| O::default(), other)
+    /// Combines this result's value [T] with another result's value [O].
+    ///
+    /// # Notes
+    /// * If this result is [QueryResult::Err] the combined result will also be [QueryResult::Err]
+    /// * If the other result is [QueryResult::Err] the combined result will be [QueryResult::Par]
+    /// and use the default value of [O]
+    pub fn and_or_default<O: Default>(self, other: QueryResult<O, E>) -> QueryResult<(T, O), E> {
+        self.and(
+            |value, errors| QueryResult::Par((value, O::default()), errors),
+            other
+        )
     }
 
-    /// Combines the current result value with another result value, returning a result which
-    /// contains both values
-    pub fn and_or_default<O, F>(self, default: F, other: QueryResult<O, E>) -> QueryResult<(T, O), E>
-        where F: FnOnce() -> O
+    /// Combines this result's value [T] with another result's value [O].
+    ///
+    /// # Notes
+    /// * If this result or the other result is [QueryResult::Err] the combined result will also be [QueryResult::Err]
+    pub fn and_require<O>(self, other: QueryResult<O, E>) -> QueryResult<(T, O), E> {
+        self.and(|_value, errors| QueryResult::Err(errors), other)
+    }
+
+    /// Combines this result's value [T] with another result's value [O].
+    ///
+    /// # Notes
+    /// * If this result is [QueryResult::Err] the combined result will also be [QueryResult::Err]
+    /// * If the other result is [QueryResult::Err] the recovery function defines the combined result
+    fn and<O, F>(self, recovery: F, other: QueryResult<O, E>) -> QueryResult<(T, O), E>
+        where F: FnOnce(T, Vec<E>) -> QueryResult<(T, O), E>,
     {
         use QueryResult::*;
 
         match (self, other) {
             (Ok(value), Ok(other_value)) => Ok((value, other_value)),
             (Ok(value), Par(other_value, other_errors)) => Par((value, other_value), other_errors),
-            (Ok(value), Err(errors)) => Par((value, default()), errors),
+            (Ok(value), Err(errors)) => recovery(value, errors),
             (Par(value, errors), Ok(other_value)) => Par((value, other_value), errors),
             (Par(value, mut errors), Par(other_value, mut other_errors)) => {
                 errors.append(&mut other_errors);
@@ -200,7 +237,7 @@ impl<T, E> QueryResult<T, E> {
             }
             (Par(value, mut errors), Err(mut other_errors)) => {
                 errors.append(&mut other_errors);
-                Par((value, default()), errors)
+                recovery(value, errors)
             }
             (Err(errors), Ok(_other_value)) => Err(errors),
             (Err(mut errors), Par(_other_value, mut other_errors)) => {
@@ -219,8 +256,13 @@ impl<T, E> QueryResult<T, E> {
         option: Option<QueryResult<O, E>>,
     ) -> QueryResult<(T, Option<O>), E> {
         match option {
-            Some(result) => self.and_or_default(|| None, result.map(|it| Some(it))),
-            None => self.map(|t| (t, None))
+            Some(result) => {
+                self.and(
+                    |value, errors| QueryResult::Par((value, None), errors),
+                    result.map(|it| Some(it)),
+                )
+            }
+            None => self.map(|it| (it, None))
         }
     }
 
@@ -282,6 +324,7 @@ pub enum AnalysisError {
         first: Ident,
         second: Ident,
     },
+    CannotFindDefinition(salsa::InternId),
     CannotFindIdent(Ident),
     WrongType,
 }

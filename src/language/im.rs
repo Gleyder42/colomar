@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use crate::impl_intern_key;
 use crate::language::ast::{SpannedBool, UseRestriction};
@@ -224,6 +225,8 @@ pub struct CalledTypes {
 
 impl CalledTypes {
 
+    // TODO This should not be O(n)
+    // Either make it a map or sort the vec before
     pub fn contains_type(&self, r#type: Type) -> bool {
         self.types.iter().any(|it| it.r#type == r#type)
     }
@@ -241,6 +244,7 @@ impl Display for CalledTypes {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledArgument {
+    pub declared: DeclaredArgumentId,
     pub value: AValue,
 }
 
@@ -298,7 +302,7 @@ pub struct EventDefinition {
 pub struct Rule {
     pub title: ImmutableString,
     pub event: EventDeclarationId,
-    pub arguments: Vec<AValue>,
+    pub arguments: Vec<CalledArgument>,
 }
 
 /// Represents a value which is known at runtime time or compile time and it refers
@@ -320,6 +324,17 @@ impl Into<NamespacePlaceholder> for RValue {
 }
 
 impl RValue {
+
+    pub fn r#type<I: Interner+ ?Sized>(&self, db: &I) -> Type {
+        match self {
+            // What is the type of type?
+            RValue::Type(r#type) => r#type.clone(),
+            RValue::EnumConstant(enum_constant_id) => {
+                let enum_constant: EnumConstant = db.lookup_intern_enum_constant(*enum_constant_id);
+                Type::Enum(enum_constant.r#enum)
+            }
+        }
+    }
 
     pub fn name<I: Interner + ?Sized>(&self, db: &I) -> Ident {
         match self.clone() {
@@ -343,9 +358,29 @@ pub enum AValue {
     CValue(CValue)
 }
 
+impl AValue {
+
+    pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> Type {
+        match self {
+            AValue::RValue(rvalue, _) => rvalue.r#type(db),
+            AValue::CValue(cvalue) => cvalue.r#type()
+        }
+    }
+}
+
 /// Represent a value which is known at compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CValue {
     String(ImmutableString, StructDeclarationId, Span),
     Number(ImmutableString, StructDeclarationId, Span),
+}
+
+impl CValue {
+
+    pub fn r#type(&self) -> Type {
+        match self {
+            CValue::String(_, struct_decl_id, _) => Type::Struct(*struct_decl_id),
+            CValue::Number(_, struct_decl_id, _) => Type::Struct(*struct_decl_id),
+        }
+    }
 }

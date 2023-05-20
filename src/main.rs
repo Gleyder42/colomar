@@ -61,7 +61,9 @@ fn main() {
         if let Some(im) = output.0 {
             for root in im {
                 match root {
-                    Root::Rule(_rule) => todo!(),
+                    Root::Rule(rule) => {
+                        println!("{:#?}", rule);
+                    },
                     Root::Event(event) => {
                         let decl = database.lookup_intern_event_decl(event.declaration);
 

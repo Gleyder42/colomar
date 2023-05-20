@@ -23,3 +23,7 @@ struct Player {
 
     workshop fn displaySmallMessage(message: string)
 }
+
+rule "Hello World" OngoingEachPlayer(Team.All, Slot.All) {
+
+}

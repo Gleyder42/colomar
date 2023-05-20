@@ -38,6 +38,26 @@ pub trait NamespaceQuery: TypeQuery + EnumQuery {
         namespace_placeholder: NamespacePlaceholder,
         ident: Ident
     ) -> QueryResult<im::Type, AnalysisError>;
+
+    fn query_namespaced_event(
+        &self,
+        namespace_placeholder: NamespacePlaceholder,
+        ident: Ident
+    ) -> QueryResult<EventDeclarationId, AnalysisError>;
+}
+
+fn query_namespaced_event(
+    db: &dyn NamespaceQuery,
+    namespace_placeholder: NamespacePlaceholder,
+    ident: Ident
+) -> QueryResult<EventDeclarationId, AnalysisError> {
+    db.query_namespaced_type(namespace_placeholder, ident)
+        .flat_map(|r#type| match r#type {
+            im::Type::Event(event) => QueryResult::Ok(event),
+            im::Type::Enum(_) | im::Type::Struct(_) | im::Type::Unit => {
+                QueryResult::Err(vec![AnalysisError::WrongType])
+            }
+        })
 }
 
 fn query_namespaced_type(

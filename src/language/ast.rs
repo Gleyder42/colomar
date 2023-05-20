@@ -6,6 +6,31 @@ pub type Condition = CallChain;
 
 pub type SpannedBool = Option<Spanned<()>>;
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub enum Definition {
+    Event(EventDefinition),
+    Enum(EnumDefinition),
+    Struct(StructDefinition)
+}
+
+impl From<EventDefinition> for Definition {
+    fn from(value: EventDefinition) -> Self {
+        Definition::Event(value)
+    }
+}
+
+impl From<EnumDefinition> for Definition {
+    fn from(value: EnumDefinition) -> Self {
+        Definition::Enum(value)
+    }
+}
+
+impl From<StructDefinition> for Definition {
+    fn from(value: StructDefinition) -> Self {
+        Definition::Struct(value)
+    }
+}
+
 // Abstract Syntax Tree
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ast(pub Vec<Root>);
@@ -73,6 +98,18 @@ pub struct EventDefinition {
     pub actions: Vec<Action>,
 }
 
+impl TryFrom<Definition> for EventDefinition {
+    type Error = &'static str;
+
+    fn try_from(value: Definition) -> Result<Self, Self::Error> {
+        match value {
+            Definition::Event(event) => Ok(event),
+            Definition::Enum(_) => Err("Cannot convert enum to event definition"),
+            Definition::Struct(_) => Err("Cannot convert struct to event definition")
+        }
+    }
+}
+
 #[derive(Derivative, Debug, Hash, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct Event {
@@ -123,6 +160,19 @@ pub struct StructDefinition {
     pub functions: Vec<FunctionDeclaration>,
 }
 
+impl TryFrom<Definition> for StructDefinition {
+    type Error = &'static str;
+
+    fn try_from(value: Definition) -> Result<Self, Self::Error> {
+        match value {
+            Definition::Event(_) => Err("Cannot convert event to struct definition"),
+            Definition::Enum(_) => Err("Cannot convert enum to struct definition"),
+            Definition::Struct(r#struct) => Ok(r#struct)
+        }
+    }
+}
+
+
 #[derive(Derivative, Debug, Hash, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct Struct {
@@ -143,6 +193,18 @@ pub struct EnumDeclaration {
 #[derivative(PartialEq, Eq)]
 pub struct EnumDefinition {
     pub constants: Vec<Ident>,
+}
+
+impl TryFrom<Definition> for EnumDefinition {
+    type Error = &'static str;
+
+    fn try_from(value: Definition) -> Result<Self, Self::Error> {
+        match value {
+            Definition::Event(_) => Err("Cannot convert event to enum definition"),
+            Definition::Enum(r#enum) => Ok(r#enum),
+            Definition::Struct(_) => Err("Cannot convert struct to enum definition")
+        }
+    }
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]

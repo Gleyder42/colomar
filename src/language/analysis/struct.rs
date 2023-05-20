@@ -55,7 +55,7 @@ fn query_struct_def(
         .intern_inner(db);
 
     functions
-        .and(properties)
+        .and_or_default(properties)
         .map(|(functions, properties)| {
             im::StructDefinition { functions, properties }
         })
