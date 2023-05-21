@@ -14,6 +14,7 @@ use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumD
 
 #[salsa::query_group(NamespaceDatabase)]
 pub trait NamespaceQuery: TypeQuery + EnumQuery {
+
     fn query_root_namespace(&self) -> Result<NamespaceId, AnalysisError>;
 
     fn query_enum_namespace(&self, r#enum: EnumDeclarationId) -> QueryResult<NamespaceId, AnalysisError>;
@@ -52,41 +53,6 @@ pub trait NamespaceQuery: TypeQuery + EnumQuery {
     ) -> QueryResult<EventDeclarationId, AnalysisError>;
 }
 
-fn query_event_namespace(db: &dyn NamespaceQuery, event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
-
-    todo!()
-}
-
-fn query_struct_namespace(_db: &dyn NamespaceQuery, _struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError> {
-    todo!()
-}
-
-fn query_namespaced_event(
-    db: &dyn NamespaceQuery,
-    nameholders: Vec<Nameholder>,
-    ident: Ident,
-) -> QueryResult<EventDeclarationId, AnalysisError> {
-    db.query_namespaced_type(nameholders, ident)
-        .flat_map(|r#type| match r#type {
-            im::Type::Event(event) => QueryResult::Ok(event),
-            im::Type::Enum(_) | im::Type::Struct(_) | im::Type::Unit => {
-                QueryResult::Err(vec![AnalysisError::WrongType])
-            }
-        })
-}
-
-fn query_namespaced_type(
-    db: &dyn NamespaceQuery,
-    nameholders: Vec<Nameholder>,
-    ident: Ident,
-) -> QueryResult<im::Type, AnalysisError> {
-    db.query_namespaced_rvalue(nameholders, ident)
-        .flat_map(|rvalue| match rvalue {
-            RValue::Type(r#type) => QueryResult::Ok(r#type),
-            RValue::EnumConstant(_) => AnalysisError::WrongType.into()
-        })
-}
-
 fn query_root_namespace(db: &dyn NamespaceQuery) -> Result<NamespaceId, AnalysisError> {
     let mut namespace = Namespace::new();
 
@@ -101,6 +67,21 @@ fn query_enum_namespace(db: &dyn NamespaceQuery, r#enum: EnumDeclarationId) -> Q
     db.query_enum_def(r#enum)
         .map(|r#enum| Rc::new(Namespace::from_enum_definition(db, r#enum.definition)))
         .intern(db)
+}
+
+fn query_event_namespace(db: &dyn NamespaceQuery, event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
+    todo!()
+}
+
+fn query_struct_namespace(_db: &dyn NamespaceQuery, _struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError> {
+    todo!()
+}
+
+fn query_namespaced_rvalue(db: &dyn NamespaceQuery, nameholders: Vec<Nameholder>, ident: Ident) -> QueryResult<RValue, AnalysisError> {
+    db.query_namespace(nameholders)
+        .flat_map(|namespace| {
+            namespace.get(&ident).ok_or(AnalysisError::CannotFindIdent(ident)).into()
+        })
 }
 
 fn query_namespace(db: &dyn NamespaceQuery, nameholders: Vec<Nameholder>) -> QueryResult<Rc<Namespace>, AnalysisError> {
@@ -135,10 +116,30 @@ fn query_namespace(db: &dyn NamespaceQuery, nameholders: Vec<Nameholder>) -> Que
             })
 }
 
-fn query_namespaced_rvalue(db: &dyn NamespaceQuery, nameholders: Vec<Nameholder>, ident: Ident) -> QueryResult<RValue, AnalysisError> {
-    db.query_namespace(nameholders)
-        .flat_map(|namespace| {
-            namespace.get(&ident).ok_or(AnalysisError::CannotFindIdent(ident)).into()
+fn query_namespaced_type(
+    db: &dyn NamespaceQuery,
+    nameholders: Vec<Nameholder>,
+    ident: Ident,
+) -> QueryResult<im::Type, AnalysisError> {
+    db.query_namespaced_rvalue(nameholders, ident)
+        .flat_map(|rvalue| match rvalue {
+            RValue::Type(r#type) => QueryResult::Ok(r#type),
+            RValue::EnumConstant(_) => AnalysisError::WrongType.into()
+
+        })
+}
+
+fn query_namespaced_event(
+    db: &dyn NamespaceQuery,
+    nameholders: Vec<Nameholder>,
+    ident: Ident,
+) -> QueryResult<EventDeclarationId, AnalysisError> {
+    db.query_namespaced_type(nameholders, ident)
+        .flat_map(|r#type| match r#type {
+            im::Type::Event(event) => QueryResult::Ok(event),
+            im::Type::Enum(_) | im::Type::Struct(_) | im::Type::Unit => {
+                QueryResult::Err(vec![AnalysisError::WrongType])
+            }
         })
 }
 
@@ -177,6 +178,11 @@ pub struct Namespace {
 }
 
 impl Namespace {
+
+    fn new() -> Namespace {
+        Namespace { map: HashMap::new(), parent: Vec::new() }
+    }
+
     pub fn from_enum_definition(db: &(impl Interner + ?Sized), definition: EnumDefinition) -> Namespace {
         let map = definition.constants.into_iter()
             .map::<(_, EnumConstant), _>(|enum_constant_id| (
@@ -186,39 +192,6 @@ impl Namespace {
             .map(|it| (it.1.name.value.clone(), RValue::EnumConstant(it.0)))
             .collect();
         Namespace { parent: Vec::new(), map }
-    }
-
-    fn sorted_map_entries(&self) -> Vec<(&ImmutableString, &RValue)> {
-        let mut content = self.map.iter().collect::<Vec<_>>();
-        content.sort_by_key(|it| it.0);
-        content
-    }
-}
-
-impl PartialEq for Namespace {
-    fn eq(&self, other: &Self) -> bool {
-        self.parent == other.parent && self.sorted_map_entries() == other.sorted_map_entries()
-    }
-}
-
-impl Hash for Namespace {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.parent.hash(state);
-        self.sorted_map_entries().hash(state)
-    }
-}
-
-impl IntoInternId for Rc<Namespace> {
-    type Interned = NamespaceId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> NamespaceId {
-        db.intern_namespace(self)
-    }
-}
-
-impl Namespace {
-    fn new() -> Namespace {
-        Namespace { map: HashMap::new(), parent: Vec::new() }
     }
 
     fn add<I: Interner + ?Sized>(&mut self, ident: Ident, rvalue: RValue, db: &I) -> Result<(), AnalysisError> {
@@ -252,5 +225,32 @@ impl Namespace {
                 .collect::<Vec<_>>()
                 .pop()
         }
+    }
+
+    fn sorted_map_entries(&self) -> Vec<(&ImmutableString, &RValue)> {
+        let mut content = self.map.iter().collect::<Vec<_>>();
+        content.sort_by_key(|it| it.0);
+        content
+    }
+}
+
+impl PartialEq for Namespace {
+    fn eq(&self, other: &Self) -> bool {
+        self.parent == other.parent && self.sorted_map_entries() == other.sorted_map_entries()
+    }
+}
+
+impl Hash for Namespace {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.parent.hash(state);
+        self.sorted_map_entries().hash(state)
+    }
+}
+
+impl IntoInternId for Rc<Namespace> {
+    type Interned = NamespaceId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> NamespaceId {
+        db.intern_namespace(self)
     }
 }
