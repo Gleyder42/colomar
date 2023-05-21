@@ -6,7 +6,7 @@ use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::event::EventQuery;
 use crate::language::analysis::file::AstDefQuery;
 use crate::language::analysis::interner::IntoInternId;
-use crate::language::analysis::namespace::NamespacePlaceholder;
+use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::r#type::TypeQuery;
 use crate::language::im::{CalledArgument, DeclaredArgument, EventDeclarationId};
 
@@ -17,9 +17,16 @@ pub trait RuleQuery: CallQuery + AstDefQuery + EventQuery {
 }
 
 fn query_rule_decl(db: &dyn RuleQuery, rule: ast::Rule) -> QueryResult<im::Rule, AnalysisError> {
+
+    let conditions = |event_decl_id: EventDeclarationId| {
+        rule.conditions.into_iter()
+            .map(|condition| db.query_call_chain(vec![Nameholder::Root, Nameholder::Event(event_decl_id)], condition));
+        todo!()
+    };
+
     let arguments = |event_decl_id: EventDeclarationId| {
         rule.arguments.into_iter()
-            .map(|call_chain| db.query_call_chain(NamespacePlaceholder::Root, call_chain))
+            .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain))
             .collect::<QueryResult<_, _>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
             .flat_map(|(arguments, event_def)| {
@@ -45,7 +52,7 @@ fn query_rule_decl(db: &dyn RuleQuery, rule: ast::Rule) -> QueryResult<im::Rule,
             })
     };
 
-    db.query_namespaced_event(NamespacePlaceholder::Root, rule.event)
+    db.query_namespaced_event(vec![Nameholder::Root], rule.event)
         .map_and_require(arguments)
         .map(|(event, arguments)| im::Rule {
             title: rule.name.value,

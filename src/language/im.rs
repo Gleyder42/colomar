@@ -4,7 +4,7 @@ use crate::impl_intern_key;
 use crate::language::ast::{SpannedBool, UseRestriction};
 use crate::language::{Ident, ImmutableString, Span, Spanned};
 use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::analysis::namespace::{EnumPlaceholder, NamespacePlaceholder};
+use crate::language::analysis::namespace::{EnumNameholder, Nameholder};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Im(pub Vec<Root>);
@@ -182,14 +182,14 @@ pub enum Type {
     Unit
 }
 
-impl Into<NamespacePlaceholder> for Type {
+impl Into<Nameholder> for Type {
 
-    fn into(self) -> NamespacePlaceholder {
+    fn into(self) -> Nameholder {
         match self {
-            Type::Enum(r#enum) => NamespacePlaceholder::Enum(EnumPlaceholder::ByEnum(r#enum)),
-            Type::Struct(r#struct) => NamespacePlaceholder::Struct(r#struct),
-            Type::Event(event) => NamespacePlaceholder::Event(event),
-            Type::Unit => NamespacePlaceholder::Empty
+            Type::Enum(r#enum) => Nameholder::Enum(EnumNameholder::ByEnum(r#enum)),
+            Type::Struct(r#struct) => Nameholder::Struct(r#struct),
+            Type::Event(event) => Nameholder::Event(event),
+            Type::Unit => Nameholder::Empty
         }
     }
 }
@@ -314,11 +314,11 @@ pub enum RValue {
 }
 
 
-impl Into<NamespacePlaceholder> for RValue {
-    fn into(self) -> NamespacePlaceholder {
+impl Into<Nameholder> for RValue {
+    fn into(self) -> Nameholder {
         match self {
             RValue::Type(r#type) => r#type.into(),
-            RValue::EnumConstant(enum_constant_id) => EnumPlaceholder::ByConstant(enum_constant_id).into()
+            RValue::EnumConstant(enum_constant_id) => EnumNameholder::ByConstant(enum_constant_id).into()
         }
     }
 }

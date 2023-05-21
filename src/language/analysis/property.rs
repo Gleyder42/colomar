@@ -1,5 +1,5 @@
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::namespace::{NamespacePlaceholder, NamespaceQuery};
+use crate::language::analysis::namespace::{Nameholder, NamespaceQuery};
 use crate::language::ast;
 use crate::language::im::PropertyDecl;
 
@@ -13,8 +13,7 @@ fn query_property(
     db: &dyn PropertyDeclQuery,
     property_decl: ast::PropertyDeclaration,
 ) -> QueryResult<PropertyDecl, AnalysisError> {
-
-    db.query_namespaced_type(NamespacePlaceholder::Root, property_decl.r#type)
+    db.query_namespaced_type(vec![Nameholder::Root], property_decl.r#type)
         .map(|r#type| {
             PropertyDecl {
                 is_workshop: property_decl.is_workshop,
@@ -22,5 +21,5 @@ fn query_property(
                 desc: property_decl.use_restriction,
                 r#type,
             }
-        }).into()
+        })
 }

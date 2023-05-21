@@ -18,7 +18,14 @@ impl<Id, T: IntoInternId<Interned=Id>, I: IntoIterator<Item=T>, E> QueryResult<I
 
 
 impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
-    pub fn fold_map<U, A, F, M>(self, initial: A, map_func: M, func: F) -> QueryResult<U, E>
+
+    pub fn fold<A, F>(self, initial: A, func: F) -> QueryResult<A, E>
+        where F: Fn(A, T) -> QueryResult<A, E>
+    {
+        self.fold_flat_map(initial, |it| it, func)
+    }
+
+    pub fn fold_flat_map<U, A, F, M>(self, initial: A, map_func: M, func: F) -> QueryResult<U, E>
         where F: Fn(A, T) -> QueryResult<A, E>,
               M: FnOnce(A) -> U,
     {

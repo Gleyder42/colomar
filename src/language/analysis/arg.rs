@@ -1,7 +1,7 @@
 use crate::language::{ast, im};
 use crate::language::analysis::call::CallQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::namespace::{NamespacePlaceholder, NamespaceQuery};
+use crate::language::analysis::namespace::{Nameholder, NamespaceQuery};
 use crate::language::im::{CalledType, CalledTypes};
 
 #[salsa::query_group(ArgDatabase)]
@@ -19,12 +19,12 @@ fn query_declared_args(db: &dyn ArgQuery, decl_args: Vec<ast::DeclaredArgument>)
 
 fn query_declared_arg(db: &dyn ArgQuery, decl_arg: ast::DeclaredArgument) -> QueryResult<im::DeclaredArgumentId, AnalysisError> {
     let default_value_option = decl_arg.default_value
-        .map(|call_chain| db.query_call_chain(NamespacePlaceholder::Root, call_chain));
+        .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain));
 
     decl_arg.types.clone().into_iter()
         .map(|ident|
             db.query_namespaced_type(
-                NamespacePlaceholder::Root,
+                vec![Nameholder::Root],
                 ident.clone(),
             ).map(|r#type| CalledType { r#type, span: ident.span.clone() })
         )
