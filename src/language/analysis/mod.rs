@@ -1,21 +1,6 @@
-use file::FileDatabase;
-use file::AstDefDatabase;
-use r#enum::EnumDatabase;
-use r#enum::EnumDeclarationDatabase;
-use im::ImDatabase;
-use arg::ArgDatabase;
-use call::CallDatabase;
-use event::EventDatabase;
-use event::EventDeclarationDatabase;
-use namespace::NamespaceDatabase;
-use rule::RuleDeclDatabase;
-use r#struct::StructDefDatabase;
-use r#struct::StructDeclDatabase;
-use r#struct::StructDatabase;
-use r#type::TypeDatabase;
+use decl::DeclDatabase;
+use def::DefDatabase;
 use interner::InternerDatabase;
-use property::PropertyDatabase;
-use function::FunctionDatabase;
 
 pub mod r#enum;
 pub mod file;
@@ -31,22 +16,10 @@ pub mod error;
 pub mod rule;
 pub mod property;
 pub mod function;
+pub mod decl;
+pub mod def;
 
-#[salsa::database(
-    InternerDatabase,
-    FileDatabase, AstDefDatabase,
-    EnumDatabase, EnumDeclarationDatabase,
-    ImDatabase,
-    ArgDatabase,
-    CallDatabase,
-    EventDatabase, EventDeclarationDatabase,
-    NamespaceDatabase,
-    RuleDeclDatabase,
-    StructDatabase, StructDeclDatabase, StructDefDatabase,
-    TypeDatabase,
-    PropertyDatabase,
-    FunctionDatabase,
-)]
+#[salsa::database(DeclDatabase, DefDatabase, InternerDatabase)]
 #[derive(Default)]
 pub struct AnalysisDatabase {
     storage: salsa::Storage<Self>,

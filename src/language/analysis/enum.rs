@@ -1,23 +1,12 @@
 use std::collections::{HashMap};
 use std::rc::Rc;
 use crate::language::{ast, Ident, im};
+use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::file::RootFileQuery;
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::im::{EnumConstant, EnumDeclarationId};
 
-#[salsa::query_group(EnumDatabase)]
-pub trait EnumQuery: EnumDeclQuery + Interner + RootFileQuery {
-    fn query_enum(&self, r#enum: ast::Enum) -> QueryResult<im::Enum, AnalysisError>;
-
-    fn query_enum_ast_map(&self) -> HashMap<EnumDeclarationId, ast::Enum>;
-
-    fn query_enum_ast(&self, enum_decl: EnumDeclarationId) -> Result<ast::Enum, AnalysisError>;
-
-    fn query_enum_def(&self, enum_decl: EnumDeclarationId) -> QueryResult<im::Enum, AnalysisError>;
-}
-
-fn query_enum_ast(db: &dyn EnumQuery, enum_decl_id: EnumDeclarationId) -> Result<ast::Enum, AnalysisError> {
+pub(in super) fn query_enum_ast(db: &dyn DeclQuery, enum_decl_id: EnumDeclarationId) -> Result<ast::Enum, AnalysisError> {
     db.query_enum_ast_map().get(&enum_decl_id)
         .map(|it| it.clone())
         .ok_or_else(|| {
@@ -26,7 +15,7 @@ fn query_enum_ast(db: &dyn EnumQuery, enum_decl_id: EnumDeclarationId) -> Result
         })
 }
 
-fn query_enum_ast_map(db: &dyn EnumQuery) -> HashMap<EnumDeclarationId, ast::Enum> {
+pub(in super) fn query_enum_ast_map(db: &dyn DeclQuery) -> HashMap<EnumDeclarationId, ast::Enum> {
     db.input_content().into_iter()
         .filter_map(|it| {
             if let ast::Root::Enum(r#enum) = it {
@@ -38,7 +27,7 @@ fn query_enum_ast_map(db: &dyn EnumQuery) -> HashMap<EnumDeclarationId, ast::Enu
         .collect::<HashMap<_, _>>()
 }
 
-fn query_enum_def(db: &dyn EnumQuery, enum_decl_id: EnumDeclarationId) -> QueryResult<im::Enum, AnalysisError> {
+pub(in super) fn query_enum_def(db: &dyn DeclQuery, enum_decl_id: EnumDeclarationId) -> QueryResult<im::Enum, AnalysisError> {
     db.query_enum_ast(enum_decl_id)
         .map(|enum_ast| db.query_enum(enum_ast))
         .into()
@@ -67,7 +56,7 @@ fn no_duplicates(constants: Vec<EnumConstant>) -> QueryResult<Vec<EnumConstant>,
     QueryResult::from((unique_constants, duplicates))
 }
 
-fn query_enum(db: &dyn EnumQuery, r#enum: ast::Enum) -> QueryResult<im::Enum, AnalysisError> {
+pub(in super) fn query_enum(db: &dyn DeclQuery, r#enum: ast::Enum) -> QueryResult<im::Enum, AnalysisError> {
     let declaration = db.query_enum_decl(r#enum.declaration);
 
     let constants: Vec<_> = r#enum.definition.constants.into_iter()
@@ -83,12 +72,7 @@ fn query_enum(db: &dyn EnumQuery, r#enum: ast::Enum) -> QueryResult<im::Enum, An
         })
 }
 
-#[salsa::query_group(EnumDeclarationDatabase)]
-pub trait EnumDeclQuery: Interner {
-    fn query_enum_decl(&self, r#enum: ast::EnumDeclaration) -> im::EnumDeclarationId;
-}
-
-fn query_enum_decl(db: &dyn EnumDeclQuery, r#enum: ast::EnumDeclaration) -> im::EnumDeclarationId {
+pub(in super) fn query_enum_decl(db: &dyn DeclQuery, r#enum: ast::EnumDeclaration) -> im::EnumDeclarationId {
     im::EnumDeclaration {
         name: r#enum.name,
         is_workshop: r#enum.is_workshop,

@@ -1,23 +1,12 @@
 use salsa::InternKey;
 use crate::language::{ast, im};
-use crate::language::analysis::arg::ArgQuery;
-use crate::language::analysis::call::CallQuery;
+use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::event::EventQuery;
-use crate::language::analysis::file::AstDefQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
-use crate::language::analysis::r#type::TypeQuery;
 use crate::language::im::{CalledArgument, DeclaredArgument, EventDeclarationId};
 
-#[salsa::query_group(RuleDeclDatabase)]
-pub trait RuleQuery: CallQuery + AstDefQuery + EventQuery {
-
-    fn query_rule_decl(&self, rule: ast::Rule) -> QueryResult<im::Rule, AnalysisError>;
-}
-
-fn query_rule_decl(db: &dyn RuleQuery, rule: ast::Rule) -> QueryResult<im::Rule, AnalysisError> {
-
+pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryResult<im::Rule, AnalysisError> {
     let conditions = |event_decl_id: EventDeclarationId| {
         rule.conditions.into_iter()
             .map(|condition| db.query_call_chain(vec![Nameholder::Root, Nameholder::Event(event_decl_id)], condition));

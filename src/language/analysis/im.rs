@@ -1,19 +1,9 @@
-use crate::language::analysis::file::RootFileQuery;
-use crate::language::analysis::r#enum::EnumQuery;
 use crate::language::{ast, im};
+use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::event::EventQuery;
-use crate::language::analysis::r#struct::{StructDeclQuery, StructDefQuery, StructQuery};
-use crate::language::analysis::rule::RuleQuery;
 use crate::language::im::{Struct, StructDefinition};
 
-#[salsa::query_group(ImDatabase)]
-pub trait Im: EnumQuery + EventQuery + StructQuery + RuleQuery +  RootFileQuery {
-
-    fn query_im(&self) -> QueryResult<im::Im, AnalysisError>;
-}
-
-fn query_im(db: &dyn Im) -> QueryResult<im::Im, AnalysisError> {
+pub(in super) fn query_im(db: &dyn DefQuery) -> QueryResult<im::Im, AnalysisError> {
     db.input_content().into_iter()
         .map(|root| {
             match root {

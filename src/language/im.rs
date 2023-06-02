@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use crate::impl_intern_key;
 use crate::language::ast::{SpannedBool, UseRestriction};

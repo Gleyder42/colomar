@@ -14,11 +14,12 @@ use crate::language::analysis::AnalysisDatabase;
 use crate::language::analysis::error::QueryResult;
 use crate::language::analysis::interner::Interner;
 use crate::language::im;
-use crate::language::im::{DeclaredArgument, FunctionDecl, FunctionDeclId, PropertyDecl, Root, StructDeclaration};
+use crate::language::im::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::language::lexer::{lexer};
 use crate::language::parser::parser;
-use crate::language::analysis::file::RootFileQuery;
-use crate::language::analysis::im::Im;
+
+use crate::language::analysis::decl::DeclQuery;
+use crate::language::analysis::def::DefQuery;
 
 pub type Span = Range<usize>;
 

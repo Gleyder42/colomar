@@ -1,16 +1,10 @@
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::{ast, im};
-use crate::language::analysis::arg::ArgQuery;
+use crate::language::analysis::decl::DeclQuery;
 use crate::language::im::Type;
 
-#[salsa::query_group(FunctionDatabase)]
-pub trait FunctionDeclQuery: ArgQuery {
-
-    fn query_function_decl(&self, function: ast::FunctionDeclaration) -> QueryResult<im::FunctionDecl, AnalysisError>;
-}
-
-fn query_function_decl(
-    db: &dyn FunctionDeclQuery,
+pub(in super) fn query_function_decl(
+    db: &dyn DeclQuery,
     function: ast::FunctionDeclaration
 ) -> QueryResult<im::FunctionDecl, AnalysisError> {
     db.query_declared_args(function.arguments.value)
