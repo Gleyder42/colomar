@@ -4,56 +4,13 @@ use std::rc::Rc;
 use salsa::InternId;
 use crate::{impl_intern_key, query_error};
 use crate::language::{Ident, im, ImmutableString};
+use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::event::EventQuery;
 use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::analysis::r#enum::EnumQuery;
-use crate::language::analysis::r#type::TypeQuery;
 use crate::language::ast::EventDeclaration;
 use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId, RValue, StructDeclarationId};
 
-#[salsa::query_group(NamespaceDatabase)]
-pub trait NamespaceQuery: TypeQuery + EnumQuery {
-
-    fn query_root_namespace(&self) -> Result<NamespaceId, AnalysisError>;
-
-    fn query_enum_namespace(&self, r#enum: EnumDeclarationId) -> QueryResult<NamespaceId, AnalysisError>;
-
-    fn query_event_namespace(
-        &self,
-        event_decl: EventDeclarationId
-    ) -> Result<NamespaceId, AnalysisError>;
-
-    fn query_struct_namespace(
-        &self,
-        struct_decl: StructDeclarationId
-    ) -> Result<NamespaceId, AnalysisError>;
-
-    fn query_namespaced_rvalue(
-        &self,
-        nameholders: Vec<Nameholder>,
-        ident: Ident,
-    ) -> QueryResult<RValue, AnalysisError>;
-
-    fn query_namespace(
-        &self,
-        nameholders: Vec<Nameholder>
-    ) -> QueryResult<Rc<Namespace>, AnalysisError>;
-
-    fn query_namespaced_type(
-        &self,
-        nameholders: Vec<Nameholder>,
-        ident: Ident,
-    ) -> QueryResult<im::Type, AnalysisError>;
-
-    fn query_namespaced_event(
-        &self,
-        nameholders: Vec<Nameholder>,
-        ident: Ident,
-    ) -> QueryResult<EventDeclarationId, AnalysisError>;
-}
-
-fn query_root_namespace(db: &dyn NamespaceQuery) -> Result<NamespaceId, AnalysisError> {
+pub(in super) fn query_root_namespace(db: &dyn DeclQuery) -> Result<NamespaceId, AnalysisError> {
     let mut namespace = Namespace::new();
 
     for (ident, r#type) in db.query_type_map() {
@@ -63,28 +20,28 @@ fn query_root_namespace(db: &dyn NamespaceQuery) -> Result<NamespaceId, Analysis
     Ok(Rc::new(namespace).intern(db))
 }
 
-fn query_enum_namespace(db: &dyn NamespaceQuery, r#enum: EnumDeclarationId) -> QueryResult<NamespaceId, AnalysisError> {
+pub(in super) fn query_enum_namespace(db: &dyn DeclQuery, r#enum: EnumDeclarationId) -> QueryResult<NamespaceId, AnalysisError> {
     db.query_enum_def(r#enum)
         .map(|r#enum| Rc::new(Namespace::from_enum_definition(db, r#enum.definition)))
         .intern(db)
 }
 
-fn query_event_namespace(db: &dyn NamespaceQuery, event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
+pub(in super) fn query_event_namespace(db: &dyn DeclQuery, event_decl: EventDeclarationId) -> Result<NamespaceId, AnalysisError> {
     todo!()
 }
 
-fn query_struct_namespace(_db: &dyn NamespaceQuery, _struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError> {
+pub(in super) fn query_struct_namespace(_db: &dyn DeclQuery, _struct_decl: StructDeclarationId) -> Result<NamespaceId, AnalysisError> {
     todo!()
 }
 
-fn query_namespaced_rvalue(db: &dyn NamespaceQuery, nameholders: Vec<Nameholder>, ident: Ident) -> QueryResult<RValue, AnalysisError> {
+pub(in super) fn query_namespaced_rvalue(db: &dyn DeclQuery, nameholders: Vec<Nameholder>, ident: Ident) -> QueryResult<RValue, AnalysisError> {
     db.query_namespace(nameholders)
         .flat_map(|namespace| {
             namespace.get(&ident).ok_or(AnalysisError::CannotFindIdent(ident)).into()
         })
 }
 
-fn query_namespace(db: &dyn NamespaceQuery, nameholders: Vec<Nameholder>) -> QueryResult<Rc<Namespace>, AnalysisError> {
+pub(in super) fn query_namespace(db: &dyn DeclQuery, nameholders: Vec<Nameholder>) -> QueryResult<Rc<Namespace>, AnalysisError> {
     nameholders.into_iter()
         .map(|nameholder| {
             match nameholder {
@@ -116,8 +73,8 @@ fn query_namespace(db: &dyn NamespaceQuery, nameholders: Vec<Nameholder>) -> Que
             })
 }
 
-fn query_namespaced_type(
-    db: &dyn NamespaceQuery,
+pub(in super) fn query_namespaced_type(
+    db: &dyn DeclQuery,
     nameholders: Vec<Nameholder>,
     ident: Ident,
 ) -> QueryResult<im::Type, AnalysisError> {
@@ -129,8 +86,8 @@ fn query_namespaced_type(
         })
 }
 
-fn query_namespaced_event(
-    db: &dyn NamespaceQuery,
+pub(in super) fn query_namespaced_event(
+    db: &dyn DeclQuery,
     nameholders: Vec<Nameholder>,
     ident: Ident,
 ) -> QueryResult<EventDeclarationId, AnalysisError> {

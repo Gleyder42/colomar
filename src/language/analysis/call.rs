@@ -1,18 +1,10 @@
 use crate::language::{ast, im};
+use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::namespace::{Nameholder, NamespaceQuery};
+use crate::language::analysis::namespace::{Nameholder};
 
-#[salsa::query_group(CallDatabase)]
-pub trait CallQuery: NamespaceQuery {
-    fn query_call_chain(
-        &self,
-        nameholders: Vec<Nameholder>,
-        call_chain: ast::CallChain,
-    ) -> QueryResult<im::AValue, AnalysisError>;
-}
-
-fn query_call_chain(
-    db: &dyn CallQuery,
+pub(in super) fn query_call_chain(
+    db: &dyn DeclQuery,
     nameholders: Vec<Nameholder>,
     call_chain: ast::CallChain,
 ) -> QueryResult<im::AValue, AnalysisError> {

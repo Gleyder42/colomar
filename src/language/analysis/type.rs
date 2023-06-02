@@ -1,21 +1,10 @@
 use std::collections::HashMap;
 use crate::language::{ast, Ident, im};
+use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::AnalysisError;
-use crate::language::analysis::event::{EventDeclQuery};
-use crate::language::analysis::file::RootFileQuery;
-use crate::language::analysis::r#enum::{EnumDeclQuery};
-use crate::language::analysis::r#struct::StructDeclQuery;
-
-#[salsa::query_group(TypeDatabase)]
-pub trait TypeQuery: RootFileQuery + EnumDeclQuery + EventDeclQuery + StructDeclQuery {
-
-    /// Queries the type map.
-    /// If you want to find a type by ident, use [query_type] instead.
-    fn query_type_map(&self) -> HashMap<Ident, im::Type>;
-}
 
 // Maybe add a projection query which excludes rule
-fn query_type_map(db: &dyn TypeQuery) -> HashMap<Ident, im::Type> {
+pub(in super) fn query_type_map(db: &dyn DeclQuery) -> HashMap<Ident, im::Type> {
     db.input_content().into_iter()
         .filter_map(|root| {
             match root {

@@ -1,17 +1,11 @@
 use crate::language::{ast, im};
-use crate::language::analysis::arg::ArgQuery;
+use crate::language::analysis::decl::DeclQuery;
+use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::function::FunctionDeclQuery;
 use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::analysis::property::PropertyDeclQuery;
 
-#[salsa::query_group(StructDatabase)]
-pub trait StructQuery: StructDeclQuery + StructDefQuery {
 
-    fn query_struct(&self, r#struct: ast::Struct) -> QueryResult<im::Struct, AnalysisError>;
-}
-
-fn query_struct(db: &dyn StructQuery, r#struct: ast::Struct) -> QueryResult<im::Struct, AnalysisError> {
+pub(in super) fn query_struct(db: &dyn DefQuery, r#struct: ast::Struct) -> QueryResult<im::Struct, AnalysisError> {
     let struct_decl = db.query_struct_decl(r#struct.declaration);
     db.query_struct_def(r#struct.definition)
         .map(|struct_def| im::Struct {
@@ -20,13 +14,7 @@ fn query_struct(db: &dyn StructQuery, r#struct: ast::Struct) -> QueryResult<im::
         })
 }
 
-#[salsa::query_group(StructDeclDatabase)]
-pub trait StructDeclQuery: Interner {
-
-    fn query_struct_decl(&self, r#struct: ast::StructDeclaration) -> im::StructDeclarationId;
-}
-
-fn query_struct_decl(db: &dyn StructDeclQuery, r#struct: ast::StructDeclaration) -> im::StructDeclarationId {
+pub(in super) fn query_struct_decl(db: &dyn DeclQuery, r#struct: ast::StructDeclaration) -> im::StructDeclarationId {
     im::StructDeclaration {
         name: r#struct.name,
         is_open: r#struct.is_open,
@@ -34,14 +22,8 @@ fn query_struct_decl(db: &dyn StructDeclQuery, r#struct: ast::StructDeclaration)
     }.intern(db)
 }
 
-#[salsa::query_group(StructDefDatabase)]
-pub trait StructDefQuery: FunctionDeclQuery + PropertyDeclQuery {
-
-    fn query_struct_def(&self, struct_dec: ast::StructDefinition) -> QueryResult<im::StructDefinition, AnalysisError>;
-}
-
-fn query_struct_def(
-    db: &dyn StructDefQuery,
+pub(in super) fn query_struct_def(
+    db: &dyn DefQuery,
     struct_def: ast::StructDefinition,
 ) -> QueryResult<im::StructDefinition, AnalysisError> {
     let functions = struct_def.functions.into_iter()
