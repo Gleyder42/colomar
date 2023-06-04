@@ -45,13 +45,3 @@ impl<T, I: IntoIterator<Item=T>> IntoIterator for Spanned<I> {
         self.value.into_iter()
     }
 }
-
-#[derive(Derivative)]
-#[derivative(Hash, PartialEq, Eq)]
-pub struct HalfHashed<T, U> {
-    pub hashed: T,
-
-    #[derivative(Hash="ignore")]
-    #[derivative(PartialEq="ignore")]
-    pub not_hashed: U
-}

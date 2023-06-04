@@ -1,5 +1,4 @@
-use crate::language::{analysis, ast, im};
-use crate::language::analysis::decl;
+use crate::language::{ast, im};
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::namespace::{Nameholder};

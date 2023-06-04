@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::language::{ast, Ident, im};
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::interner::{Interner, IntoInternId};
+use crate::language::analysis::interner::{IntoInternId};
 use crate::language::im::{EnumConstant, EnumDeclarationId};
 
 pub(in super) fn query_enum_ast(db: &dyn DeclQuery, enum_decl_id: EnumDeclarationId) -> Result<ast::Enum, AnalysisError> {

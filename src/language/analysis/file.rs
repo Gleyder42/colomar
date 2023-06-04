@@ -3,7 +3,7 @@ use salsa::InternKey;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::ast::{Definition, EventDefinition, Root, StructDefinition};
-use crate::language::im::{EnumDeclarationId, EventDeclarationId, StructDeclaration, StructDeclarationId};
+use crate::language::im::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum DefKey {

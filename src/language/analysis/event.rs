@@ -1,8 +1,8 @@
-use crate::language::{ast, Ident, im};
+use crate::language::{ast, im};
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::interner::{Interner, IntoInternId};
+use crate::language::analysis::interner::{IntoInternId};
 use crate::language::ast::Action;
 use crate::language::im::{EventDeclarationId, PropertyDecl};
 

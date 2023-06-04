@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fmt::Debug;
 use crate::language::{ast, Ident};
 use crate::language::analysis::interner::{Interner, IntoInternId};

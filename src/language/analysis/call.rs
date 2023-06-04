@@ -3,7 +3,7 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::{Nameholder};
-use crate::language::im::{CValue, RValue};
+use crate::language::im::{CValue};
 
 pub(in super) fn query_call_chain(
     db: &dyn DeclQuery,
@@ -26,7 +26,7 @@ pub(in super) fn query_call_chain(
             // If the result returned in func is error, value could be none, but it doesn't matter
             // as map_func in that case is not called
             |(_, value)| value.unwrap(),
-            |(nameholders, value), call| {
+            |(nameholders, _value), call| {
                 match *call {
                     ast::Call::Ident(ident) => {
                         db.query_namespaced_rvalue(nameholders, ident.clone())
@@ -35,7 +35,7 @@ pub(in super) fn query_call_chain(
                                 im::AValue::RValue(rvalue, ident.span)
                             ))
                     }
-                    ast::Call::IdentArguments { name, span, args } => {
+                    ast::Call::IdentArguments { name , args, .. } => {
                         db.query_namespaced_function(nameholders, name)
                             .and_or_default(
                                 args.into_iter()

@@ -2,8 +2,8 @@ use crate::language::{ast, im};
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::im::{FunctionDeclId, PropertyDecl, PropertyDeclId};
+use crate::language::analysis::interner::{IntoInternId};
+use crate::language::im::{FunctionDeclId, PropertyDeclId};
 
 
 pub(in super) fn query_struct(db: &dyn DefQuery, r#struct: ast::Struct) -> QueryResult<im::Struct, AnalysisError> {

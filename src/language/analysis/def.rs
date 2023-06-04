@@ -1,12 +1,9 @@
-use std::collections::HashMap;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::{ast, im};
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::analysis::file::DefKey;
 use crate::language::ast::{Action, Condition};
-use crate::language::im::{EventDeclarationId, PropertyDecl};
+use crate::language::im::{EventDeclarationId};
 
-use super::file;
 use super::event;
 use super::r#struct;
 use super::rule;

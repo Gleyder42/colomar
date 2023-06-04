@@ -1,4 +1,3 @@
-use salsa::InternKey;
 use crate::language::{ast, im};
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};

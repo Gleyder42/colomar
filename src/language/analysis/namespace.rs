@@ -9,8 +9,7 @@ use crate::language::{Ident, im, ImmutableString};
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::ast::EventDeclaration;
-use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId, FunctionDecl, FunctionDeclId, PropertyDecl, RValue, StructDeclaration, StructDeclarationId, Type};
+use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId, FunctionDecl, PropertyDecl, RValue, StructDeclarationId, Type};
 
 pub(in super) fn query_root_namespace(db: &dyn DeclQuery) -> Result<NamespaceId, AnalysisError> {
     let mut namespace = Namespace::new();
