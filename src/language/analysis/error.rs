@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use crate::language::{ast, Ident};
 use crate::language::analysis::interner::{Interner, IntoInternId};
+use crate::language::analysis::namespace::Namespace;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum QueryResult<T, E> {
@@ -16,9 +17,17 @@ impl<Id, T: IntoInternId<Interned=Id>, I: IntoIterator<Item=T>, E> QueryResult<I
     }
 }
 
+impl<E> QueryResult<Namespace, E> {
+
+    pub fn fold_with<T, I, F>(self, with: QueryResult<I, E>, func: F) -> QueryResult<Namespace, E>
+        where F: Fn(Namespace, T) -> QueryResult<Namespace, E>,
+              I: IntoIterator<Item=T>
+    {
+        self.flat_map(|acc| with.fold(acc, func))
+    }
+}
 
 impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
-
     pub fn fold<A, F>(self, initial: A, func: F) -> QueryResult<A, E>
         where F: Fn(A, T) -> QueryResult<A, E>
     {
@@ -58,7 +67,6 @@ impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
 }
 
 impl<T, E> QueryResult<T, E> {
-
     pub fn from_option(option: Option<T>, error: E) -> QueryResult<T, E> {
         match option {
             Some(value) => QueryResult::Ok(value),
@@ -172,7 +180,6 @@ macro_rules! query_error {
 }
 
 impl<T: Clone, E> QueryResult<T, E> {
-
     pub fn map_and_require<O, F>(self, func: F) -> QueryResult<(T, O), E>
         where F: FnOnce(T) -> QueryResult<O, E>
     {
@@ -211,7 +218,7 @@ impl<T, E> QueryResult<T, E> {
     pub fn and_or_default<O: Default>(self, other: QueryResult<O, E>) -> QueryResult<(T, O), E> {
         self.and(
             |value, errors| QueryResult::Par((value, O::default()), errors),
-            other
+            other,
         )
     }
 
@@ -334,6 +341,8 @@ pub enum AnalysisError {
     CannotFindDefinition(salsa::InternId),
     CannotFindIdent(Ident),
     WrongType,
+    NotABool,
+    CannotFindPrimitive,
 }
 
 impl<T> Into<Result<T, AnalysisError>> for AnalysisError {

@@ -3,7 +3,8 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::{ast, im};
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::file::DefKey;
-use crate::language::im::EventDeclarationId;
+use crate::language::ast::{Action, Condition};
+use crate::language::im::{EventDeclarationId, PropertyDecl};
 
 use super::file;
 use super::event;
@@ -12,24 +13,6 @@ use super::rule;
 
 #[salsa::query_group(DefDatabase)]
 pub trait DefQuery: DeclQuery {
-
-    // Ast
-
-    /// Queries a map containing declaration ids and definitions.
-    /// If you want to get the definition by declaration id use [AstDefQuery::query_ast_event_def]
-    /// instead
-    #[salsa::invoke(file::query_ast_def_map)]
-    fn query_ast_def_map(&self) -> HashMap<DefKey, ast::Definition>;
-
-    #[salsa::invoke(file::query_ast_event_def_map)]
-    fn query_ast_event_def_map(&self) -> HashMap<DefKey, ast::EventDefinition>;
-
-    /// Queries an event definition my even declaration id
-    #[salsa::invoke(file::query_ast_event_def)]
-    fn query_ast_event_def(
-        &self,
-        event_decl_id: EventDeclarationId
-    ) -> QueryResult<ast::EventDefinition, AnalysisError>;
 
     // Im
 
@@ -51,6 +34,9 @@ pub trait DefQuery: DeclQuery {
 
     #[salsa::invoke(rule::query_rule_decl)]
     fn query_rule_decl(&self, rule: ast::Rule) -> QueryResult<im::Rule, AnalysisError>;
+
+    #[salsa::invoke(rule::query_rule_cond)]
+    fn query_rule_cond(&self, event_decl_id: EventDeclarationId, conditions: Vec<Condition>) -> QueryResult<Vec<im::AValue>, AnalysisError>;
 
     // Struct
 

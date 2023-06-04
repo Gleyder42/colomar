@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use crate::language::{ast, Ident, im};
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::AnalysisError;
+use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::im::StructDeclarationId;
 
 // Maybe add a projection query which excludes rule
 pub(in super) fn query_type_map(db: &dyn DeclQuery) -> HashMap<Ident, im::Type> {
