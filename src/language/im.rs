@@ -181,6 +181,11 @@ pub enum Type {
     Unit
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Predicate {
+    pub return_value: AValue
+}
+
 impl Into<Nameholder> for Type {
 
     fn into(self) -> Nameholder {
@@ -302,6 +307,7 @@ pub struct Rule {
     pub title: ImmutableString,
     pub event: EventDeclarationId,
     pub arguments: Vec<CalledArgument>,
+    pub conditions: Vec<Predicate>
 }
 
 /// Represents a value which is known at runtime time or compile time and it refers
@@ -309,6 +315,8 @@ pub struct Rule {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RValue {
     Type(Type),
+    Function(FunctionDecl),
+    Property(PropertyDecl),
     EnumConstant(EnumConstantId),
 }
 
@@ -317,7 +325,9 @@ impl Into<Nameholder> for RValue {
     fn into(self) -> Nameholder {
         match self {
             RValue::Type(r#type) => r#type.into(),
-            RValue::EnumConstant(enum_constant_id) => EnumNameholder::ByConstant(enum_constant_id).into()
+            RValue::EnumConstant(enum_constant_id) => EnumNameholder::ByConstant(enum_constant_id).into(),
+            RValue::Property(property_decl) => property_decl.r#type.into(),
+            RValue::Function(function_decl) => function_decl.return_type.into()
         }
     }
 }
@@ -332,10 +342,13 @@ impl RValue {
                 let enum_constant: EnumConstant = db.lookup_intern_enum_constant(*enum_constant_id);
                 Type::Enum(enum_constant.r#enum)
             }
+            RValue::Property(property_decl) => property_decl.r#type.clone(),
+            RValue::Function(function_decl) => function_decl.return_type.clone()
         }
     }
 
     pub fn name<I: Interner + ?Sized>(&self, db: &I) -> Ident {
+        // TODO Maybe not clone here?
         match self.clone() {
             RValue::Type(r#type) => {
                 match r#type {
@@ -345,7 +358,9 @@ impl RValue {
                     Type::Unit => panic!("Unit type has no name")
                 }
             }
-            RValue::EnumConstant(enum_constant) => db.lookup_intern_enum_constant(enum_constant).name
+            RValue::EnumConstant(enum_constant) => db.lookup_intern_enum_constant(enum_constant).name,
+            RValue::Property(property_decl) => property_decl.name,
+            RValue::Function(function_decl) => function_decl.name
         }
     }
 }

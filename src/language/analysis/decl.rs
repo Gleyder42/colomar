@@ -2,10 +2,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::{ast, Ident, im};
+use crate::language::analysis::file::DefKey;
 use crate::language::analysis::interner::Interner;
 use crate::language::analysis::namespace::{Nameholder, Namespace, NamespaceId};
-use crate::language::ast::PropertyDeclaration;
-use crate::language::im::{EnumDeclarationId, EventDeclarationId, PropertyDecl, RValue, StructDeclarationId};
+use crate::language::ast::{Action, PropertyDeclaration};
+use crate::language::im::{EnumDeclarationId, EventDeclarationId, FunctionDeclId, PropertyDecl, PropertyDeclId, RValue, StructDeclarationId};
 
 use super::arg;
 use super::call;
@@ -16,6 +17,7 @@ use super::property;
 use super::r#struct;
 use super::r#type;
 use super::function;
+use super::file;
 
 #[salsa::query_group(DeclDatabase)]
 pub trait DeclQuery: Interner {
@@ -24,6 +26,33 @@ pub trait DeclQuery: Interner {
 
     #[salsa::input]
     fn input_content(&self) -> ast::Ast;
+
+    // Ast
+
+    /// Queries a map containing declaration ids and definitions.
+    /// If you want to get the definition by declaration id use [AstDefQuery::query_ast_event_def]
+    /// instead
+    #[salsa::invoke(file::query_ast_def_map)]
+    fn query_ast_def_map(&self) -> HashMap<DefKey, ast::Definition>;
+
+    #[salsa::invoke(file::query_ast_event_def_map)]
+    fn query_ast_event_def_map(&self) -> HashMap<DefKey, ast::EventDefinition>;
+
+    #[salsa::invoke(file::query_ast_struct_def_map)]
+    fn query_ast_struct_def_map(&self) -> HashMap<DefKey, ast::StructDefinition>;
+
+    /// Queries an event definition my even declaration id
+    #[salsa::invoke(file::query_ast_event_def)]
+    fn query_ast_event_def(
+        &self,
+        event_decl_id: EventDeclarationId
+    ) -> QueryResult<ast::EventDefinition, AnalysisError>;
+
+    #[salsa::invoke(file::query_ast_struct_def)]
+    fn query_ast_struct_def(
+        &self,
+        struct_decl_id: StructDeclarationId
+    ) -> QueryResult<ast::StructDefinition, AnalysisError>;
 
     // Arg
 
@@ -81,6 +110,12 @@ pub trait DeclQuery: Interner {
 
     // Event
 
+    #[salsa::invoke(event::query_event_properties)]
+    fn query_event_properties(
+        self,
+        actions: Vec<Action>
+    ) -> QueryResult<Vec<PropertyDecl>, AnalysisError>;
+
     #[salsa::invoke(event::query_event_decl)]
     fn query_event_decl(
         &self, event_decl:
@@ -93,7 +128,17 @@ pub trait DeclQuery: Interner {
         function: ast::FunctionDeclaration
     ) -> QueryResult<im::FunctionDecl, AnalysisError>;
 
+    #[salsa::invoke(event::query_event_context_variables)]
+    fn query_event_context_variables(
+        &self,
+        event_decl: EventDeclarationId
+    ) -> QueryResult<Vec<PropertyDecl>, AnalysisError>;
+
+
     // Namespace
+
+    #[salsa::invoke(namespace::query_bool_type)]
+    fn query_bool_type(&self) -> QueryResult<StructDeclarationId, AnalysisError>;
 
     #[salsa::invoke(namespace::query_root_namespace)]
     fn query_root_namespace(
@@ -110,13 +155,13 @@ pub trait DeclQuery: Interner {
     fn query_event_namespace(
         &self,
         event_decl: EventDeclarationId
-    ) -> Result<NamespaceId, AnalysisError>;
+    ) -> QueryResult<NamespaceId, AnalysisError>;
 
     #[salsa::invoke(namespace::query_struct_namespace)]
     fn query_struct_namespace(
         &self,
         struct_decl: StructDeclarationId
-    ) -> Result<NamespaceId, AnalysisError>;
+    ) -> QueryResult<NamespaceId, AnalysisError>;
 
     #[salsa::invoke(namespace::query_namespaced_rvalue)]
     fn query_namespaced_rvalue(
@@ -150,10 +195,22 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(property::query_property)]
     fn query_property(
         &self,
-        property_decl: PropertyDeclaration
+        property_decl: ast::PropertyDeclaration
     ) -> QueryResult<PropertyDecl, AnalysisError>;
 
     // Struct
+
+    #[salsa::invoke(r#struct::query_struct_functions)]
+    fn query_struct_functions(
+        &self,
+        functions: Vec<ast::FunctionDeclaration>
+    ) -> QueryResult<Vec<FunctionDeclId>, AnalysisError>;
+
+    #[salsa::invoke(r#struct::query_struct_properties)]
+    fn query_struct_properties(
+        &self,
+        properties: Vec<ast::PropertyDeclaration>
+    ) -> QueryResult<Vec<PropertyDeclId>, AnalysisError>;
 
     #[salsa::invoke(r#struct::query_struct_decl)]
     fn query_struct_decl(
