@@ -1,7 +1,9 @@
 use crate::language::{ast, im};
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::{Nameholder};
+use crate::language::im::{CValue, RValue};
 
 pub(in super) fn query_call_chain(
     db: &dyn DeclQuery,
@@ -33,8 +35,25 @@ pub(in super) fn query_call_chain(
                                 im::AValue::RValue(rvalue, ident.span)
                             ))
                     }
-                    ast::Call::IdentArguments { .. } => { todo!() }
-                    ast::Call::String(_, _) => { todo!() }
+                    ast::Call::IdentArguments { name, span, args } => {
+                        db.query_namespaced_function(nameholders, name)
+                            .and_or_default(
+                                args.into_iter()
+                                    .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain))
+                                    .collect::<QueryResult<_, _>>()
+                            )
+                            .map(|(function_decl, function_args)| (
+                                vec![function_decl.return_type.clone().into()],
+                                im::AValue::FunctionCall(function_decl.intern(db), function_args)
+                            ))
+                    }
+                    ast::Call::String(ident, span) => {
+                        db.query_string_type()
+                            .map(|string_struct_decl| (
+                                vec![Nameholder::Empty],
+                                im::AValue::CValue(CValue::String(ident, string_struct_decl, span))
+                            ))
+                    }
                     ast::Call::Number(_, _) => { todo!() }
                 }.map(|(acc, avalue)| (acc, Some(avalue)))
             })

@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
-use crate::language::{ast, Ident, im};
+use crate::language::{ast, Ident, im, ImmutableString};
 use crate::language::analysis::file::DefKey;
 use crate::language::analysis::interner::Interner;
 use crate::language::analysis::namespace::{Nameholder, Namespace, NamespaceId};
 use crate::language::ast::{Action, PropertyDeclaration};
-use crate::language::im::{EnumDeclarationId, EventDeclarationId, FunctionDeclId, PropertyDecl, PropertyDeclId, RValue, StructDeclarationId};
+use crate::language::im::{EnumDeclarationId, EventDeclarationId, FunctionDecl, FunctionDeclId, PropertyDecl, PropertyDeclId, RValue, StructDeclarationId, Type};
 
 use super::arg;
 use super::call;
@@ -137,8 +137,14 @@ pub trait DeclQuery: Interner {
 
     // Namespace
 
+    #[salsa::invoke(namespace::query_primitives)]
+    fn query_primitives(&self) -> QueryResult<HashMap<ImmutableString, Type>, AnalysisError>;
+
     #[salsa::invoke(namespace::query_bool_type)]
     fn query_bool_type(&self) -> QueryResult<StructDeclarationId, AnalysisError>;
+
+    #[salsa::invoke(namespace::query_string_type)]
+    fn query_string_type(&self) -> QueryResult<StructDeclarationId, AnalysisError>;
 
     #[salsa::invoke(namespace::query_root_namespace)]
     fn query_root_namespace(
@@ -182,6 +188,13 @@ pub trait DeclQuery: Interner {
         nameholders: Vec<Nameholder>,
         ident: Ident,
     ) -> QueryResult<im::Type, AnalysisError>;
+
+    #[salsa::invoke(namespace::query_namespaced_function)]
+    fn query_namespaced_function(
+        &self,
+        nameholders: Vec<Nameholder>,
+        ident: Ident
+    ) -> QueryResult<FunctionDecl, AnalysisError>;
 
     #[salsa::invoke(namespace::query_namespaced_event)]
     fn query_namespaced_event(

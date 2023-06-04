@@ -307,7 +307,8 @@ pub struct Rule {
     pub title: ImmutableString,
     pub event: EventDeclarationId,
     pub arguments: Vec<CalledArgument>,
-    pub conditions: Vec<Predicate>
+    pub conditions: Vec<Predicate>,
+    pub actions: Vec<AValue>
 }
 
 /// Represents a value which is known at runtime time or compile time and it refers
@@ -368,16 +369,23 @@ impl RValue {
 /// Represents a value which is known at runtime time or compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
+    // TODO Should this be FunctionDeclId or FunctionDecl?
+    FunctionCall(FunctionDeclId, Vec<AValue>),
     RValue(RValue, Span),
     CValue(CValue)
 }
 
 impl AValue {
 
+    // TODO Rename this to return_type
     pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> Type {
         match self {
             AValue::RValue(rvalue, _) => rvalue.r#type(db),
-            AValue::CValue(cvalue) => cvalue.r#type()
+            AValue::CValue(cvalue) => cvalue.r#type(),
+            AValue::FunctionCall(function_decl_id, _) => {
+                let function_decl: FunctionDecl = db.lookup_intern_function_decl(*function_decl_id);
+                function_decl.return_type
+            }
         }
     }
 }

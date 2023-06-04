@@ -4,11 +4,32 @@ use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
-use crate::language::ast::Condition;
-use crate::language::im::{CalledArgument, DeclaredArgument, EventDeclarationId, Predicate, Type};
+use crate::language::ast::{Action, Condition};
+use crate::language::im::{CalledArgument, DeclaredArgument, EventDeclarationId, Predicate, RValue, Type};
 use crate::query_error;
 
-pub fn query_rule_cond(
+pub(in super) fn query_rule_actions(
+    db: &dyn DefQuery,
+    event_decl_id: EventDeclarationId,
+    actions: Vec<Action>
+) -> QueryResult<Vec<im::AValue>, AnalysisError> {
+    actions.into_iter()
+        .map(|action| match action {
+            Action::CallChain(call_chain) => {
+                db.query_call_chain(vec![Nameholder::Root, Nameholder::Event(event_decl_id)], call_chain)
+            },
+            Action::Property(ast_property) => {
+                db.query_property(ast_property)
+                    .map(|it| {
+                        let span = it.name.span.clone();
+                        im::AValue::RValue(RValue::Property(it), span)
+                    })
+            }
+        })
+        .collect()
+}
+
+pub(in super) fn query_rule_cond(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
     conditions: Vec<Condition>,
@@ -30,7 +51,6 @@ pub fn query_rule_cond(
 }
 
 pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryResult<im::Rule, AnalysisError> {
-
     let arguments = |event_decl_id: EventDeclarationId| {
         rule.arguments.into_iter()
             .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain))
@@ -61,14 +81,18 @@ pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryRes
 
     db.query_namespaced_event(vec![Nameholder::Root], rule.event)
         .map_and_require(arguments)
-        .map_and_require(|(event_decl_id, arguments)| {
+        .map_and_require(|(event_decl_id, _)| {
             db.query_rule_cond(event_decl_id, rule.conditions)
                 .map_inner(|avalue| Predicate { return_value: avalue})
         })
-        .map(|((event_decl_id, arguments), conditions)| im::Rule {
+        .map_and_require(|((event_decl_id, _), _)| {
+            db.query_rule_actions(event_decl_id, rule.actions)
+        })
+        .map(|(((event_decl_id, arguments), conditions), actions)| im::Rule {
             title: rule.name.value,
             event: event_decl_id,
             arguments,
-            conditions
+            conditions,
+            actions
         })
 }

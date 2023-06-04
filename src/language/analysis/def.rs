@@ -38,6 +38,13 @@ pub trait DefQuery: DeclQuery {
     #[salsa::invoke(rule::query_rule_cond)]
     fn query_rule_cond(&self, event_decl_id: EventDeclarationId, conditions: Vec<Condition>) -> QueryResult<Vec<im::AValue>, AnalysisError>;
 
+    #[salsa::invoke(rule::query_rule_actions)]
+    fn query_rule_actions(
+        &self,
+        event_decl_id: EventDeclarationId,
+        actions: Vec<Action>
+    ) -> QueryResult<Vec<im::AValue>, AnalysisError>;
+
     // Struct
 
     #[salsa::invoke(r#struct::query_struct)]

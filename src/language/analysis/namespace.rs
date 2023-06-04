@@ -10,7 +10,7 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::ast::EventDeclaration;
-use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId, FunctionDecl, PropertyDecl, RValue, StructDeclaration, StructDeclarationId, Type};
+use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId, FunctionDecl, FunctionDeclId, PropertyDecl, RValue, StructDeclaration, StructDeclarationId, Type};
 
 pub(in super) fn query_root_namespace(db: &dyn DeclQuery) -> Result<NamespaceId, AnalysisError> {
     let mut namespace = Namespace::new();
@@ -40,31 +40,51 @@ pub(in super) fn query_event_namespace(db: &dyn DeclQuery, event_decl: EventDecl
         })
 }
 
-pub const BOOL_NAME: Lazy<ImmutableString> = Lazy::new(|| ImmutableString::new("bool".to_owned()));
+const BOOL_NAME: Lazy<ImmutableString> = Lazy::new(|| ImmutableString::new("bool".to_owned()));
+const STRING_NAME: Lazy<ImmutableString> = Lazy::new(|| ImmutableString::new("string".to_owned()));
+
+pub(in super) fn query_primitives(
+    db: &dyn DeclQuery
+) -> QueryResult<HashMap<ImmutableString, Type>, AnalysisError> {
+    db.query_namespace(vec![Nameholder::Root])
+        .map(|namespace| {
+            let mut map = HashMap::new();
+            let mut add = |name: ImmutableString| {
+                if let Some(RValue::Type(r#type)) = namespace.get(&BOOL_NAME) {
+                    map.insert(name.clone(), r#type);
+                }
+            };
+
+            add((*BOOL_NAME).clone());
+            add((*STRING_NAME).clone());
+
+            map
+        })
+}
+
+fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {
+    match r#type {
+        Type::Struct(struct_decl_id) => struct_decl_id.clone(),
+        Type::Enum(_) => panic!("Cannot get struct decl id of type Enum"),
+        Type::Event(_) => panic!("Cannot get struct decl id of type Event"),
+        Type::Unit => panic!("Cannot get struct decl id of type Unit")
+    }
+}
+
+pub(in super) fn query_string_type(db: &dyn DeclQuery) -> QueryResult<StructDeclarationId, AnalysisError> {
+    db.query_primitives().flat_map(|map| {
+        map.get(&*STRING_NAME)
+            .map(struct_decl_id_or_panic)
+            .ok_or_else(|| AnalysisError::WrongType).into()
+    })
+}
 
 pub(in super) fn query_bool_type(db: &dyn DeclQuery) -> QueryResult<StructDeclarationId, AnalysisError> {
-    db.query_namespace(vec![Nameholder::Root])
-        .flat_map(|namespace| {
-            let result = namespace.get(&(*BOOL_NAME)).ok_or_else(|| AnalysisError::CannotFindPrimitive);
-            let result: QueryResult<_, _> = result.into();
-            result
-        })
-        .flat_map(|r#type| match r#type {
-            RValue::Type(Type::Struct(struct_decl_id)) => {
-                let struct_decl: StructDeclaration = db.lookup_intern_struct_decl(struct_decl_id);
-                if struct_decl.name.value == *BOOL_NAME {
-                    QueryResult::Ok(struct_decl_id)
-                } else {
-                    // TODO Add error there is no bool struct
-                    query_error!(AnalysisError::NotABool)
-                }
-            }
-            // TODO Dont use _ here
-            _ => {
-                // TODO Add type info
-                query_error!(AnalysisError::NotABool)
-            }
-        })
+    db.query_primitives().flat_map(|map| {
+        map.get(&*BOOL_NAME)
+            .map(struct_decl_id_or_panic)
+            .ok_or_else(|| AnalysisError::WrongType).into()
+    })
 }
 
 pub(in super) fn query_struct_namespace(db: &dyn DeclQuery, struct_decl_id: StructDeclarationId) -> QueryResult<NamespaceId, AnalysisError> {
@@ -84,7 +104,7 @@ pub(in super) fn query_struct_namespace(db: &dyn DeclQuery, struct_decl_id: Stru
                         let function: FunctionDecl = db.lookup_intern_function_decl(function_id);
                         let result = namespace.add(function.name.clone(), RValue::Function(function), db);
                         result.map(|_| namespace).into()
-                    }
+                    },
                 ).map(Rc::new)
                 .intern(db)
         })
@@ -140,6 +160,20 @@ pub(in super) fn query_namespaced_type(
             RValue::EnumConstant(_) => AnalysisError::WrongType.into(),
             RValue::Property(_) => AnalysisError::WrongType.into(),
             RValue::Function(_) => AnalysisError::WrongType.into() // TODO is this correct?
+        })
+}
+
+pub(in super) fn query_namespaced_function(
+    db: &dyn DeclQuery,
+    nameholders: Vec<Nameholder>,
+    ident: Ident,
+) -> QueryResult<FunctionDecl, AnalysisError> {
+    db.query_namespaced_rvalue(nameholders, ident)
+        .flat_map(|rvalue| match rvalue {
+            RValue::Function(function) => QueryResult::Ok(function),
+            RValue::Type(_) | RValue::Property(_) | RValue::EnumConstant(_) => {
+                query_error!(AnalysisError::WrongType)
+            }
         })
 }
 
