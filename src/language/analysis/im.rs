@@ -1,8 +1,8 @@
 use crate::language::{ast, im};
+use crate::language::analysis::QueryTrisult;
 use crate::language::analysis::def::DefQuery;
-use crate::language::analysis::error::{AnalysisError, QueryResult};
 
-pub(in super) fn query_im(db: &dyn DefQuery) -> QueryResult<im::Im, AnalysisError> {
+pub(in super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<im::Im> {
     db.input_content().into_iter()
         .map(|root| {
             match root {
@@ -12,6 +12,6 @@ pub(in super) fn query_im(db: &dyn DefQuery) -> QueryResult<im::Im, AnalysisErro
                 ast::Root::Struct(r#struct) => db.query_struct(r#struct).map(im::Root::Struct),
             }
         })
-        .collect::<QueryResult<Vec<_>, _>>()
+        .collect::<QueryTrisult<_>>()
         .map(im::Im)
 }

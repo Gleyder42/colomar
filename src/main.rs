@@ -11,7 +11,7 @@ use std::path::Path;
 use chumsky::prelude::*;
 use chumsky::Stream;
 use crate::language::analysis::AnalysisDatabase;
-use crate::language::analysis::error::QueryResult;
+use language::error::Trisult;
 use crate::language::analysis::interner::Interner;
 use crate::language::im;
 use crate::language::im::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
@@ -53,7 +53,7 @@ fn main() {
         let mut database = AnalysisDatabase::default();
         database.set_input_content(ast);
 
-        let im: QueryResult<im::Im, _> = database.query_im();
+        let im: Trisult<im::Im, _> = database.query_im();
 
         let output = im.to_option();
 

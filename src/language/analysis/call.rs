@@ -1,18 +1,18 @@
 use crate::language::{ast, im};
+use crate::language::analysis::{QueryTrisult};
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, QueryResult};
 use crate::language::analysis::interner::IntoInternId;
-use crate::language::analysis::namespace::{Nameholder};
-use crate::language::im::{CValue};
+use crate::language::analysis::namespace::Nameholder;
+use crate::language::im::CValue;
 
 pub(in super) fn query_call_chain(
     db: &dyn DeclQuery,
     nameholders: Vec<Nameholder>,
     call_chain: ast::CallChain,
-) -> QueryResult<im::AValue, AnalysisError> {
+) -> QueryTrisult<im::AValue> {
     assert!(!call_chain.value.is_empty(), "A call chain cannot be empty, but was");
 
-    QueryResult::<ast::CallChain, AnalysisError>::from(call_chain)
+    QueryTrisult::<ast::CallChain>::from(call_chain)
         .fold_flat_map::<im::AValue, _, _, _>(
             (nameholders, None),
             // func refers to the closure processing the call.
@@ -40,7 +40,7 @@ pub(in super) fn query_call_chain(
                             .and_or_default(
                                 args.into_iter()
                                     .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain))
-                                    .collect::<QueryResult<_, _>>()
+                                    .collect::<QueryTrisult<_>>()
                             )
                             .map(|(function_decl, function_args)| (
                                 vec![function_decl.return_type.clone().into()],
