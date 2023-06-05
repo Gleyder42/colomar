@@ -21,6 +21,8 @@ pub mod function;
 pub mod decl;
 pub mod def;
 
+type QueryTrisult<T> = Trisult<T, AnalysisError>;
+
 #[salsa::database(DeclDatabase, DefDatabase, InternerDatabase)]
 #[derive(Default)]
 pub struct AnalysisDatabase {

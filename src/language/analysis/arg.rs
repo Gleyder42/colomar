@@ -1,17 +1,22 @@
 use crate::language::{ast, im};
-use crate::language::analysis::AnalysisError;
+use crate::language::analysis::{QueryTrisult};
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::error::Trisult;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::im::{CalledType, CalledTypes};
 
-pub (in super) fn query_declared_args(db: &dyn DeclQuery, decl_args: Vec<ast::DeclaredArgument>) -> Trisult<Vec<im::DeclaredArgumentId>, AnalysisError> {
+pub (in super) fn query_declared_args(
+    db: &dyn DeclQuery,
+    decl_args: Vec<ast::DeclaredArgument>
+) -> QueryTrisult<Vec<im::DeclaredArgumentId>> {
     decl_args.into_iter()
         .map(|decl_arg| db.query_declared_arg(decl_arg))
-        .collect::<Trisult<Vec<_>, _>>()
+        .collect::<QueryTrisult<Vec<_>>>()
 }
 
-pub (in super) fn query_declared_arg(db: &dyn DeclQuery, decl_arg: ast::DeclaredArgument) -> Trisult<im::DeclaredArgumentId, AnalysisError> {
+pub (in super) fn query_declared_arg(
+    db: &dyn DeclQuery,
+    decl_arg: ast::DeclaredArgument
+) -> QueryTrisult<im::DeclaredArgumentId> {
     let default_value_option = decl_arg.default_value
         .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain));
 
@@ -22,7 +27,7 @@ pub (in super) fn query_declared_arg(db: &dyn DeclQuery, decl_arg: ast::Declared
                 ident.clone(),
             ).map(|r#type| CalledType { r#type, span: ident.span.clone() })
         )
-        .collect::<Trisult<Vec<CalledType>, AnalysisError>>()
+        .collect::<QueryTrisult<Vec<CalledType>>>()
         .and_maybe(default_value_option)
         .map(|(types, default_value)| {
             im::DeclaredArgument {

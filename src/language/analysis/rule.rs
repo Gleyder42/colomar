@@ -1,5 +1,5 @@
 use crate::language::{ast, im};
-use crate::language::analysis::AnalysisError;
+use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::analysis::def::DefQuery;
 use crate::language::error::Trisult;
 use crate::language::analysis::interner::IntoInternId;
@@ -12,7 +12,7 @@ pub(in super) fn query_rule_actions(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
     actions: Vec<Action>
-) -> Trisult<Vec<im::AValue>, AnalysisError> {
+) -> QueryTrisult<Vec<im::AValue>> {
     actions.into_iter()
         .map(|action| match action {
             Action::CallChain(call_chain) => {
@@ -33,10 +33,10 @@ pub(in super) fn query_rule_cond(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
     conditions: Vec<Condition>,
-) -> Trisult<Vec<im::AValue>, AnalysisError> {
+) -> QueryTrisult<Vec<im::AValue>> {
     conditions.into_iter()
         .map(|condition| db.query_call_chain(vec![Nameholder::Root, Nameholder::Event(event_decl_id)], condition))
-        .collect::<Trisult<Vec<_>, _>>()
+        .collect::<QueryTrisult<_>>()
         .and_require(db.query_bool_type().map(|decl_id| Type::Struct(decl_id)))
         .flat_map(|(avalues, bool_id)| {
             avalues.into_iter()
@@ -50,11 +50,11 @@ pub(in super) fn query_rule_cond(
         })
 }
 
-pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> Trisult<im::Rule, AnalysisError> {
+pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryTrisult<im::Rule> {
     let arguments = |event_decl_id: EventDeclarationId| {
         rule.arguments.into_iter()
             .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain))
-            .collect::<Trisult<_, _>>()
+            .collect::<QueryTrisult<_>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
             .flat_map(|(arguments, event_def)| {
                 event_def.arguments.into_iter()
@@ -75,7 +75,7 @@ pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> Trisult<
                             Trisult::Par(called_argument, vec![error])
                         }
                     })
-                    .collect::<Trisult<_, _>>()
+                    .collect::<QueryTrisult<_>>()
             })
     };
 
