@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::language::analysis::error::{AnalysisError, Trisult};
+use crate::language::error::Trisult;
 use crate::language::{ast, Ident, im, ImmutableString};
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::file::DefKey;
 use crate::language::analysis::interner::Interner;
 use crate::language::analysis::namespace::{Nameholder, Namespace, NamespaceId};
-use crate::language::ast::{Action};
+use crate::language::ast::Action;
 use crate::language::im::{EnumDeclarationId, EventDeclarationId, FunctionDecl, FunctionDeclId, PropertyDecl, PropertyDeclId, RValue, StructDeclarationId, Type};
 
 use super::arg;

@@ -1,6 +1,7 @@
 use crate::language::{ast, im};
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::def::DefQuery;
-use crate::language::analysis::error::{AnalysisError, Trisult};
+use crate::language::error::Trisult;
 
 pub(in super) fn query_im(db: &dyn DefQuery) -> Trisult<im::Im, AnalysisError> {
     db.input_content().into_iter()

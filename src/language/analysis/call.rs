@@ -1,9 +1,10 @@
 use crate::language::{ast, im};
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, Trisult};
+use crate::language::error::Trisult;
 use crate::language::analysis::interner::IntoInternId;
-use crate::language::analysis::namespace::{Nameholder};
-use crate::language::im::{CValue};
+use crate::language::analysis::namespace::Nameholder;
+use crate::language::im::CValue;
 
 pub(in super) fn query_call_chain(
     db: &dyn DeclQuery,

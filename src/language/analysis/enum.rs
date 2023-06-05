@@ -1,9 +1,10 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::rc::Rc;
 use crate::language::{ast, Ident, im};
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, Trisult};
-use crate::language::analysis::interner::{IntoInternId};
+use crate::language::error::Trisult;
+use crate::language::analysis::interner::IntoInternId;
 use crate::language::im::{EnumConstant, EnumDeclarationId};
 
 pub(in super) fn query_enum_ast(db: &dyn DeclQuery, enum_decl_id: EnumDeclarationId) -> Result<ast::Enum, AnalysisError> {

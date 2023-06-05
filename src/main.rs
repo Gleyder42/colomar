@@ -11,7 +11,7 @@ use std::path::Path;
 use chumsky::prelude::*;
 use chumsky::Stream;
 use crate::language::analysis::AnalysisDatabase;
-use crate::language::analysis::error::Trisult;
+use language::error::Trisult;
 use crate::language::analysis::interner::Interner;
 use crate::language::im;
 use crate::language::im::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};

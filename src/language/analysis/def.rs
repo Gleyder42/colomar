@@ -1,8 +1,9 @@
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::{ast, im};
-use crate::language::analysis::error::{AnalysisError, Trisult};
+use crate::language::analysis::AnalysisError;
+use crate::language::error::Trisult;
 use crate::language::ast::{Action, Condition};
-use crate::language::im::{EventDeclarationId};
+use crate::language::im::EventDeclarationId;
 
 use super::event;
 use super::r#struct;

@@ -6,8 +6,9 @@ use once_cell::unsync::Lazy;
 use salsa::InternId;
 use crate::{impl_intern_key, query_error};
 use crate::language::{Ident, im, ImmutableString};
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, Trisult};
+use crate::language::error::Trisult;
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId, FunctionDecl, PropertyDecl, RValue, StructDeclarationId, Type};
 

@@ -1,6 +1,7 @@
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, Trisult};
-use crate::language::analysis::namespace::{Nameholder};
+use crate::language::error::Trisult;
+use crate::language::analysis::namespace::Nameholder;
 use crate::language::ast;
 use crate::language::im::PropertyDecl;
 

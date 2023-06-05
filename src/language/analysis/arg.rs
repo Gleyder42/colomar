@@ -1,7 +1,8 @@
 use crate::language::{ast, im};
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, Trisult};
-use crate::language::analysis::namespace::{Nameholder};
+use crate::language::error::Trisult;
+use crate::language::analysis::namespace::Nameholder;
 use crate::language::im::{CalledType, CalledTypes};
 
 pub (in super) fn query_declared_args(db: &dyn DeclQuery, decl_args: Vec<ast::DeclaredArgument>) -> Trisult<Vec<im::DeclaredArgumentId>, AnalysisError> {

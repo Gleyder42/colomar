@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use crate::language::{ast, Ident};
+use crate::language::{ast};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::Namespace;
 
@@ -308,29 +308,4 @@ macro_rules! query_error {
     ($($x:expr),+ $(,)?) => {
         Trisult::Err(vec![$($x),+])
     };
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum AnalysisError {
-    DuplicateIdent {
-        first: Ident,
-        second: Ident,
-    },
-    CannotFindDefinition(salsa::InternId),
-    CannotFindIdent(Ident),
-    WrongType,
-    NotABool,
-    CannotFindPrimitive,
-}
-
-impl<T> Into<Result<T, AnalysisError>> for AnalysisError {
-    fn into(self) -> Result<T, AnalysisError> {
-        Err(self)
-    }
-}
-
-impl<T> Into<Trisult<T, AnalysisError>> for AnalysisError {
-    fn into(self) -> Trisult<T, AnalysisError> {
-        query_error!(self)
-    }
 }

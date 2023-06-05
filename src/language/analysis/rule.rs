@@ -1,6 +1,7 @@
 use crate::language::{ast, im};
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::def::DefQuery;
-use crate::language::analysis::error::{AnalysisError, Trisult};
+use crate::language::error::Trisult;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::ast::{Action, Condition};

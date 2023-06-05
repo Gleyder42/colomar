@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use salsa::InternKey;
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, Trisult};
+use crate::language::error::Trisult;
 use crate::language::ast::{Definition, EventDefinition, Root, StructDefinition};
 use crate::language::im::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
 

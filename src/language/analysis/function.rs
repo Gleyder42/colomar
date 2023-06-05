@@ -1,5 +1,6 @@
-use crate::language::analysis::error::{AnalysisError, Trisult};
+use crate::language::error::Trisult;
 use crate::language::{ast, im};
+use crate::language::analysis::AnalysisError;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::im::Type;
 
