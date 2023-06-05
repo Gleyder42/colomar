@@ -55,14 +55,14 @@ pub enum AnalysisError {
     CannotFindPrimitive,
 }
 
-impl<T> Into<Result<T, AnalysisError>> for AnalysisError {
-    fn into(self) -> Result<T, AnalysisError> {
-        Err(self)
+impl<T> From<AnalysisError> for Result<T, AnalysisError> {
+    fn from(value: AnalysisError) -> Self {
+        Err(value)
     }
 }
 
-impl<T> Into<Trisult<T, AnalysisError>> for AnalysisError {
-    fn into(self) -> Trisult<T, AnalysisError> {
-        query_error!(self)
+impl<T> From<AnalysisError> for Trisult<T, AnalysisError> {
+    fn from(value: AnalysisError) -> Self {
+        query_error!(value)
     }
 }

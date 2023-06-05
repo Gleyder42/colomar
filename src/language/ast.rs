@@ -1,6 +1,5 @@
 use crate::language::{Ident, ImmutableString, Spanned};
 use crate::Span;
-use derivative::Derivative;
 
 pub type Condition = CallChain;
 
@@ -58,8 +57,7 @@ pub enum Action {
     Property(PropertyDeclaration),
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Types {
     pub values: Vec<Ident>,
     pub span: Span,
@@ -84,16 +82,14 @@ impl From<Vec<Ident>> for Types {
     }
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EventDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EventDefinition {
     pub by: Option<(Ident, CallArguments)>,
     pub arguments: Spanned<Vec<DeclaredArgument>>,
@@ -113,16 +109,14 @@ impl TryFrom<Definition> for EventDefinition {
     }
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Event {
     pub declaration: EventDeclaration,
     pub definition: EventDefinition,
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum UseRestriction {
     GetVal,
     SetVar,
@@ -130,8 +124,7 @@ pub enum UseRestriction {
     Var,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct PropertyDeclaration {
     pub is_workshop: SpannedBool,
     pub use_restriction: Spanned<UseRestriction>,
@@ -139,16 +132,14 @@ pub struct PropertyDeclaration {
     pub r#type: Ident,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct FunctionDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
     pub arguments: Spanned<Vec<DeclaredArgument>>,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct StructDeclaration {
     pub is_open: SpannedBool,
     pub is_workshop: SpannedBool,
@@ -156,8 +147,7 @@ pub struct StructDeclaration {
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct StructDefinition {
     pub properties: Vec<PropertyDeclaration>,
     pub functions: Vec<FunctionDeclaration>,
@@ -175,24 +165,21 @@ impl TryFrom<Definition> for StructDefinition {
     }
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Struct {
     pub declaration: StructDeclaration,
     pub definition: StructDefinition,
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EnumDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EnumDefinition {
     pub constants: Vec<Ident>,
 }
@@ -209,16 +196,14 @@ impl TryFrom<Definition> for EnumDefinition {
     }
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Enum {
     pub declaration: EnumDeclaration,
     pub definition: EnumDefinition,
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct DeclaredArgument {
     pub name: Ident,
     pub types: Types,
@@ -226,8 +211,7 @@ pub struct DeclaredArgument {
     pub span: Span,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Rule {
     pub name: Spanned<ImmutableString>,
     pub event: Ident,
@@ -236,8 +220,7 @@ pub struct Rule {
     pub actions: Vec<Action>,
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Block {
     pub actions: Vec<Action>,
     pub conditions: Vec<Condition>,

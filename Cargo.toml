@@ -12,6 +12,7 @@ ariadne = "0.2.0" # Error reporting
 derivative = "2.2.0"
 petgraph = "0.6.3" # Remove that
 salsa = "0.17.0-pre.2" # Analysis and compiler
+lazy_static = "1.4.0"
 # anyhow = "1.0.47"
 # peekmore = "1.0.0"
 # strum = "0.13.0"

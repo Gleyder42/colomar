@@ -66,7 +66,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .map(Rc::new)
         .map(Token::String);
 
-    let ctrl = one_of("(){},.:|=").map(|c| Token::Ctrl(c));
+    let ctrl = one_of("(){},.:|=").map(Token::Ctrl);
 
     let ident = text::ident().map(|ident: String| match ident.as_str() {
         "rule" => Token::Rule,

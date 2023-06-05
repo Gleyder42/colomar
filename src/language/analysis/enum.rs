@@ -13,7 +13,7 @@ pub(super) fn query_enum_ast(
 ) -> Result<ast::Enum, AnalysisError> {
     db.query_enum_ast_map()
         .get(&enum_decl_id)
-        .map(|it| it.clone())
+        .cloned()
         .ok_or_else(|| {
             let enum_decl: im::EnumDeclaration = db.lookup_intern_enum_decl(enum_decl_id);
             AnalysisError::CannotFindIdent(enum_decl.name)

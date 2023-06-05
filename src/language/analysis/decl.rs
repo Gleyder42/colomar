@@ -119,6 +119,12 @@ pub trait DeclQuery: Interner {
 
     // Namespace
 
+    #[salsa::invoke(namespace::query_bool_name)]
+    fn query_bool_name(&self) -> ImmutableString;
+
+    #[salsa::invoke(namespace::query_string_name)]
+    fn query_string_name(&self) -> ImmutableString;
+
     #[salsa::invoke(namespace::query_primitives)]
     fn query_primitives(&self) -> QueryTrisult<HashMap<ImmutableString, im::Type>>;
 

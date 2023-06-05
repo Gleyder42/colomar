@@ -185,7 +185,7 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
     }
 
     pub fn map_inner<F: Fn(T) -> U, U>(self, func: F) -> Trisult<Vec<U>, E> {
-        self.map(|iter| iter.into_iter().map(|it| func(it)).collect::<Vec<U>>())
+        self.map(|iter| iter.into_iter().map(func).collect::<Vec<U>>())
     }
 }
 

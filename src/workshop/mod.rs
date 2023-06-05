@@ -46,7 +46,7 @@ impl Display for WorkshopTree {
     }
 }
 
-const RULE_TEMPLATE: &'static str = include_str!("rule.ows");
+const RULE_TEMPLATE: &str = include_str!("rule.ows");
 
 impl Display for Rule {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

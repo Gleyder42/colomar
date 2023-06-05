@@ -8,7 +8,7 @@ use chumsky::prelude::*;
 fn ident() -> impl Parser<Token, Ident, Error = Simple<Token>> {
     filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(Ident {
-            value: ident.clone(),
+            value: ident,
             span,
         }),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
@@ -40,19 +40,19 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
         })
         .separated_by(just(Token::Ctrl(',')))
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
-        .map_with_span(|it, span| Spanned::new(it, span))
+        .map_with_span(Spanned::new)
 }
 
 fn workshop_or_not() -> impl Parser<Token, SpannedBool, Error = Simple<Token>> {
     just(Token::Workshop)
         .or_not()
-        .map_with_span(|it, span| Spanned::ignore_value(it, span))
+        .map_with_span(Spanned::ignore_value)
 }
 
 fn event() -> impl Parser<Token, Event, Error = Simple<Token>> {
     just(Token::Workshop)
         .or_not()
-        .map_with_span(|o, span| Spanned::ignore_value(o, span))
+        .map_with_span(Spanned::ignore_value)
         .then_ignore(just(Token::Event))
         .then(ident())
         .map_with_span(|(is_workshop, name), span| EventDeclaration {
@@ -115,7 +115,7 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = Simple<Token>> 
     workshop_or_not()
         .then(
             choice((just(Token::GetVal), just(Token::Val)))
-                .map_with_span(|it, span| Spanned::new(it, span)),
+                .map_with_span(Spanned::new),
         )
         .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
@@ -163,9 +163,9 @@ fn r#struct() -> impl Parser<Token, Struct, Error = Simple<Token>> {
 
     let open_keyword = just(Token::Open)
         .or_not()
-        .map_with_span(|it, span| Spanned::ignore_value(it, span));
+        .map_with_span(Spanned::ignore_value);
 
-    let struct_parser = open_keyword
+    open_keyword
         .then(workshop_or_not())
         .then_ignore(just(Token::Struct))
         .then(ident())
@@ -201,9 +201,7 @@ fn r#struct() -> impl Parser<Token, Struct, Error = Simple<Token>> {
                 },
                 span,
             }
-        });
-
-    struct_parser
+        })
 }
 
 fn newline_repeated() -> impl Parser<Token, (), Error = Simple<Token>> + Clone {
@@ -232,7 +230,7 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
-        .map_with_span(|it, span| CallArguments::new(it, span))
+        .map_with_span(CallArguments::new)
         .labelled("args");
 
     let literal = filter_map(|span, token| match token {
@@ -258,7 +256,7 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
             .or(literal)
             .separated_by(just(Token::Ctrl('.')))
             .at_least(1)
-            .map_with_span(|it, span| CallChain::new(it, span)),
+            .map_with_span(CallChain::new),
     );
 
     IdentChainParserResult {
@@ -297,7 +295,7 @@ fn at_least_newlines() -> impl Parser<Token, (), Error = Simple<Token>> {
 
 fn rule() -> impl Parser<Token, Rule, Error = Simple<Token>> {
     let rule_name = filter_map(|span, token| match token {
-        Token::String(string) => Ok(Spanned::new(string.clone(), span)),
+        Token::String(string) => Ok(Spanned::new(string, span)),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     });
 
@@ -324,5 +322,5 @@ pub fn parser() -> impl Parser<Token, Ast, Error = Simple<Token>> {
     choice((rule_parser, event_parser, enum_parser, struct_parser))
         .separated_by(just(Token::NewLine).repeated())
         .then_ignore(end())
-        .map(|root_vec| Ast(root_vec))
+        .map(Ast)
 }

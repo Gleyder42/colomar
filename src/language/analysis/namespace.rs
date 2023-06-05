@@ -8,7 +8,6 @@ use crate::language::im::{
 };
 use crate::language::{im, Ident, ImmutableString};
 use crate::{impl_intern_key, query_error};
-use once_cell::unsync::Lazy;
 use salsa::InternId;
 use std::borrow::ToOwned;
 use std::collections::HashMap;
@@ -55,20 +54,25 @@ pub(super) fn query_event_namespace(
         })
 }
 
-const BOOL_NAME: Lazy<ImmutableString> = Lazy::new(|| ImmutableString::new("bool".to_owned()));
-const STRING_NAME: Lazy<ImmutableString> = Lazy::new(|| ImmutableString::new("string".to_owned()));
+pub(super) fn query_bool_name(_db: &dyn DeclQuery) -> ImmutableString {
+    ImmutableString::new("bool".to_owned())
+}
+
+pub(super) fn query_string_name(_db: &dyn DeclQuery) -> ImmutableString {
+    ImmutableString::new("string".to_owned())
+}
 
 pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<ImmutableString, Type>> {
     db.query_namespace(vec![Nameholder::Root]).map(|namespace| {
         let mut map = HashMap::new();
         let mut add = |name: ImmutableString| {
-            if let Some(RValue::Type(r#type)) = namespace.get(&BOOL_NAME) {
+            if let Some(RValue::Type(r#type)) = namespace.get(&name) {
                 map.insert(name.clone(), r#type);
             }
         };
 
-        add((*BOOL_NAME).clone());
-        add((*STRING_NAME).clone());
+        add(db.query_string_name());
+        add(db.query_bool_name());
 
         map
     })
@@ -76,7 +80,7 @@ pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Immut
 
 fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {
     match r#type {
-        Type::Struct(struct_decl_id) => struct_decl_id.clone(),
+        Type::Struct(struct_decl_id) => *struct_decl_id,
         Type::Enum(_) => panic!("Cannot get struct decl id of type Enum"),
         Type::Event(_) => panic!("Cannot get struct decl id of type Event"),
         Type::Unit => panic!("Cannot get struct decl id of type Unit"),
@@ -85,18 +89,18 @@ fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {
 
 pub(super) fn query_string_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarationId> {
     db.query_primitives().flat_map(|map| {
-        map.get(&*STRING_NAME)
+        map.get(&db.query_string_name())
             .map(struct_decl_id_or_panic)
-            .ok_or_else(|| AnalysisError::WrongType)
+            .ok_or(AnalysisError::WrongType)
             .into()
     })
 }
 
 pub(super) fn query_bool_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarationId> {
     db.query_primitives().flat_map(|map| {
-        map.get(&*BOOL_NAME)
+        map.get(&db.query_bool_name())
             .map(struct_decl_id_or_panic)
-            .ok_or_else(|| AnalysisError::WrongType)
+            .ok_or(AnalysisError::WrongType)
             .into()
     })
 }
@@ -164,7 +168,7 @@ pub(super) fn query_namespace(
                         db.query_enum_namespace(enum_constant.r#enum)
                     }
                 },
-                Nameholder::Struct(struct_decl) => db.query_struct_namespace(struct_decl).into(),
+                Nameholder::Struct(struct_decl) => db.query_struct_namespace(struct_decl),
                 Nameholder::Event(event_decl) => db.query_event_namespace(event_decl),
                 Nameholder::Empty => Trisult::Ok(db.intern_namespace(Rc::new(Namespace::new()))),
             }
@@ -238,9 +242,9 @@ pub enum EnumNameholder {
     ByConstant(EnumConstantId),
 }
 
-impl Into<Nameholder> for EnumNameholder {
-    fn into(self) -> Nameholder {
-        Nameholder::Enum(self)
+impl From<EnumNameholder> for Nameholder {
+    fn from(value: EnumNameholder) -> Self {
+        Nameholder::Enum(value)
     }
 }
 
@@ -306,17 +310,17 @@ impl Namespace {
     }
 
     fn get(&self, ident_value: &ImmutableString) -> Option<RValue> {
-        self.map.get(ident_value).map(|it| it.clone())
+        self.map.get(ident_value).cloned()
     }
 
     fn contains(&self, ident: &Ident) -> Option<RValue> {
-        let option = self.map.get(&ident.value).map(|it| it.clone());
+        let option = self.map.get(&ident.value).cloned();
         if option.is_some() {
             option
         } else {
             self.parent
                 .iter()
-                .map(|it| it.contains(&ident))
+                .map(|it| it.contains(ident))
                 .filter(|it| it.is_some())
                 .flatten()
                 .collect::<Vec<_>>()

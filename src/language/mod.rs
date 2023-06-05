@@ -1,5 +1,4 @@
 use crate::language::ast::SpannedBool;
-use derivative::Derivative;
 use std::rc::Rc;
 
 pub mod analysis;
@@ -13,8 +12,7 @@ pub mod parser;
 pub type Span = std::ops::Range<usize>;
 pub type ImmutableString = Rc<String>;
 
-#[derive(Derivative, Debug, Hash, Clone, Eq)]
-#[derivative(PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
     pub value: ImmutableString,
     pub span: Span,
@@ -30,8 +28,7 @@ impl<T> Spanned<T> {
     }
 }
 
-#[derive(Derivative, Debug, Hash, Clone)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Spanned<T> {
     pub value: T,
     pub span: crate::Span,

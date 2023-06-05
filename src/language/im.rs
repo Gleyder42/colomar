@@ -185,9 +185,9 @@ pub struct Predicate {
     pub return_value: AValue,
 }
 
-impl Into<Nameholder> for Type {
-    fn into(self) -> Nameholder {
-        match self {
+impl From<Type> for Nameholder {
+    fn from(value: Type) -> Self {
+        match value {
             Type::Enum(r#enum) => Nameholder::Enum(EnumNameholder::ByEnum(r#enum)),
             Type::Struct(r#struct) => Nameholder::Struct(r#struct),
             Type::Event(event) => Nameholder::Event(event),
@@ -320,9 +320,9 @@ pub enum RValue {
     EnumConstant(EnumConstantId),
 }
 
-impl Into<Nameholder> for RValue {
-    fn into(self) -> Nameholder {
-        match self {
+impl From<RValue> for Nameholder {
+    fn from(value: RValue) -> Self {
+        match value {
             RValue::Type(r#type) => r#type.into(),
             RValue::EnumConstant(enum_constant_id) => {
                 EnumNameholder::ByConstant(enum_constant_id).into()

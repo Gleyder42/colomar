@@ -44,7 +44,7 @@ pub(super) fn query_rule_cond(
             )
         })
         .collect::<QueryTrisult<_>>()
-        .and_require(db.query_bool_type().map(|decl_id| Type::Struct(decl_id)))
+        .and_require(db.query_bool_type().map(Type::Struct))
         .flat_map(|(avalues, bool_id)| {
             avalues
                 .into_iter()
