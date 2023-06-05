@@ -1,5 +1,5 @@
 use crate::language::ast::SpannedBool;
-use std::rc::Rc;
+use smol_str::SmolStr;
 
 pub mod analysis;
 pub mod ast;
@@ -10,7 +10,7 @@ pub mod parser;
 
 // pub mod converter;
 pub type Span = std::ops::Range<usize>;
-pub type ImmutableString = Rc<String>;
+pub type ImmutableString = SmolStr;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
