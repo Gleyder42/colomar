@@ -1,4 +1,5 @@
-pub fn assert_vec<T: PartialEq + std::fmt::Debug>(a: &[T], b: &[T]) {
+#[allow(clippy::ptr_arg)]
+pub fn assert_vec<T: PartialEq + std::fmt::Debug>(a: &Vec<T>, b: &Vec<T>) {
     a.iter().zip(b).for_each(|(actual, expected)| {
         assert_eq!(
             actual, expected,
