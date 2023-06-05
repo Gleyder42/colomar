@@ -1,6 +1,6 @@
-use derivative::Derivative;
 use crate::language::{Ident, ImmutableString, Spanned};
 use crate::Span;
+use derivative::Derivative;
 
 pub type Condition = CallChain;
 
@@ -10,7 +10,7 @@ pub type SpannedBool = Option<Spanned<()>>;
 pub enum Definition {
     Event(EventDefinition),
     Enum(EnumDefinition),
-    Struct(StructDefinition)
+    Struct(StructDefinition),
 }
 
 impl From<EventDefinition> for Definition {
@@ -49,20 +49,20 @@ pub enum Root {
     Event(Event),
     Rule(Rule),
     Enum(Enum),
-    Struct(Struct)
+    Struct(Struct),
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Action {
     CallChain(CallChain),
-    Property(PropertyDeclaration)
+    Property(PropertyDeclaration),
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct Types {
     pub values: Vec<Ident>,
-    pub span: Span
+    pub span: Span,
 }
 
 impl IntoIterator for Types {
@@ -77,7 +77,10 @@ impl IntoIterator for Types {
 #[cfg(test)]
 impl From<Vec<Ident>> for Types {
     fn from(value: Vec<Ident>) -> Self {
-        Types { values: value, span: 0..1 }
+        Types {
+            values: value,
+            span: 0..1,
+        }
     }
 }
 
@@ -86,7 +89,7 @@ impl From<Vec<Ident>> for Types {
 pub struct EventDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub span: Span
+    pub span: Span,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -105,7 +108,7 @@ impl TryFrom<Definition> for EventDefinition {
         match value {
             Definition::Event(event) => Ok(event),
             Definition::Enum(_) => Err("Cannot convert enum to event definition"),
-            Definition::Struct(_) => Err("Cannot convert struct to event definition")
+            Definition::Struct(_) => Err("Cannot convert struct to event definition"),
         }
     }
 }
@@ -115,7 +118,7 @@ impl TryFrom<Definition> for EventDefinition {
 pub struct Event {
     pub declaration: EventDeclaration,
     pub definition: EventDefinition,
-    pub span: Span
+    pub span: Span,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -124,7 +127,7 @@ pub enum UseRestriction {
     GetVal,
     SetVar,
     Val,
-    Var
+    Var,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -133,7 +136,7 @@ pub struct PropertyDeclaration {
     pub is_workshop: SpannedBool,
     pub use_restriction: Spanned<UseRestriction>,
     pub name: Ident,
-    pub r#type: Ident
+    pub r#type: Ident,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -141,7 +144,7 @@ pub struct PropertyDeclaration {
 pub struct FunctionDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub arguments: Spanned<Vec<DeclaredArgument>>
+    pub arguments: Spanned<Vec<DeclaredArgument>>,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -150,7 +153,7 @@ pub struct StructDeclaration {
     pub is_open: SpannedBool,
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub span: Span
+    pub span: Span,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -167,18 +170,17 @@ impl TryFrom<Definition> for StructDefinition {
         match value {
             Definition::Event(_) => Err("Cannot convert event to struct definition"),
             Definition::Enum(_) => Err("Cannot convert enum to struct definition"),
-            Definition::Struct(r#struct) => Ok(r#struct)
+            Definition::Struct(r#struct) => Ok(r#struct),
         }
     }
 }
-
 
 #[derive(Derivative, Debug, Hash, Clone)]
 #[derivative(PartialEq, Eq)]
 pub struct Struct {
     pub declaration: StructDeclaration,
     pub definition: StructDefinition,
-    pub span: Span
+    pub span: Span,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -186,7 +188,7 @@ pub struct Struct {
 pub struct EnumDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub span: Span
+    pub span: Span,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -202,7 +204,7 @@ impl TryFrom<Definition> for EnumDefinition {
         match value {
             Definition::Event(_) => Err("Cannot convert event to enum definition"),
             Definition::Enum(r#enum) => Ok(r#enum),
-            Definition::Struct(_) => Err("Cannot convert struct to enum definition")
+            Definition::Struct(_) => Err("Cannot convert struct to enum definition"),
         }
     }
 }
@@ -212,7 +214,7 @@ impl TryFrom<Definition> for EnumDefinition {
 pub struct Enum {
     pub declaration: EnumDeclaration,
     pub definition: EnumDefinition,
-    pub span: Span
+    pub span: Span,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -221,7 +223,7 @@ pub struct DeclaredArgument {
     pub name: Ident,
     pub types: Types,
     pub default_value: Option<CallChain>,
-    pub span: Span
+    pub span: Span,
 }
 
 #[derive(Derivative, Debug, Hash, Clone)]
@@ -239,7 +241,7 @@ pub struct Rule {
 pub struct Block {
     pub actions: Vec<Action>,
     pub conditions: Vec<Condition>,
-    pub span: Span
+    pub span: Span,
 }
 
 /// Multiple [CallChain]s form arguments.
@@ -260,10 +262,13 @@ impl From<Box<Call>> for CallChain {
         let span = match *value {
             Call::Ident(ref ident) => ident.span.clone(),
             Call::String(_, ref span) => span.clone(),
-            Call::Number(_, ref span ) => span.clone(),
-            Call::IdentArguments { ref span, .. } => span.clone()
+            Call::Number(_, ref span) => span.clone(),
+            Call::IdentArguments { ref span, .. } => span.clone(),
         };
-        Spanned { value: vec![value], span }
+        Spanned {
+            value: vec![value],
+            span,
+        }
     }
 }
 
@@ -284,7 +289,7 @@ pub enum Call {
     IdentArguments {
         name: Ident,
         args: CallArguments,
-        span: Span
+        span: Span,
     },
     /// An ident.
     /// ## Example

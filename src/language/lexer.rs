@@ -1,11 +1,11 @@
 extern crate core;
 
+use crate::language::{ImmutableString, Span};
+use chumsky::prelude::*;
+use chumsky::text::Character;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-use chumsky::prelude::*;
 use std::string::String;
-use chumsky::text::Character;
-use crate::language::{ImmutableString, Span};
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
@@ -25,7 +25,7 @@ pub enum Token {
     Ident(ImmutableString),
     String(ImmutableString),
     Num(ImmutableString),
-    Ctrl(char)
+    Ctrl(char),
 }
 
 impl Display for Token {
@@ -66,8 +66,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .map(Rc::new)
         .map(Token::String);
 
-    let ctrl = one_of("(){},.:|=")
-        .map(|c| Token::Ctrl(c));
+    let ctrl = one_of("(){},.:|=").map(|c| Token::Ctrl(c));
 
     let ident = text::ident().map(|ident: String| match ident.as_str() {
         "rule" => Token::Rule,
@@ -85,11 +84,9 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         _ => Token::Ident(ImmutableString::new(ident)),
     });
 
-    let newline = text::newline()
-        .map(|_| Token::NewLine);
+    let newline = text::newline().map(|_| Token::NewLine);
 
-    let token= choice((num, newline, string, ctrl, ident))
-        .recover_with(skip_then_retry_until([]));
+    let token = choice((num, newline, string, ctrl, ident)).recover_with(skip_then_retry_until([]));
 
     let whitespace = filter(|c: &char| c.is_whitespace() && !NEWLINE_CHARS.contains(c))
         .ignored()
@@ -113,9 +110,9 @@ const NEWLINE_CHARS: [char; 7] = [
 
 #[cfg(test)]
 mod tests {
-    use chumsky::Parser;
     use crate::language::lexer::{lexer, Token};
     use crate::test_assert::assert_vec;
+    use chumsky::Parser;
 
     #[test]
     fn test_number_lexer() {
@@ -126,7 +123,7 @@ mod tests {
             Token::Num("1".to_string().into()),
             Token::Num("5".to_string().into()),
             Token::Num("1.2".to_string().into()),
-            Token::Num("123.321".to_string().into())
+            Token::Num("123.321".to_string().into()),
         ];
 
         assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
@@ -157,7 +154,7 @@ mod tests {
             Token::Rule,
             Token::NewLine,
             Token::NewLine,
-            Token::Rule
+            Token::Rule,
         ];
 
         assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);

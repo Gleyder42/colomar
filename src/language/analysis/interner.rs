@@ -1,10 +1,13 @@
-use std::rc::Rc;
 use crate::language::analysis::namespace::{Namespace, NamespaceId};
-use crate::language::im::{DeclaredArgument, DeclaredArgumentId, EnumConstant, EnumConstantId, EnumDeclaration, EnumDeclarationId, EventDeclaration, EventDeclarationId, FunctionDecl, FunctionDeclId, PropertyDecl, PropertyDeclId, StructDeclaration, StructDeclarationId};
+use crate::language::im::{
+    DeclaredArgument, DeclaredArgumentId, EnumConstant, EnumConstantId, EnumDeclaration,
+    EnumDeclarationId, EventDeclaration, EventDeclarationId, FunctionDecl, FunctionDeclId,
+    PropertyDecl, PropertyDeclId, StructDeclaration, StructDeclarationId,
+};
+use std::rc::Rc;
 
 #[salsa::query_group(InternerDatabase)]
 pub trait Interner {
-
     #[salsa::interned]
     fn intern_struct_decl(&self, decl: StructDeclaration) -> StructDeclarationId;
 
@@ -35,4 +38,3 @@ pub trait IntoInternId {
 
     fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned;
 }
-

@@ -1,38 +1,44 @@
-use std::collections::HashMap;
-use salsa::InternKey;
-use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::analysis::decl::DeclQuery;
+use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::{Definition, EventDefinition, Root, StructDefinition};
 use crate::language::im::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
+use salsa::InternKey;
+use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum DefKey {
     Event(EventDeclarationId),
     Struct(StructDeclarationId),
-    Enum(EnumDeclarationId)
+    Enum(EnumDeclarationId),
 }
 
-pub(in super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, StructDefinition> {
-    db.query_ast_def_map().into_iter()
+pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, StructDefinition> {
+    db.query_ast_def_map()
+        .into_iter()
         .filter_map(|(id, def)| {
             let result: Result<StructDefinition, _> = def.try_into();
             match result {
                 Ok(value) => Some((id, value)),
-                Err(_) => None
+                Err(_) => None,
             }
         })
         .collect()
 }
 
-pub(in super) fn query_ast_struct_def(db: &dyn DeclQuery, struct_decl_id: StructDeclarationId) -> QueryTrisult<StructDefinition> {
+pub(super) fn query_ast_struct_def(
+    db: &dyn DeclQuery,
+    struct_decl_id: StructDeclarationId,
+) -> QueryTrisult<StructDefinition> {
     db.query_ast_struct_def_map()
         .remove(&DefKey::Struct(struct_decl_id))
         .ok_or_else(|| AnalysisError::CannotFindDefinition(struct_decl_id.as_intern_id()))
         .into()
 }
 
-pub(in super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Definition> {
-    let map: HashMap<_, _> = db.input_content().into_iter()
+pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Definition> {
+    let map: HashMap<_, _> = db
+        .input_content()
+        .into_iter()
         .filter_map(|root| match root {
             Root::Event(event) => {
                 let event_decl_id = db.query_event_decl(event.declaration);
@@ -59,19 +65,23 @@ pub(in super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Defini
     dbg!(map)
 }
 
-pub(in super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, EventDefinition> {
-    db.query_ast_def_map().into_iter()
+pub(super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, EventDefinition> {
+    db.query_ast_def_map()
+        .into_iter()
         .filter_map(|(id, def)| {
             let result: Result<EventDefinition, _> = def.try_into();
             match result {
                 Ok(value) => Some((id, value)),
-                Err(_) => None
+                Err(_) => None,
             }
         })
         .collect()
 }
 
-pub(in super) fn query_ast_event_def(db: &dyn DeclQuery, event_decl_id: EventDeclarationId) -> QueryTrisult<EventDefinition> {
+pub(super) fn query_ast_event_def(
+    db: &dyn DeclQuery,
+    event_decl_id: EventDeclarationId,
+) -> QueryTrisult<EventDefinition> {
     db.query_ast_event_def_map()
         .remove(&DefKey::Event(event_decl_id))
         .ok_or_else(|| AnalysisError::CannotFindDefinition(event_decl_id.as_intern_id()))

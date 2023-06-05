@@ -1,13 +1,13 @@
-use std::rc::Rc;
-use derivative::Derivative;
 use crate::language::ast::SpannedBool;
+use derivative::Derivative;
+use std::rc::Rc;
 
-pub mod parser;
-pub mod lexer;
-pub mod ast;
-pub mod im;
 pub mod analysis;
+pub mod ast;
 pub mod error;
+pub mod im;
+pub mod lexer;
+pub mod parser;
 
 // pub mod converter;
 pub type Span = std::ops::Range<usize>;
@@ -17,11 +17,10 @@ pub type ImmutableString = Rc<String>;
 #[derivative(PartialEq)]
 pub struct Ident {
     pub value: ImmutableString,
-    pub span: Span
+    pub span: Span,
 }
 
 impl<T> Spanned<T> {
-
     pub fn new(value: T, span: crate::Span) -> Self {
         Spanned { value, span }
     }
@@ -35,10 +34,10 @@ impl<T> Spanned<T> {
 #[derivative(PartialEq, Eq)]
 pub struct Spanned<T> {
     pub value: T,
-    pub span: crate::Span
+    pub span: crate::Span,
 }
 
-impl<T, I: IntoIterator<Item=T>> IntoIterator for Spanned<I> {
+impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
     type Item = T;
     type IntoIter = <I as IntoIterator>::IntoIter;
 

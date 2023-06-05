@@ -1,29 +1,30 @@
-use std::collections::HashMap;
-use std::rc::Rc;
-use ast::Ast;
-use im::{AValue, DeclaredArgumentId};
-use crate::language::{ast, Ident, im, ImmutableString};
-use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::analysis::file::DefKey;
 use crate::language::analysis::interner::Interner;
 use crate::language::analysis::namespace::{Nameholder, Namespace, NamespaceId};
+use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::Action;
-use crate::language::im::{EnumDeclarationId, EventDeclarationId, FunctionDeclId, PropertyDeclId, StructDeclarationId};
+use crate::language::im::{
+    EnumDeclarationId, EventDeclarationId, FunctionDeclId, PropertyDeclId, StructDeclarationId,
+};
+use crate::language::{ast, im, Ident, ImmutableString};
+use ast::Ast;
+use im::{AValue, DeclaredArgumentId};
+use std::collections::HashMap;
+use std::rc::Rc;
 
 use super::arg;
 use super::call;
-use super::r#enum;
 use super::event;
+use super::file;
+use super::function;
 use super::namespace;
 use super::property;
+use super::r#enum;
 use super::r#struct;
 use super::r#type;
-use super::function;
-use super::file;
 
 #[salsa::query_group(DeclDatabase)]
 pub trait DeclQuery: Interner {
-
     // Input
 
     #[salsa::input]
@@ -47,13 +48,13 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(file::query_ast_event_def)]
     fn query_ast_event_def(
         &self,
-        event_decl_id: EventDeclarationId
+        event_decl_id: EventDeclarationId,
     ) -> QueryTrisult<ast::EventDefinition>;
 
     #[salsa::invoke(file::query_ast_struct_def)]
     fn query_ast_struct_def(
         &self,
-        struct_decl_id: StructDeclarationId
+        struct_decl_id: StructDeclarationId,
     ) -> QueryTrisult<ast::StructDefinition>;
 
     // Arg
@@ -61,13 +62,13 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(arg::query_declared_arg)]
     fn query_declared_arg(
         &self,
-        decl_arg: ast::DeclaredArgument
+        decl_arg: ast::DeclaredArgument,
     ) -> QueryTrisult<DeclaredArgumentId>;
 
     #[salsa::invoke(arg::query_declared_args)]
     fn query_declared_args(
         &self,
-        decl_args: Vec<ast::DeclaredArgument>
+        decl_args: Vec<ast::DeclaredArgument>,
     ) -> QueryTrisult<Vec<DeclaredArgumentId>>;
 
     // Call
@@ -82,58 +83,38 @@ pub trait DeclQuery: Interner {
     // Enum
 
     #[salsa::invoke(r#enum::query_enum)]
-    fn query_enum(
-        &self,
-        r#enum: ast::Enum
-    ) -> QueryTrisult<im::Enum>;
+    fn query_enum(&self, r#enum: ast::Enum) -> QueryTrisult<im::Enum>;
 
     #[salsa::invoke(r#enum::query_enum_ast_map)]
-    fn query_enum_ast_map(
-        &self
-    ) -> HashMap<EnumDeclarationId, ast::Enum>;
+    fn query_enum_ast_map(&self) -> HashMap<EnumDeclarationId, ast::Enum>;
 
     #[salsa::invoke(r#enum::query_enum_ast)]
-    fn query_enum_ast(
-        &self,
-        enum_decl: EnumDeclarationId
-    ) -> Result<ast::Enum, AnalysisError>;
+    fn query_enum_ast(&self, enum_decl: EnumDeclarationId) -> Result<ast::Enum, AnalysisError>;
 
     #[salsa::invoke(r#enum::query_enum_def)]
-    fn query_enum_def(
-        &self,
-        enum_decl: EnumDeclarationId
-    ) -> QueryTrisult<im::Enum>;
+    fn query_enum_def(&self, enum_decl: EnumDeclarationId) -> QueryTrisult<im::Enum>;
 
     #[salsa::invoke(r#enum::query_enum_decl)]
-    fn query_enum_decl(
-        &self,
-        r#enum: ast::EnumDeclaration
-    ) -> EnumDeclarationId;
+    fn query_enum_decl(&self, r#enum: ast::EnumDeclaration) -> EnumDeclarationId;
 
     // Event
 
     #[salsa::invoke(event::query_event_properties)]
-    fn query_event_properties(
-        self,
-        actions: Vec<Action>
-    ) -> QueryTrisult<Vec<im::PropertyDecl>>;
+    fn query_event_properties(self, actions: Vec<Action>) -> QueryTrisult<Vec<im::PropertyDecl>>;
 
     #[salsa::invoke(event::query_event_decl)]
-    fn query_event_decl(
-        &self, event_decl:
-        ast::EventDeclaration
-    ) -> EventDeclarationId;
+    fn query_event_decl(&self, event_decl: ast::EventDeclaration) -> EventDeclarationId;
 
     #[salsa::invoke(function::query_function_decl)]
     fn query_function_decl(
         &self,
-        function: ast::FunctionDeclaration
+        function: ast::FunctionDeclaration,
     ) -> QueryTrisult<im::FunctionDecl>;
 
     #[salsa::invoke(event::query_event_context_variables)]
     fn query_event_context_variables(
         &self,
-        event_decl: EventDeclarationId
+        event_decl: EventDeclarationId,
     ) -> QueryTrisult<Vec<im::PropertyDecl>>;
 
     // Namespace
@@ -148,27 +129,17 @@ pub trait DeclQuery: Interner {
     fn query_string_type(&self) -> QueryTrisult<StructDeclarationId>;
 
     #[salsa::invoke(namespace::query_root_namespace)]
-    fn query_root_namespace(
-        &self
-    ) -> Result<NamespaceId, AnalysisError>;
+    fn query_root_namespace(&self) -> Result<NamespaceId, AnalysisError>;
 
     #[salsa::invoke(namespace::query_enum_namespace)]
-    fn query_enum_namespace(
-        &self,
-        r#enum: EnumDeclarationId
-    ) -> QueryTrisult<NamespaceId>;
+    fn query_enum_namespace(&self, r#enum: EnumDeclarationId) -> QueryTrisult<NamespaceId>;
 
     #[salsa::invoke(namespace::query_event_namespace)]
-    fn query_event_namespace(
-        &self,
-        event_decl: EventDeclarationId
-    ) -> QueryTrisult<NamespaceId>;
+    fn query_event_namespace(&self, event_decl: EventDeclarationId) -> QueryTrisult<NamespaceId>;
 
     #[salsa::invoke(namespace::query_struct_namespace)]
-    fn query_struct_namespace(
-        &self,
-        struct_decl: StructDeclarationId
-    ) -> QueryTrisult<NamespaceId>;
+    fn query_struct_namespace(&self, struct_decl: StructDeclarationId)
+        -> QueryTrisult<NamespaceId>;
 
     #[salsa::invoke(namespace::query_namespaced_rvalue)]
     fn query_namespaced_rvalue(
@@ -178,10 +149,7 @@ pub trait DeclQuery: Interner {
     ) -> QueryTrisult<im::RValue>;
 
     #[salsa::invoke(namespace::query_namespace)]
-    fn query_namespace(
-        &self,
-        nameholders: Vec<Nameholder>
-    ) -> QueryTrisult<Rc<Namespace>>;
+    fn query_namespace(&self, nameholders: Vec<Nameholder>) -> QueryTrisult<Rc<Namespace>>;
 
     #[salsa::invoke(namespace::query_namespaced_type)]
     fn query_namespaced_type(
@@ -194,7 +162,7 @@ pub trait DeclQuery: Interner {
     fn query_namespaced_function(
         &self,
         nameholders: Vec<Nameholder>,
-        ident: Ident
+        ident: Ident,
     ) -> QueryTrisult<im::FunctionDecl>;
 
     #[salsa::invoke(namespace::query_namespaced_event)]
@@ -209,7 +177,7 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(property::query_property)]
     fn query_property(
         &self,
-        property_decl: ast::PropertyDeclaration
+        property_decl: ast::PropertyDeclaration,
     ) -> QueryTrisult<im::PropertyDecl>;
 
     // Struct
@@ -217,20 +185,17 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(r#struct::query_struct_functions)]
     fn query_struct_functions(
         &self,
-        functions: Vec<ast::FunctionDeclaration>
+        functions: Vec<ast::FunctionDeclaration>,
     ) -> QueryTrisult<Vec<FunctionDeclId>>;
 
     #[salsa::invoke(r#struct::query_struct_properties)]
     fn query_struct_properties(
         &self,
-        properties: Vec<ast::PropertyDeclaration>
+        properties: Vec<ast::PropertyDeclaration>,
     ) -> QueryTrisult<Vec<PropertyDeclId>>;
 
     #[salsa::invoke(r#struct::query_struct_decl)]
-    fn query_struct_decl(
-        &self,
-        r#struct: ast::StructDeclaration
-    ) -> StructDeclarationId;
+    fn query_struct_decl(&self, r#struct: ast::StructDeclaration) -> StructDeclarationId;
 
     // Type
 

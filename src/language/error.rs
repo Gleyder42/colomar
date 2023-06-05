@@ -1,7 +1,7 @@
-use std::fmt::Debug;
-use crate::language::{ast};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::Namespace;
+use crate::language::ast;
+use std::fmt::Debug;
 
 /// Trisult is similar to [Result] but has one more in-between state.
 /// These states are
@@ -19,7 +19,6 @@ pub enum Trisult<T, E> {
 }
 
 impl<T, E> Trisult<T, E> {
-
     /// Converts the [Trisult] to an option and error vec.
     /// The option is none if [Trisult::Err] otherwise none.
     /// The error vec contains errors, if any.
@@ -27,7 +26,7 @@ impl<T, E> Trisult<T, E> {
         match self {
             Trisult::Ok(value) => (Some(value), Vec::new()),
             Trisult::Par(value, errors) => (Some(value), errors),
-            Trisult::Err(errors) => (None, errors)
+            Trisult::Err(errors) => (None, errors),
         }
     }
 
@@ -58,7 +57,8 @@ impl<T, E> Trisult<T, E> {
     /// * If this result is [Trisult::Err] the combined result will also be [Trisult::Err]
     /// * If the other result is [Trisult::Err] the recovery function defines the combined result
     fn and<O, F>(self, recovery: F, other: Trisult<O, E>) -> Trisult<(T, O), E>
-        where F: FnOnce(T, Vec<E>) -> Trisult<(T, O), E>,
+    where
+        F: FnOnce(T, Vec<E>) -> Trisult<(T, O), E>,
     {
         use Trisult::*;
 
@@ -94,18 +94,13 @@ impl<T, E> Trisult<T, E> {
     /// other option will also be some.
     /// -  If the supplied option is some and the result is [Trisult::Err], the other option will be
     /// none
-    pub fn and_maybe<O>(
-        self,
-        option: Option<Trisult<O, E>>,
-    ) -> Trisult<(T, Option<O>), E> {
+    pub fn and_maybe<O>(self, option: Option<Trisult<O, E>>) -> Trisult<(T, Option<O>), E> {
         match option {
-            Some(result) => {
-                self.and(
-                    |value, errors| Trisult::Par((value, None), errors),
-                    result.map(|it| Some(it)),
-                )
-            }
-            None => self.map(|it| (it, None))
+            Some(result) => self.and(
+                |value, errors| Trisult::Par((value, None), errors),
+                result.map(|it| Some(it)),
+            ),
+            None => self.map(|it| (it, None)),
         }
     }
 
@@ -114,7 +109,7 @@ impl<T, E> Trisult<T, E> {
         match self {
             Trisult::Ok(value) => Trisult::Ok(func(value)),
             Trisult::Par(value, errors) => Trisult::Par(func(value), errors),
-            Trisult::Err(errors) => Trisult::Err(errors)
+            Trisult::Err(errors) => Trisult::Err(errors),
         }
     }
 
@@ -140,13 +135,12 @@ impl<T, E> Trisult<T, E> {
                     }
                 }
             }
-            Trisult::Err(errors) => Trisult::Err(errors)
+            Trisult::Err(errors) => Trisult::Err(errors),
         }
     }
 }
 
-impl<Id, T: IntoInternId<Interned=Id>, I: IntoIterator<Item=T>, E> Trisult<I, E> {
-
+impl<Id, T: IntoInternId<Interned = Id>, I: IntoIterator<Item = T>, E> Trisult<I, E> {
     /// Available for [Trisult] having an [IntoIterator] as value.
     /// Interns the inner value [T] of iterator [I] to it's interned value [Id]
     pub fn intern_inner<Db: Interner + ?Sized>(self, db: &Db) -> Trisult<Vec<Id>, E> {
@@ -154,17 +148,18 @@ impl<Id, T: IntoInternId<Interned=Id>, I: IntoIterator<Item=T>, E> Trisult<I, E>
     }
 }
 
-impl<T, I: IntoIterator<Item=T>, E> Trisult<I, E> {
-
+impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
     pub fn fold<A, F>(self, initial: A, func: F) -> Trisult<A, E>
-        where F: Fn(A, T) -> Trisult<A, E>
+    where
+        F: Fn(A, T) -> Trisult<A, E>,
     {
         self.fold_flat_map(initial, |it| it, func)
     }
 
     pub fn fold_flat_map<U, A, F, M>(self, initial: A, map_func: M, func: F) -> Trisult<U, E>
-        where F: Fn(A, T) -> Trisult<A, E>,
-              M: FnOnce(A) -> U,
+    where
+        F: Fn(A, T) -> Trisult<A, E>,
+        M: FnOnce(A) -> U,
     {
         self.flat_map(|iter| {
             let mut errors = Vec::new();
@@ -194,17 +189,17 @@ impl<T, I: IntoIterator<Item=T>, E> Trisult<I, E> {
     }
 }
 
-impl<Id, T: IntoInternId<Interned=Id>, E> Trisult<T, E> {
+impl<Id, T: IntoInternId<Interned = Id>, E> Trisult<T, E> {
     pub fn intern<Db: Interner + ?Sized>(self, db: &Db) -> Trisult<Id, E> {
         self.map(|it| it.intern(db))
     }
 }
 
 impl<E> Trisult<Namespace, E> {
-
     pub fn fold_with<T, I, F>(self, with: Trisult<I, E>, func: F) -> Trisult<Namespace, E>
-        where F: Fn(Namespace, T) -> Trisult<Namespace, E>,
-              I: IntoIterator<Item=T>
+    where
+        F: Fn(Namespace, T) -> Trisult<Namespace, E>,
+        I: IntoIterator<Item = T>,
     {
         self.flat_map(|acc| with.fold(acc, func))
     }
@@ -212,14 +207,14 @@ impl<E> Trisult<Namespace, E> {
 
 impl<T: Clone, E> Trisult<T, E> {
     pub fn map_and_require<O, F>(self, func: F) -> Trisult<(T, O), E>
-        where F: FnOnce(T) -> Trisult<O, E>
+    where
+        F: FnOnce(T) -> Trisult<O, E>,
     {
         self.flat_map(|t| func(t.clone()).map(|o| (t, o)))
     }
 }
 
 impl<E> Trisult<(), E> {
-
     /// Creates a [Trisult::Ok] with an empty type
     pub fn empty() -> Trisult<(), E> {
         Trisult::Ok(())
@@ -232,12 +227,11 @@ impl<E> From<ast::CallChain> for Trisult<ast::CallChain, E> {
     }
 }
 
-
 impl<T, E> From<Result<Trisult<T, E>, E>> for Trisult<T, E> {
     fn from(value: Result<Trisult<T, E>, E>) -> Self {
         match value {
             Ok(query_result) => query_result,
-            Err(error) => Trisult::Err(vec![error])
+            Err(error) => Trisult::Err(vec![error]),
         }
     }
 }
@@ -246,20 +240,20 @@ impl<T, E> From<Result<T, E>> for Trisult<T, E> {
     fn from(value: Result<T, E>) -> Self {
         match value {
             Ok(value) => Trisult::Ok(value),
-            Err(error) => Trisult::Err(vec![error])
+            Err(error) => Trisult::Err(vec![error]),
         }
     }
 }
 
 impl<T, E> FromIterator<Result<T, E>> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item=Result<T, E>>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = Result<T, E>>>(iter: I) -> Self {
         let mut results = Vec::new();
         let mut errors = Vec::new();
 
         for result in iter {
             match result {
                 Ok(value) => results.push(value),
-                Err(error) => errors.push(error)
+                Err(error) => errors.push(error),
             }
         }
 
@@ -268,7 +262,7 @@ impl<T, E> FromIterator<Result<T, E>> for Trisult<Vec<T>, E> {
 }
 
 impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item=Trisult<T, E>>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> Self {
         let mut results = Vec::new();
         let mut errors = Vec::new();
         for result in iter {
@@ -278,7 +272,7 @@ impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
                     results.push(value);
                     errors.append(&mut result_errors);
                 }
-                Trisult::Err(mut result_errors) => errors.append(&mut result_errors)
+                Trisult::Err(mut result_errors) => errors.append(&mut result_errors),
             }
         }
 
@@ -299,7 +293,7 @@ impl<T, E> From<(Vec<T>, Vec<E>)> for Trisult<Vec<T>, E> {
 fn from_results<T, E>(results: Vec<T>, errors: Vec<E>) -> Trisult<Vec<T>, E> {
     match errors.is_empty() {
         true => Trisult::Ok(results),
-        false => Trisult::Par(results, errors)
+        false => Trisult::Par(results, errors),
     }
 }
 
