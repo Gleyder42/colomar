@@ -7,7 +7,7 @@ use salsa::InternId;
 use crate::{impl_intern_key, query_error};
 use crate::language::{Ident, im, ImmutableString};
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::analysis::error::{AnalysisError, Trisult};
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::im::{EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId, FunctionDecl, PropertyDecl, RValue, StructDeclarationId, Type};
 
@@ -21,20 +21,20 @@ pub(in super) fn query_root_namespace(db: &dyn DeclQuery) -> Result<NamespaceId,
     Ok(Rc::new(namespace).intern(db))
 }
 
-pub(in super) fn query_enum_namespace(db: &dyn DeclQuery, r#enum: EnumDeclarationId) -> QueryResult<NamespaceId, AnalysisError> {
+pub(in super) fn query_enum_namespace(db: &dyn DeclQuery, r#enum: EnumDeclarationId) -> Trisult<NamespaceId, AnalysisError> {
     db.query_enum_def(r#enum)
         .map(|r#enum| Rc::new(Namespace::from_enum_definition(db, r#enum.definition)))
         .intern(db)
 }
 
-pub(in super) fn query_event_namespace(db: &dyn DeclQuery, event_decl: EventDeclarationId) -> QueryResult<NamespaceId, AnalysisError> {
+pub(in super) fn query_event_namespace(db: &dyn DeclQuery, event_decl: EventDeclarationId) -> Trisult<NamespaceId, AnalysisError> {
     db.query_event_context_variables(event_decl)
         .flat_map(|properties| {
             let mut namespace = Namespace::new();
             properties.into_iter()
                 .map(|property_decl| {
                     namespace.add(property_decl.name.clone(), RValue::Property(property_decl), db)
-                }).collect::<QueryResult<Vec<_>, _>>()
+                }).collect::<Trisult<Vec<_>, _>>()
                 .map(|_| Rc::new(namespace).intern(db))
         })
 }
@@ -44,7 +44,7 @@ const STRING_NAME: Lazy<ImmutableString> = Lazy::new(|| ImmutableString::new("st
 
 pub(in super) fn query_primitives(
     db: &dyn DeclQuery
-) -> QueryResult<HashMap<ImmutableString, Type>, AnalysisError> {
+) -> Trisult<HashMap<ImmutableString, Type>, AnalysisError> {
     db.query_namespace(vec![Nameholder::Root])
         .map(|namespace| {
             let mut map = HashMap::new();
@@ -70,7 +70,7 @@ fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {
     }
 }
 
-pub(in super) fn query_string_type(db: &dyn DeclQuery) -> QueryResult<StructDeclarationId, AnalysisError> {
+pub(in super) fn query_string_type(db: &dyn DeclQuery) -> Trisult<StructDeclarationId, AnalysisError> {
     db.query_primitives().flat_map(|map| {
         map.get(&*STRING_NAME)
             .map(struct_decl_id_or_panic)
@@ -78,7 +78,7 @@ pub(in super) fn query_string_type(db: &dyn DeclQuery) -> QueryResult<StructDecl
     })
 }
 
-pub(in super) fn query_bool_type(db: &dyn DeclQuery) -> QueryResult<StructDeclarationId, AnalysisError> {
+pub(in super) fn query_bool_type(db: &dyn DeclQuery) -> Trisult<StructDeclarationId, AnalysisError> {
     db.query_primitives().flat_map(|map| {
         map.get(&*BOOL_NAME)
             .map(struct_decl_id_or_panic)
@@ -86,10 +86,10 @@ pub(in super) fn query_bool_type(db: &dyn DeclQuery) -> QueryResult<StructDeclar
     })
 }
 
-pub(in super) fn query_struct_namespace(db: &dyn DeclQuery, struct_decl_id: StructDeclarationId) -> QueryResult<NamespaceId, AnalysisError> {
+pub(in super) fn query_struct_namespace(db: &dyn DeclQuery, struct_decl_id: StructDeclarationId) -> Trisult<NamespaceId, AnalysisError> {
     db.query_ast_struct_def(struct_decl_id)
         .flat_map(|struct_def| {
-            QueryResult::Ok(Namespace::new())
+            Trisult::Ok(Namespace::new())
                 .fold_with(
                     db.query_struct_properties(struct_def.properties),
                     |mut namespace, property_id| {
@@ -109,14 +109,14 @@ pub(in super) fn query_struct_namespace(db: &dyn DeclQuery, struct_decl_id: Stru
         })
 }
 
-pub(in super) fn query_namespaced_rvalue(db: &dyn DeclQuery, nameholders: Vec<Nameholder>, ident: Ident) -> QueryResult<RValue, AnalysisError> {
+pub(in super) fn query_namespaced_rvalue(db: &dyn DeclQuery, nameholders: Vec<Nameholder>, ident: Ident) -> Trisult<RValue, AnalysisError> {
     db.query_namespace(nameholders)
         .flat_map(|namespace| {
             namespace.get(&ident.value).ok_or(AnalysisError::CannotFindIdent(ident)).into()
         })
 }
 
-pub(in super) fn query_namespace(db: &dyn DeclQuery, nameholders: Vec<Nameholder>) -> QueryResult<Rc<Namespace>, AnalysisError> {
+pub(in super) fn query_namespace(db: &dyn DeclQuery, nameholders: Vec<Nameholder>) -> Trisult<Rc<Namespace>, AnalysisError> {
     nameholders.into_iter()
         .map(|nameholder| {
             match nameholder {
@@ -133,10 +133,10 @@ pub(in super) fn query_namespace(db: &dyn DeclQuery, nameholders: Vec<Nameholder
                 },
                 Nameholder::Struct(struct_decl) => db.query_struct_namespace(struct_decl).into(),
                 Nameholder::Event(event_decl) => db.query_event_namespace(event_decl),
-                Nameholder::Empty => QueryResult::Ok(db.intern_namespace(Rc::new(Namespace::new())))
+                Nameholder::Empty => Trisult::Ok(db.intern_namespace(Rc::new(Namespace::new())))
             }
         })
-        .collect::<QueryResult<_, _>>()
+        .collect::<Trisult<_, _>>()
         .fold(
             Rc::new(Namespace::new()),
             |acc, item| {
@@ -144,7 +144,7 @@ pub(in super) fn query_namespace(db: &dyn DeclQuery, nameholders: Vec<Nameholder
                 // TODO Do we really need to clone here?
                 let mut namespace = (*namespace).clone();
                 namespace.parent.push(acc);
-                QueryResult::Ok(Rc::new(namespace))
+                Trisult::Ok(Rc::new(namespace))
             })
 }
 
@@ -152,10 +152,10 @@ pub(in super) fn query_namespaced_type(
     db: &dyn DeclQuery,
     nameholders: Vec<Nameholder>,
     ident: Ident,
-) -> QueryResult<im::Type, AnalysisError> {
+) -> Trisult<im::Type, AnalysisError> {
     db.query_namespaced_rvalue(nameholders, ident)
         .flat_map(|rvalue| match rvalue {
-            RValue::Type(r#type) => QueryResult::Ok(r#type),
+            RValue::Type(r#type) => Trisult::Ok(r#type),
             RValue::EnumConstant(_) => AnalysisError::WrongType.into(),
             RValue::Property(_) => AnalysisError::WrongType.into(),
             RValue::Function(_) => AnalysisError::WrongType.into() // TODO is this correct?
@@ -166,10 +166,10 @@ pub(in super) fn query_namespaced_function(
     db: &dyn DeclQuery,
     nameholders: Vec<Nameholder>,
     ident: Ident,
-) -> QueryResult<FunctionDecl, AnalysisError> {
+) -> Trisult<FunctionDecl, AnalysisError> {
     db.query_namespaced_rvalue(nameholders, ident)
         .flat_map(|rvalue| match rvalue {
-            RValue::Function(function) => QueryResult::Ok(function),
+            RValue::Function(function) => Trisult::Ok(function),
             RValue::Type(_) | RValue::Property(_) | RValue::EnumConstant(_) => {
                 query_error!(AnalysisError::WrongType)
             }
@@ -180,12 +180,12 @@ pub(in super) fn query_namespaced_event(
     db: &dyn DeclQuery,
     nameholders: Vec<Nameholder>,
     ident: Ident,
-) -> QueryResult<EventDeclarationId, AnalysisError> {
+) -> Trisult<EventDeclarationId, AnalysisError> {
     db.query_namespaced_type(nameholders, ident)
         .flat_map(|r#type| match r#type {
-            im::Type::Event(event) => QueryResult::Ok(event),
+            im::Type::Event(event) => Trisult::Ok(event),
             im::Type::Enum(_) | im::Type::Struct(_) | im::Type::Unit => {
-                QueryResult::Err(vec![AnalysisError::WrongType])
+                Trisult::Err(vec![AnalysisError::WrongType])
             }
         })
 }

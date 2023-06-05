@@ -1,4 +1,4 @@
-use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::analysis::error::{AnalysisError, Trisult};
 use crate::language::{ast, im};
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::im::Type;
@@ -6,7 +6,7 @@ use crate::language::im::Type;
 pub(in super) fn query_function_decl(
     db: &dyn DeclQuery,
     function: ast::FunctionDeclaration
-) -> QueryResult<im::FunctionDecl, AnalysisError> {
+) -> Trisult<im::FunctionDecl, AnalysisError> {
     db.query_declared_args(function.arguments.value)
         .map(|decl_args| {
             im::FunctionDecl {

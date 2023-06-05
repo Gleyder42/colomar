@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use salsa::InternKey;
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::analysis::error::{AnalysisError, Trisult};
 use crate::language::ast::{Definition, EventDefinition, Root, StructDefinition};
 use crate::language::im::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
 
@@ -24,7 +24,7 @@ pub(in super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> HashMap<DefKey,
         .collect()
 }
 
-pub(in super) fn query_ast_struct_def(db: &dyn DeclQuery, struct_decl_id: StructDeclarationId) -> QueryResult<StructDefinition, AnalysisError> {
+pub(in super) fn query_ast_struct_def(db: &dyn DeclQuery, struct_decl_id: StructDeclarationId) -> Trisult<StructDefinition, AnalysisError> {
     db.query_ast_struct_def_map()
         .remove(&DefKey::Struct(struct_decl_id))
         .ok_or_else(|| AnalysisError::CannotFindDefinition(struct_decl_id.as_intern_id()))
@@ -71,7 +71,7 @@ pub(in super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, 
         .collect()
 }
 
-pub(in super) fn query_ast_event_def(db: &dyn DeclQuery, event_decl_id: EventDeclarationId) -> QueryResult<EventDefinition, AnalysisError> {
+pub(in super) fn query_ast_event_def(db: &dyn DeclQuery, event_decl_id: EventDeclarationId) -> Trisult<EventDefinition, AnalysisError> {
     db.query_ast_event_def_map()
         .remove(&DefKey::Event(event_decl_id))
         .ok_or_else(|| AnalysisError::CannotFindDefinition(event_decl_id.as_intern_id()))

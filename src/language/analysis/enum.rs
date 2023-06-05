@@ -2,7 +2,7 @@ use std::collections::{HashMap};
 use std::rc::Rc;
 use crate::language::{ast, Ident, im};
 use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::analysis::error::{AnalysisError, Trisult};
 use crate::language::analysis::interner::{IntoInternId};
 use crate::language::im::{EnumConstant, EnumDeclarationId};
 
@@ -27,13 +27,13 @@ pub(in super) fn query_enum_ast_map(db: &dyn DeclQuery) -> HashMap<EnumDeclarati
         .collect::<HashMap<_, _>>()
 }
 
-pub(in super) fn query_enum_def(db: &dyn DeclQuery, enum_decl_id: EnumDeclarationId) -> QueryResult<im::Enum, AnalysisError> {
+pub(in super) fn query_enum_def(db: &dyn DeclQuery, enum_decl_id: EnumDeclarationId) -> Trisult<im::Enum, AnalysisError> {
     db.query_enum_ast(enum_decl_id)
         .map(|enum_ast| db.query_enum(enum_ast))
         .into()
 }
 
-fn no_duplicates(constants: Vec<EnumConstant>) -> QueryResult<Vec<EnumConstant>, AnalysisError> {
+fn no_duplicates(constants: Vec<EnumConstant>) -> Trisult<Vec<EnumConstant>, AnalysisError> {
     let mut constants_map = HashMap::new();
     let mut duplicates = Vec::new();
 
@@ -53,10 +53,10 @@ fn no_duplicates(constants: Vec<EnumConstant>) -> QueryResult<Vec<EnumConstant>,
     }
     let unique_constants = constants_map.into_values().collect::<Vec<EnumConstant>>();
 
-    QueryResult::from((unique_constants, duplicates))
+    Trisult::from((unique_constants, duplicates))
 }
 
-pub(in super) fn query_enum(db: &dyn DeclQuery, r#enum: ast::Enum) -> QueryResult<im::Enum, AnalysisError> {
+pub(in super) fn query_enum(db: &dyn DeclQuery, r#enum: ast::Enum) -> Trisult<im::Enum, AnalysisError> {
     let declaration = db.query_enum_decl(r#enum.declaration);
 
     let constants: Vec<_> = r#enum.definition.constants.into_iter()

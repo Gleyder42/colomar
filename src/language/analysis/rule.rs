@@ -1,6 +1,6 @@
 use crate::language::{ast, im};
 use crate::language::analysis::def::DefQuery;
-use crate::language::analysis::error::{AnalysisError, QueryResult};
+use crate::language::analysis::error::{AnalysisError, Trisult};
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::ast::{Action, Condition};
@@ -11,7 +11,7 @@ pub(in super) fn query_rule_actions(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
     actions: Vec<Action>
-) -> QueryResult<Vec<im::AValue>, AnalysisError> {
+) -> Trisult<Vec<im::AValue>, AnalysisError> {
     actions.into_iter()
         .map(|action| match action {
             Action::CallChain(call_chain) => {
@@ -32,16 +32,16 @@ pub(in super) fn query_rule_cond(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
     conditions: Vec<Condition>,
-) -> QueryResult<Vec<im::AValue>, AnalysisError> {
+) -> Trisult<Vec<im::AValue>, AnalysisError> {
     conditions.into_iter()
         .map(|condition| db.query_call_chain(vec![Nameholder::Root, Nameholder::Event(event_decl_id)], condition))
-        .collect::<QueryResult<Vec<_>, _>>()
+        .collect::<Trisult<Vec<_>, _>>()
         .and_require(db.query_bool_type().map(|decl_id| Type::Struct(decl_id)))
         .flat_map(|(avalues, bool_id)| {
             avalues.into_iter()
                 .map(|avalue| {
                     if avalue.r#type(db) == bool_id {
-                        QueryResult::Ok(avalue)
+                        Trisult::Ok(avalue)
                     } else {
                         query_error!(AnalysisError::WrongType)
                     }
@@ -49,11 +49,11 @@ pub(in super) fn query_rule_cond(
         })
 }
 
-pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryResult<im::Rule, AnalysisError> {
+pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> Trisult<im::Rule, AnalysisError> {
     let arguments = |event_decl_id: EventDeclarationId| {
         rule.arguments.into_iter()
             .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain))
-            .collect::<QueryResult<_, _>>()
+            .collect::<Trisult<_, _>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
             .flat_map(|(arguments, event_def)| {
                 event_def.arguments.into_iter()
@@ -68,13 +68,13 @@ pub(in super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryRes
                         };
 
                         if valid_type {
-                            QueryResult::Ok(called_argument)
+                            Trisult::Ok(called_argument)
                         } else {
                             let error = AnalysisError::WrongType;
-                            QueryResult::Par(called_argument, vec![error])
+                            Trisult::Par(called_argument, vec![error])
                         }
                     })
-                    .collect::<QueryResult<_, _>>()
+                    .collect::<Trisult<_, _>>()
             })
     };
 

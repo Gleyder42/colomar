@@ -4,37 +4,37 @@ use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::Namespace;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum QueryResult<T, E> {
+pub enum Trisult<T, E> {
     Ok(T),
     Par(T, Vec<E>),
     Err(Vec<E>),
 }
 
-impl<Id, T: IntoInternId<Interned=Id>, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
-    pub fn intern_inner<Db: Interner + ?Sized>(self, db: &Db) -> QueryResult<Vec<Id>, E> {
+impl<Id, T: IntoInternId<Interned=Id>, I: IntoIterator<Item=T>, E> Trisult<I, E> {
+    pub fn intern_inner<Db: Interner + ?Sized>(self, db: &Db) -> Trisult<Vec<Id>, E> {
         self.map_inner(|t| t.intern(db))
     }
 }
 
-impl<E> QueryResult<Namespace, E> {
+impl<E> Trisult<Namespace, E> {
 
-    pub fn fold_with<T, I, F>(self, with: QueryResult<I, E>, func: F) -> QueryResult<Namespace, E>
-        where F: Fn(Namespace, T) -> QueryResult<Namespace, E>,
+    pub fn fold_with<T, I, F>(self, with: Trisult<I, E>, func: F) -> Trisult<Namespace, E>
+        where F: Fn(Namespace, T) -> Trisult<Namespace, E>,
               I: IntoIterator<Item=T>
     {
         self.flat_map(|acc| with.fold(acc, func))
     }
 }
 
-impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
-    pub fn fold<A, F>(self, initial: A, func: F) -> QueryResult<A, E>
-        where F: Fn(A, T) -> QueryResult<A, E>
+impl<T, I: IntoIterator<Item=T>, E> Trisult<I, E> {
+    pub fn fold<A, F>(self, initial: A, func: F) -> Trisult<A, E>
+        where F: Fn(A, T) -> Trisult<A, E>
     {
         self.fold_flat_map(initial, |it| it, func)
     }
 
-    pub fn fold_flat_map<U, A, F, M>(self, initial: A, map_func: M, func: F) -> QueryResult<U, E>
-        where F: Fn(A, T) -> QueryResult<A, E>,
+    pub fn fold_flat_map<U, A, F, M>(self, initial: A, map_func: M, func: F) -> Trisult<U, E>
+        where F: Fn(A, T) -> Trisult<A, E>,
               M: FnOnce(A) -> U,
     {
         self.flat_map(|iter| {
@@ -44,75 +44,75 @@ impl<T, I: IntoIterator<Item=T>, E> QueryResult<I, E> {
             for item in iter.into_iter() {
                 let result = func(current, item);
                 match result {
-                    QueryResult::Ok(value) => current = value,
-                    QueryResult::Par(value, mut result_errors) => {
+                    Trisult::Ok(value) => current = value,
+                    Trisult::Par(value, mut result_errors) => {
                         current = value;
                         errors.append(&mut result_errors);
                     }
-                    QueryResult::Err(mut result_errors) => {
+                    Trisult::Err(mut result_errors) => {
                         errors.append(&mut result_errors);
-                        return QueryResult::Err(errors);
+                        return Trisult::Err(errors);
                     }
                 }
             }
 
-            QueryResult::Ok(map_func(current))
+            Trisult::Ok(map_func(current))
         })
     }
 
-    pub fn map_inner<F: Fn(T) -> U, U>(self, func: F) -> QueryResult<Vec<U>, E> {
+    pub fn map_inner<F: Fn(T) -> U, U>(self, func: F) -> Trisult<Vec<U>, E> {
         self.map(|iter| iter.into_iter().map(|it| func(it)).collect::<Vec<U>>())
     }
 }
 
-impl<T, E> QueryResult<T, E> {
-    pub fn from_option(option: Option<T>, error: E) -> QueryResult<T, E> {
+impl<T, E> Trisult<T, E> {
+    pub fn from_option(option: Option<T>, error: E) -> Trisult<T, E> {
         match option {
-            Some(value) => QueryResult::Ok(value),
-            None => QueryResult::Err(vec![error])
+            Some(value) => Trisult::Ok(value),
+            None => Trisult::Err(vec![error])
         }
     }
 
     pub fn to_option(self) -> (Option<T>, Vec<E>) {
         match self {
-            QueryResult::Ok(value) => (Some(value), Vec::new()),
-            QueryResult::Par(value, errors) => (Some(value), errors),
-            QueryResult::Err(errors) => (None, errors)
+            Trisult::Ok(value) => (Some(value), Vec::new()),
+            Trisult::Par(value, errors) => (Some(value), errors),
+            Trisult::Err(errors) => (None, errors)
         }
     }
 }
 
-impl<Id, T: IntoInternId<Interned=Id>, E> QueryResult<T, E> {
-    pub fn intern<Db: Interner + ?Sized>(self, db: &Db) -> QueryResult<Id, E> {
+impl<Id, T: IntoInternId<Interned=Id>, E> Trisult<T, E> {
+    pub fn intern<Db: Interner + ?Sized>(self, db: &Db) -> Trisult<Id, E> {
         self.map(|it| it.intern(db))
     }
 }
 
-impl<E> From<ast::CallChain> for QueryResult<ast::CallChain, E> {
+impl<E> From<ast::CallChain> for Trisult<ast::CallChain, E> {
     fn from(value: ast::CallChain) -> Self {
-        QueryResult::Ok(value)
+        Trisult::Ok(value)
     }
 }
 
-impl<T, E> From<Result<QueryResult<T, E>, E>> for QueryResult<T, E> {
-    fn from(value: Result<QueryResult<T, E>, E>) -> Self {
+impl<T, E> From<Result<Trisult<T, E>, E>> for Trisult<T, E> {
+    fn from(value: Result<Trisult<T, E>, E>) -> Self {
         match value {
             Ok(query_result) => query_result,
-            Err(error) => QueryResult::Err(vec![error])
+            Err(error) => Trisult::Err(vec![error])
         }
     }
 }
 
-impl<T, E> From<Result<T, E>> for QueryResult<T, E> {
+impl<T, E> From<Result<T, E>> for Trisult<T, E> {
     fn from(value: Result<T, E>) -> Self {
         match value {
-            Ok(value) => QueryResult::Ok(value),
-            Err(error) => QueryResult::Err(vec![error])
+            Ok(value) => Trisult::Ok(value),
+            Err(error) => Trisult::Err(vec![error])
         }
     }
 }
 
-impl<T, E> FromIterator<Result<T, E>> for QueryResult<Vec<T>, E> {
+impl<T, E> FromIterator<Result<T, E>> for Trisult<Vec<T>, E> {
     fn from_iter<I: IntoIterator<Item=Result<T, E>>>(iter: I) -> Self {
         let mut results = Vec::new();
         let mut errors = Vec::new();
@@ -129,18 +129,18 @@ impl<T, E> FromIterator<Result<T, E>> for QueryResult<Vec<T>, E> {
 }
 
 
-impl<T, E> FromIterator<QueryResult<T, E>> for QueryResult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item=QueryResult<T, E>>>(iter: I) -> Self {
+impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
+    fn from_iter<I: IntoIterator<Item=Trisult<T, E>>>(iter: I) -> Self {
         let mut results = Vec::new();
         let mut errors = Vec::new();
         for result in iter {
             match result {
-                QueryResult::Ok(value) => results.push(value),
-                QueryResult::Par(value, mut result_errors) => {
+                Trisult::Ok(value) => results.push(value),
+                Trisult::Par(value, mut result_errors) => {
                     results.push(value);
                     errors.append(&mut result_errors);
                 }
-                QueryResult::Err(mut result_errors) => errors.append(&mut result_errors)
+                Trisult::Err(mut result_errors) => errors.append(&mut result_errors)
             }
         }
 
@@ -148,62 +148,62 @@ impl<T, E> FromIterator<QueryResult<T, E>> for QueryResult<Vec<T>, E> {
     }
 }
 
-/// Creates a [QueryResult] from a result and error [Vec].
+/// Creates a [Trisult] from a result and error [Vec].
 /// The result is
-/// * [QueryResult::Ok], if no errors are found
-/// * [QueryResult::Par], if errors are found.
-fn from_results<T, E>(results: Vec<T>, errors: Vec<E>) -> QueryResult<Vec<T>, E> {
+/// * [Trisult::Ok], if no errors are found
+/// * [Trisult::Par], if errors are found.
+fn from_results<T, E>(results: Vec<T>, errors: Vec<E>) -> Trisult<Vec<T>, E> {
     match errors.is_empty() {
-        true => QueryResult::Ok(results),
-        false => QueryResult::Par(results, errors)
+        true => Trisult::Ok(results),
+        false => Trisult::Par(results, errors)
     }
 }
 
-impl<T, E> From<(Vec<T>, Vec<E>)> for QueryResult<Vec<T>, E> {
+impl<T, E> From<(Vec<T>, Vec<E>)> for Trisult<Vec<T>, E> {
     fn from(value: (Vec<T>, Vec<E>)) -> Self {
         from_results(value.0, value.1)
     }
 }
 
-impl<E> QueryResult<(), E> {
-    pub fn empty() -> QueryResult<(), E> {
-        QueryResult::Ok(())
+impl<E> Trisult<(), E> {
+    pub fn empty() -> Trisult<(), E> {
+        Trisult::Ok(())
     }
 }
 
 #[macro_export]
 macro_rules! query_error {
     ($($x:expr),+ $(,)?) => {
-        QueryResult::Err(vec![$($x),+])
+        Trisult::Err(vec![$($x),+])
     };
 }
 
-impl<T: Clone, E> QueryResult<T, E> {
-    pub fn map_and_require<O, F>(self, func: F) -> QueryResult<(T, O), E>
-        where F: FnOnce(T) -> QueryResult<O, E>
+impl<T: Clone, E> Trisult<T, E> {
+    pub fn map_and_require<O, F>(self, func: F) -> Trisult<(T, O), E>
+        where F: FnOnce(T) -> Trisult<O, E>
     {
         self.flat_map(|t| func(t.clone()).map(|o| (t, o)))
     }
 }
 
-impl<T, E> QueryResult<T, E> {
-    pub fn maybe_add_error(self, option: Option<E>) -> QueryResult<T, E> {
+impl<T, E> Trisult<T, E> {
+    pub fn maybe_add_error(self, option: Option<E>) -> Trisult<T, E> {
         match option {
             Some(error) => self.add_error(error),
             None => self
         }
     }
 
-    pub fn add_error(self, error: E) -> QueryResult<T, E> {
+    pub fn add_error(self, error: E) -> Trisult<T, E> {
         match self {
-            QueryResult::Ok(value) => QueryResult::Par(value, vec![error]),
-            QueryResult::Par(value, mut errors) => {
+            Trisult::Ok(value) => Trisult::Par(value, vec![error]),
+            Trisult::Par(value, mut errors) => {
                 errors.push(error);
-                QueryResult::Par(value, errors)
+                Trisult::Par(value, errors)
             }
-            QueryResult::Err(mut errors) => {
+            Trisult::Err(mut errors) => {
                 errors.push(error);
-                QueryResult::Err(errors)
+                Trisult::Err(errors)
             }
         }
     }
@@ -211,12 +211,12 @@ impl<T, E> QueryResult<T, E> {
     /// Combines this result's value [T] with another result's value [O].
     ///
     /// # Notes
-    /// * If this result is [QueryResult::Err] the combined result will also be [QueryResult::Err]
-    /// * If the other result is [QueryResult::Err] the combined result will be [QueryResult::Par]
+    /// * If this result is [Trisult::Err] the combined result will also be [Trisult::Err]
+    /// * If the other result is [Trisult::Err] the combined result will be [Trisult::Par]
     /// and use the default value of [O]
-    pub fn and_or_default<O: Default>(self, other: QueryResult<O, E>) -> QueryResult<(T, O), E> {
+    pub fn and_or_default<O: Default>(self, other: Trisult<O, E>) -> Trisult<(T, O), E> {
         self.and(
-            |value, errors| QueryResult::Par((value, O::default()), errors),
+            |value, errors| Trisult::Par((value, O::default()), errors),
             other,
         )
     }
@@ -224,20 +224,20 @@ impl<T, E> QueryResult<T, E> {
     /// Combines this result's value [T] with another result's value [O].
     ///
     /// # Notes
-    /// * If this result or the other result is [QueryResult::Err] the combined result will also be [QueryResult::Err]
-    pub fn and_require<O>(self, other: QueryResult<O, E>) -> QueryResult<(T, O), E> {
-        self.and(|_value, errors| QueryResult::Err(errors), other)
+    /// * If this result or the other result is [Trisult::Err] the combined result will also be [Trisult::Err]
+    pub fn and_require<O>(self, other: Trisult<O, E>) -> Trisult<(T, O), E> {
+        self.and(|_value, errors| Trisult::Err(errors), other)
     }
 
     /// Combines this result's value [T] with another result's value [O].
     ///
     /// # Notes
-    /// * If this result is [QueryResult::Err] the combined result will also be [QueryResult::Err]
-    /// * If the other result is [QueryResult::Err] the recovery function defines the combined result
-    fn and<O, F>(self, recovery: F, other: QueryResult<O, E>) -> QueryResult<(T, O), E>
-        where F: FnOnce(T, Vec<E>) -> QueryResult<(T, O), E>,
+    /// * If this result is [Trisult::Err] the combined result will also be [Trisult::Err]
+    /// * If the other result is [Trisult::Err] the recovery function defines the combined result
+    fn and<O, F>(self, recovery: F, other: Trisult<O, E>) -> Trisult<(T, O), E>
+        where F: FnOnce(T, Vec<E>) -> Trisult<(T, O), E>,
     {
-        use QueryResult::*;
+        use Trisult::*;
 
         match (self, other) {
             (Ok(value), Ok(other_value)) => Ok((value, other_value)),
@@ -266,12 +266,12 @@ impl<T, E> QueryResult<T, E> {
 
     pub fn and_maybe<O>(
         self,
-        option: Option<QueryResult<O, E>>,
-    ) -> QueryResult<(T, Option<O>), E> {
+        option: Option<Trisult<O, E>>,
+    ) -> Trisult<(T, Option<O>), E> {
         match option {
             Some(result) => {
                 self.and(
-                    |value, errors| QueryResult::Par((value, None), errors),
+                    |value, errors| Trisult::Par((value, None), errors),
                     result.map(|it| Some(it)),
                 )
             }
@@ -283,7 +283,7 @@ impl<T, E> QueryResult<T, E> {
         self,
         option: Option<Result<O, E>>,
         func: F,
-    ) -> QueryResult<U, E>
+    ) -> Trisult<U, E>
         where F: FnOnce(T, Option<O>) -> U
     {
         let (value, error) = match option {
@@ -301,32 +301,32 @@ impl<T, E> QueryResult<T, E> {
             .map(|it| func(it, value))
     }
 
-    pub fn map<U, F: FnOnce(T) -> U>(self, func: F) -> QueryResult<U, E> {
+    pub fn map<U, F: FnOnce(T) -> U>(self, func: F) -> Trisult<U, E> {
         match self {
-            QueryResult::Ok(value) => QueryResult::Ok(func(value)),
-            QueryResult::Par(value, errors) => QueryResult::Par(func(value), errors),
-            QueryResult::Err(errors) => QueryResult::Err(errors)
+            Trisult::Ok(value) => Trisult::Ok(func(value)),
+            Trisult::Par(value, errors) => Trisult::Par(func(value), errors),
+            Trisult::Err(errors) => Trisult::Err(errors)
         }
     }
 
-    pub fn flat_map<U, F: FnOnce(T) -> QueryResult<U, E>>(self, func: F) -> QueryResult<U, E> {
+    pub fn flat_map<U, F: FnOnce(T) -> Trisult<U, E>>(self, func: F) -> Trisult<U, E> {
         match self {
-            QueryResult::Ok(value) => func(value),
-            QueryResult::Par(value, mut errors) => {
+            Trisult::Ok(value) => func(value),
+            Trisult::Par(value, mut errors) => {
                 let result = func(value);
                 match result {
-                    QueryResult::Ok(value) => QueryResult::Par(value, errors),
-                    QueryResult::Par(value, mut mapped_errors) => {
+                    Trisult::Ok(value) => Trisult::Par(value, errors),
+                    Trisult::Par(value, mut mapped_errors) => {
                         errors.append(&mut mapped_errors);
-                        QueryResult::Par(value, errors)
+                        Trisult::Par(value, errors)
                     }
-                    QueryResult::Err(mut mapped_errors) => {
+                    Trisult::Err(mut mapped_errors) => {
                         errors.append(&mut mapped_errors);
-                        QueryResult::Err(errors)
+                        Trisult::Err(errors)
                     }
                 }
             }
-            QueryResult::Err(errors) => QueryResult::Err(errors)
+            Trisult::Err(errors) => Trisult::Err(errors)
         }
     }
 }
@@ -350,8 +350,8 @@ impl<T> Into<Result<T, AnalysisError>> for AnalysisError {
     }
 }
 
-impl<T> Into<QueryResult<T, AnalysisError>> for AnalysisError {
-    fn into(self) -> QueryResult<T, AnalysisError> {
+impl<T> Into<Trisult<T, AnalysisError>> for AnalysisError {
+    fn into(self) -> Trisult<T, AnalysisError> {
         query_error!(self)
     }
 }
