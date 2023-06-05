@@ -4,7 +4,6 @@ use crate::language::{ImmutableString, Span};
 use chumsky::prelude::*;
 use chumsky::text::Character;
 use std::fmt::{Debug, Display, Formatter};
-use std::rc::Rc;
 use std::string::String;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -56,14 +55,14 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     let num = text::int(10)
         .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
         .collect::<String>()
-        .map(Rc::new)
+        .map(ImmutableString::new)
         .map(Token::Num);
 
     let string = just('"')
         .ignore_then(filter(|c| *c != '"').repeated())
         .then_ignore(just('"'))
         .collect::<String>()
-        .map(Rc::new)
+        .map(ImmutableString::new)
         .map(Token::String);
 
     let ctrl = one_of("(){},.:|=").map(Token::Ctrl);

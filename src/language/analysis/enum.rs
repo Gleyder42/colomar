@@ -5,7 +5,6 @@ use crate::language::error::Trisult;
 use crate::language::im::{EnumConstant, EnumDeclarationId};
 use crate::language::{ast, im, Ident};
 use std::collections::HashMap;
-use std::rc::Rc;
 
 pub(super) fn query_enum_ast(
     db: &dyn DeclQuery,
@@ -53,7 +52,7 @@ fn no_duplicates(constants: Vec<EnumConstant>) -> QueryTrisult<Vec<EnumConstant>
         // Returns Err if the constants is already present in the constants_map
         if let Err(error) = result {
             let first = Ident {
-                value: Rc::clone(error.entry.key()),
+                value: error.entry.key().clone(),
                 span: error.entry.get().name.span.clone(),
             };
 
