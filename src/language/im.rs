@@ -2,8 +2,24 @@ use crate::impl_intern_key;
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::{EnumNameholder, Nameholder};
 use crate::language::ast::{SpannedBool, UseRestriction};
-use crate::language::{Ident, ImmutableString, Span, Spanned};
+use crate::language::{
+    Ident, ImmutableString, Span, Spanned, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
+    DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+};
+use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
+
+pub type DeclaredArgumentIds = SmallVec<[DeclaredArgumentId; DECLARED_ARGUMENTS_LEN]>;
+pub type FunctionDeclIds = SmallVec<[FunctionDeclId; FUNCTIONS_DECLS_LEN]>;
+pub type PropertyDecls = SmallVec<[PropertyDecl; PROPERTY_DECLS_LEN]>;
+pub type PropertyDeclIds = SmallVec<[PropertyDeclId; PROPERTY_DECLS_LEN]>;
+pub type EnumConstantIds = SmallVec<[EnumConstantId; ENUM_CONSTANTS_LEN]>;
+pub type CalledArguments = SmallVec<[CalledArgument; CALLED_ARGUMENTS_LEN]>;
+pub type Predicates = SmallVec<[Predicate; CONDITIONS_LEN]>;
+
+pub type EnumConstants = SmallVec<[EnumConstant; ENUM_CONSTANTS_LEN]>;
+
+pub type Actions = Vec<AValue>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Im(pub Vec<Root>);
@@ -52,7 +68,7 @@ impl Root {
 pub struct FunctionDecl {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub arguments: Vec<DeclaredArgumentId>,
+    pub arguments: DeclaredArgumentIds,
     pub return_type: Type,
 }
 
@@ -105,8 +121,8 @@ pub struct StructDeclaration {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StructDefinition {
-    pub functions: Vec<FunctionDeclId>,
-    pub properties: Vec<PropertyDeclId>,
+    pub functions: FunctionDeclIds,
+    pub properties: PropertyDeclIds,
 }
 
 impl IntoInternId for StructDeclaration {
@@ -156,7 +172,8 @@ impl_intern_key!(EnumConstantId);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnumDefinition {
     // TODO Maybe use a hashset or hashmap to show that names are unique
-    pub constants: Vec<EnumConstantId>,
+    // TODO hashsets have no hash value (?)
+    pub constants: EnumConstantIds,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -297,17 +314,17 @@ pub struct Event {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EventDefinition {
-    pub arguments: Vec<DeclaredArgumentId>,
-    pub properties: Vec<PropertyDecl>,
+    pub arguments: DeclaredArgumentIds,
+    pub properties: PropertyDecls,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rule {
     pub title: ImmutableString,
     pub event: EventDeclarationId,
-    pub arguments: Vec<CalledArgument>,
-    pub conditions: Vec<Predicate>,
-    pub actions: Vec<AValue>,
+    pub arguments: CalledArguments,
+    pub conditions: Predicates,
+    pub actions: Actions,
 }
 
 /// Represents a value which is known at runtime time or compile time and it refers
@@ -369,7 +386,7 @@ impl RValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
     // TODO Should this be FunctionDeclId or FunctionDecl?
-    FunctionCall(FunctionDeclId, Vec<AValue>),
+    FunctionCall(FunctionDeclId, Actions),
     RValue(RValue, Span),
     CValue(CValue),
 }

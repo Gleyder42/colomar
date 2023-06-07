@@ -173,7 +173,7 @@ pub(super) fn query_namespace(
                 Nameholder::Empty => Trisult::Ok(db.intern_namespace(Rc::new(Namespace::new()))),
             }
         })
-        .collect::<QueryTrisult<_>>()
+        .collect::<QueryTrisult<Vec<_>>>()
         .fold(Rc::new(Namespace::new()), |acc, item| {
             let namespace: Rc<Namespace> = db.lookup_intern_namespace(item);
             // TODO Do we really need to clone here?

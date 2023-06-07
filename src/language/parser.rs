@@ -4,13 +4,11 @@ use crate::language::ast::*;
 use crate::language::lexer::Token;
 use crate::language::{Ident, Spanned};
 use chumsky::prelude::*;
+use smallvec::SmallVec;
 
 fn ident() -> impl Parser<Token, Ident, Error = Simple<Token>> {
     filter_map(|span, token| match token {
-        Token::Ident(ident) => Ok(Ident {
-            value: ident,
-            span,
-        }),
+        Token::Ident(ident) => Ok(Ident { value: ident, span }),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     })
 }
@@ -23,7 +21,7 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
             ident()
                 .separated_by(just(Token::Ctrl('|')))
                 .map_with_span(|types, span| Types {
-                    values: types,
+                    values: types.into(),
                     span,
                 }),
         )
@@ -83,7 +81,7 @@ fn event() -> impl Parser<Token, Event, Error = Simple<Token>> {
                 actions: block.actions,
                 conditions: block.conditions,
                 by,
-                arguments,
+                arguments: arguments.inner_into(),
             },
             span,
         })
@@ -113,10 +111,7 @@ fn r#enum() -> impl Parser<Token, Enum, Error = Simple<Token>> {
 
 fn property() -> impl Parser<Token, PropertyDeclaration, Error = Simple<Token>> {
     workshop_or_not()
-        .then(
-            choice((just(Token::GetVal), just(Token::Val)))
-                .map_with_span(Spanned::new),
-        )
+        .then(choice((just(Token::GetVal), just(Token::Val))).map_with_span(Spanned::new))
         .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident())
@@ -153,7 +148,7 @@ fn r#struct() -> impl Parser<Token, Struct, Error = Simple<Token>> {
         .map(|((is_workshop, name), arguments)| FunctionDeclaration {
             name,
             is_workshop,
-            arguments,
+            arguments: arguments.inner_into(),
         });
 
     enum StructMember {
@@ -184,8 +179,8 @@ fn r#struct() -> impl Parser<Token, Struct, Error = Simple<Token>> {
                 .delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))),
         )
         .map_with_span(|(declaration, members), span| {
-            let mut functions = Vec::new();
-            let mut properties = Vec::new();
+            let mut functions: FunctionDecls = SmallVec::new();
+            let mut properties: PropertyDecls = SmallVec::new();
             for member in members {
                 match member {
                     StructMember::Function(function) => functions.push(function),
@@ -283,8 +278,8 @@ fn block() -> impl Parser<Token, Block, Error = Simple<Token>> {
             just(Token::Ctrl('}')).padded_by(newline_repeated()),
         )
         .map_with_span(|(conditions, actions), span| Block {
-            actions,
-            conditions,
+            actions: actions.into(),
+            conditions: conditions.into(),
             span,
         })
 }

@@ -1,7 +1,17 @@
-use crate::language::{Ident, ImmutableString, Spanned};
+use crate::language::{
+    Ident, ImmutableString, Spanned, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
+    FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+};
 use crate::Span;
+use smallvec::SmallVec;
 
 pub type Condition = CallChain;
+
+pub type Conditions = SmallVec<[Condition; CONDITIONS_LEN]>;
+pub type Actions = SmallVec<[Action; ACTIONS_LEN]>;
+pub type DeclaredArguments = SmallVec<[DeclaredArgument; DECLARED_ARGUMENTS_LEN]>;
+pub type PropertyDecls = SmallVec<[PropertyDeclaration; PROPERTY_DECLS_LEN]>;
+pub type FunctionDecls = SmallVec<[FunctionDeclaration; FUNCTIONS_DECLS_LEN]>;
 
 pub type SpannedBool = Option<Spanned<()>>;
 
@@ -30,7 +40,8 @@ impl From<StructDefinition> for Definition {
     }
 }
 
-// Abstract Syntax Tree
+/// Abstract Syntax Tree
+/// Stores elements not in a [SmallVec] because it is expected to have many elements.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ast(pub Vec<Root>);
 
@@ -59,13 +70,13 @@ pub enum Action {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Types {
-    pub values: Vec<Ident>,
+    pub values: SmallVec<[Ident; 2]>,
     pub span: Span,
 }
 
 impl IntoIterator for Types {
     type Item = Ident;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
+    type IntoIter = smallvec::IntoIter<[Ident; 2]>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.values.into_iter()
@@ -73,8 +84,8 @@ impl IntoIterator for Types {
 }
 
 #[cfg(test)]
-impl From<Vec<Ident>> for Types {
-    fn from(value: Vec<Ident>) -> Self {
+impl From<SmallVec<[Ident; 2]>> for Types {
+    fn from(value: SmallVec<[Ident; 2]>) -> Self {
         Types {
             values: value,
             span: 0..1,
@@ -92,9 +103,9 @@ pub struct EventDeclaration {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EventDefinition {
     pub by: Option<(Ident, CallArguments)>,
-    pub arguments: Spanned<Vec<DeclaredArgument>>,
-    pub conditions: Vec<Condition>,
-    pub actions: Vec<Action>,
+    pub arguments: Spanned<DeclaredArguments>,
+    pub conditions: Conditions,
+    pub actions: Actions,
 }
 
 impl TryFrom<Definition> for EventDefinition {
@@ -136,7 +147,7 @@ pub struct PropertyDeclaration {
 pub struct FunctionDeclaration {
     pub is_workshop: SpannedBool,
     pub name: Ident,
-    pub arguments: Spanned<Vec<DeclaredArgument>>,
+    pub arguments: Spanned<DeclaredArguments>,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -149,8 +160,8 @@ pub struct StructDeclaration {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct StructDefinition {
-    pub properties: Vec<PropertyDeclaration>,
-    pub functions: Vec<FunctionDeclaration>,
+    pub properties: PropertyDecls,
+    pub functions: FunctionDecls,
 }
 
 impl TryFrom<Definition> for StructDefinition {
@@ -216,14 +227,14 @@ pub struct Rule {
     pub name: Spanned<ImmutableString>,
     pub event: Ident,
     pub arguments: CallArguments,
-    pub conditions: Vec<Condition>,
-    pub actions: Vec<Action>,
+    pub conditions: Conditions,
+    pub actions: Actions,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Block {
-    pub actions: Vec<Action>,
-    pub conditions: Vec<Condition>,
+    pub actions: Actions,
+    pub conditions: Conditions,
     pub span: Span,
 }
 
@@ -234,6 +245,7 @@ pub struct Block {
 pub type CallArguments = Spanned<Vec<CallChain>>;
 
 /// Multiple idents form a call chain.
+///
 /// ## Example
 /// - Team.All
 /// - Hello.World

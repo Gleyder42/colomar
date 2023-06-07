@@ -2,9 +2,10 @@ use crate::language::analysis::file::DefKey;
 use crate::language::analysis::interner::Interner;
 use crate::language::analysis::namespace::{Nameholder, Namespace, NamespaceId};
 use crate::language::analysis::{AnalysisError, QueryTrisult};
-use crate::language::ast::Action;
+use crate::language::ast::Actions;
 use crate::language::im::{
-    EnumDeclarationId, EventDeclarationId, FunctionDeclId, PropertyDeclId, StructDeclarationId,
+    DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId, FunctionDeclIds, PropertyDeclIds,
+    PropertyDecls, StructDeclarationId,
 };
 use crate::language::{ast, im, Ident, ImmutableString};
 use ast::Ast;
@@ -68,8 +69,8 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(arg::query_declared_args)]
     fn query_declared_args(
         &self,
-        decl_args: Vec<ast::DeclaredArgument>,
-    ) -> QueryTrisult<Vec<DeclaredArgumentId>>;
+        decl_args: ast::DeclaredArguments,
+    ) -> QueryTrisult<DeclaredArgumentIds>;
 
     // Call
 
@@ -100,7 +101,7 @@ pub trait DeclQuery: Interner {
     // Event
 
     #[salsa::invoke(event::query_event_properties)]
-    fn query_event_properties(self, actions: Vec<Action>) -> QueryTrisult<Vec<im::PropertyDecl>>;
+    fn query_event_properties(self, actions: Actions) -> QueryTrisult<im::PropertyDecls>;
 
     #[salsa::invoke(event::query_event_decl)]
     fn query_event_decl(&self, event_decl: ast::EventDeclaration) -> EventDeclarationId;
@@ -115,7 +116,7 @@ pub trait DeclQuery: Interner {
     fn query_event_context_variables(
         &self,
         event_decl: EventDeclarationId,
-    ) -> QueryTrisult<Vec<im::PropertyDecl>>;
+    ) -> QueryTrisult<PropertyDecls>;
 
     // Namespace
 
@@ -191,14 +192,14 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(r#struct::query_struct_functions)]
     fn query_struct_functions(
         &self,
-        functions: Vec<ast::FunctionDeclaration>,
-    ) -> QueryTrisult<Vec<FunctionDeclId>>;
+        functions: ast::FunctionDecls,
+    ) -> QueryTrisult<FunctionDeclIds>;
 
     #[salsa::invoke(r#struct::query_struct_properties)]
     fn query_struct_properties(
         &self,
-        properties: Vec<ast::PropertyDeclaration>,
-    ) -> QueryTrisult<Vec<PropertyDeclId>>;
+        properties: ast::PropertyDecls,
+    ) -> QueryTrisult<PropertyDeclIds>;
 
     #[salsa::invoke(r#struct::query_struct_decl)]
     fn query_struct_decl(&self, r#struct: ast::StructDeclaration) -> StructDeclarationId;

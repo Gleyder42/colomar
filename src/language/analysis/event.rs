@@ -2,8 +2,8 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::QueryTrisult;
-use crate::language::ast::Action;
-use crate::language::im::{EventDeclarationId, PropertyDecl};
+use crate::language::ast::{Action, Actions};
+use crate::language::im::{EventDeclarationId, PropertyDecls};
 use crate::language::{ast, im};
 
 pub(super) fn query_event_def_by_id(
@@ -17,15 +17,15 @@ pub(super) fn query_event_def_by_id(
 pub(super) fn query_event_context_variables(
     db: &dyn DeclQuery,
     event_decl: EventDeclarationId,
-) -> QueryTrisult<Vec<PropertyDecl>> {
+) -> QueryTrisult<PropertyDecls> {
     db.query_ast_event_def(event_decl)
         .flat_map(|event_def| db.query_event_properties(event_def.actions))
 }
 
 pub(super) fn query_event_properties(
     db: &dyn DeclQuery,
-    actions: Vec<Action>,
-) -> QueryTrisult<Vec<PropertyDecl>> {
+    actions: Actions,
+) -> QueryTrisult<PropertyDecls> {
     actions
         .into_iter()
         .map(|action| match action {

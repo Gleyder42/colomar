@@ -2,7 +2,7 @@ use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::{AnalysisError, QueryTrisult};
-use crate::language::ast::{Action, Condition};
+use crate::language::ast::{Action, Actions, Conditions};
 use crate::language::error::Trisult;
 use crate::language::im::{
     CalledArgument, DeclaredArgument, EventDeclarationId, Predicate, RValue, Type,
@@ -13,7 +13,7 @@ use crate::query_error;
 pub(super) fn query_rule_actions(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
-    actions: Vec<Action>,
+    actions: Actions,
 ) -> QueryTrisult<Vec<im::AValue>> {
     actions
         .into_iter()
@@ -33,7 +33,7 @@ pub(super) fn query_rule_actions(
 pub(super) fn query_rule_cond(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
-    conditions: Vec<Condition>,
+    conditions: Conditions,
 ) -> QueryTrisult<Vec<im::AValue>> {
     conditions
         .into_iter()
@@ -43,7 +43,7 @@ pub(super) fn query_rule_cond(
                 condition,
             )
         })
-        .collect::<QueryTrisult<_>>()
+        .collect::<QueryTrisult<Vec<_>>>()
         .and_require(db.query_bool_type().map(Type::Struct))
         .flat_map(|(avalues, bool_id)| {
             avalues
@@ -64,7 +64,7 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryTrisul
         rule.arguments
             .into_iter()
             .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain))
-            .collect::<QueryTrisult<_>>()
+            .collect::<QueryTrisult<Vec<_>>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
             .flat_map(|(arguments, event_def)| {
                 event_def

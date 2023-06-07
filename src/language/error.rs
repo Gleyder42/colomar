@@ -1,6 +1,7 @@
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::Namespace;
 use crate::language::ast;
+use smallvec::{Array, SmallVec};
 use std::fmt::Debug;
 
 /// Trisult is similar to [Result] but has one more in-between state.
@@ -140,10 +141,18 @@ impl<T, E> Trisult<T, E> {
     }
 }
 
-impl<Id, T: IntoInternId<Interned = Id>, I: IntoIterator<Item = T>, E> Trisult<I, E> {
+impl<Id, T, I, E> Trisult<I, E>
+where
+    T: IntoInternId<Interned = Id>,
+    I: IntoIterator<Item = T>,
+{
     /// Available for [Trisult] having an [IntoIterator] as value.
     /// Interns the inner value [T] of iterator [I] to it's interned value [Id]
-    pub fn intern_inner<Db: Interner + ?Sized>(self, db: &Db) -> Trisult<Vec<Id>, E> {
+    pub fn intern_inner<Db, Iu>(self, db: &Db) -> Trisult<Iu, E>
+    where
+        Db: Interner + ?Sized,
+        Iu: IntoIterator<Item = Id> + FromIterator<Id>,
+    {
         self.map_inner(|t| t.intern(db))
     }
 }
@@ -184,8 +193,12 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
         })
     }
 
-    pub fn map_inner<F: Fn(T) -> U, U>(self, func: F) -> Trisult<Vec<U>, E> {
-        self.map(|iter| iter.into_iter().map(func).collect::<Vec<U>>())
+    pub fn map_inner<F, U, Iu>(self, func: F) -> Trisult<Iu, E>
+    where
+        F: Fn(T) -> U,
+        Iu: IntoIterator<Item = U> + FromIterator<U>,
+    {
+        self.map(|iter| iter.into_iter().map(func).collect::<Iu>())
     }
 }
 
@@ -257,32 +270,51 @@ impl<T, E> FromIterator<Result<T, E>> for Trisult<Vec<T>, E> {
             }
         }
 
-        from_results(results, errors)
+        from_vec_results(results, errors)
+    }
+}
+
+impl<T, A: Array<Item = T>, E> FromIterator<Trisult<T, E>> for Trisult<SmallVec<A>, E> {
+    fn from_iter<I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> Self {
+        let (results, errors) = from_iter_trisults(iter);
+
+        from_small_vec_results(results, errors)
     }
 }
 
 impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
     fn from_iter<I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> Self {
-        let mut results = Vec::new();
-        let mut errors = Vec::new();
-        for result in iter {
-            match result {
-                Trisult::Ok(value) => results.push(value),
-                Trisult::Par(value, mut result_errors) => {
-                    results.push(value);
-                    errors.append(&mut result_errors);
-                }
-                Trisult::Err(mut result_errors) => errors.append(&mut result_errors),
-            }
-        }
+        let (results, errors) = from_iter_trisults(iter);
 
-        from_results(results, errors)
+        from_vec_results(results, errors)
     }
+}
+
+fn from_iter_trisults<T, E, I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> (Vec<T>, Vec<E>) {
+    let mut results = Vec::new();
+    let mut errors = Vec::new();
+    for result in iter {
+        match result {
+            Trisult::Ok(value) => results.push(value),
+            Trisult::Par(value, mut result_errors) => {
+                results.push(value);
+                errors.append(&mut result_errors);
+            }
+            Trisult::Err(mut result_errors) => errors.append(&mut result_errors),
+        }
+    }
+    (results, errors)
 }
 
 impl<T, E> From<(Vec<T>, Vec<E>)> for Trisult<Vec<T>, E> {
     fn from(value: (Vec<T>, Vec<E>)) -> Self {
-        from_results(value.0, value.1)
+        from_vec_results(value.0, value.1)
+    }
+}
+
+impl<T: Array, E> From<(SmallVec<T>, Vec<E>)> for Trisult<SmallVec<T>, E> {
+    fn from(value: (SmallVec<T>, Vec<E>)) -> Self {
+        from_small_vec_results(value.0, value.1)
     }
 }
 
@@ -290,10 +322,23 @@ impl<T, E> From<(Vec<T>, Vec<E>)> for Trisult<Vec<T>, E> {
 /// The result is
 /// * [Trisult::Ok], if no errors are found
 /// * [Trisult::Par], if errors are found.
-fn from_results<T, E>(results: Vec<T>, errors: Vec<E>) -> Trisult<Vec<T>, E> {
+fn from_vec_results<T, E>(results: Vec<T>, errors: Vec<E>) -> Trisult<Vec<T>, E> {
     match errors.is_empty() {
         true => Trisult::Ok(results),
         false => Trisult::Par(results, errors),
+    }
+}
+
+fn from_small_vec_results<T, A, E>(
+    results: impl Into<SmallVec<A>>,
+    errors: Vec<E>,
+) -> Trisult<SmallVec<A>, E>
+where
+    A: Array<Item = T>,
+{
+    match errors.is_empty() {
+        true => Trisult::Ok(results.into()),
+        false => Trisult::Par(results.into(), errors),
     }
 }
 

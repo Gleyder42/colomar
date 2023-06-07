@@ -1,17 +1,17 @@
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::QueryTrisult;
-use crate::language::im::{CalledType, CalledTypes};
+use crate::language::im::{CalledType, CalledTypes, DeclaredArgumentIds};
 use crate::language::{ast, im};
 
 pub(super) fn query_declared_args(
     db: &dyn DeclQuery,
-    decl_args: Vec<ast::DeclaredArgument>,
-) -> QueryTrisult<Vec<im::DeclaredArgumentId>> {
+    decl_args: ast::DeclaredArguments,
+) -> QueryTrisult<DeclaredArgumentIds> {
     decl_args
         .into_iter()
         .map(|decl_arg| db.query_declared_arg(decl_arg))
-        .collect::<QueryTrisult<Vec<_>>>()
+        .collect::<QueryTrisult<_>>()
 }
 
 pub(super) fn query_declared_arg(

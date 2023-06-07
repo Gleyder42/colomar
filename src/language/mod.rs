@@ -12,6 +12,15 @@ pub mod parser;
 pub type Span = std::ops::Range<usize>;
 pub type ImmutableString = SmolStr;
 
+const CONDITIONS_LEN: usize = 6;
+const ACTIONS_LEN: usize = 8;
+const DECLARED_ARGUMENTS_LEN: usize = 4;
+const PROPERTY_DECLS_LEN: usize = 4;
+const FUNCTIONS_DECLS_LEN: usize = 6;
+const ENUM_CONSTANTS_LEN: usize = 8;
+
+const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
+
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
     pub value: ImmutableString,
@@ -40,5 +49,14 @@ impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.value.into_iter()
+    }
+}
+
+impl<T> Spanned<T> {
+    pub fn inner_into<U: From<T>>(self) -> Spanned<U> {
+        Spanned {
+            value: self.value.into(),
+            span: self.span,
+        }
     }
 }
