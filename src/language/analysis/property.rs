@@ -1,3 +1,4 @@
+use smallvec::smallvec;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::QueryTrisult;
@@ -8,7 +9,7 @@ pub(super) fn query_property(
     db: &dyn DeclQuery,
     property_decl: ast::PropertyDeclaration,
 ) -> QueryTrisult<PropertyDecl> {
-    db.query_namespaced_type(vec![Nameholder::Root], property_decl.r#type)
+    db.query_namespaced_type(smallvec![Nameholder::Root], property_decl.r#type)
         .map(|r#type| PropertyDecl {
             is_workshop: property_decl.is_workshop,
             name: property_decl.name,

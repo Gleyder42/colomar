@@ -1,6 +1,6 @@
 use crate::language::analysis::file::DefKey;
 use crate::language::analysis::interner::Interner;
-use crate::language::analysis::namespace::{Nameholder, Namespace, NamespaceId};
+use crate::language::analysis::namespace::{Nameholders, Namespace, NamespaceId};
 use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::Actions;
 use crate::language::im::{
@@ -77,7 +77,7 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(call::query_call_chain)]
     fn query_call_chain(
         &self,
-        nameholders: Vec<Nameholder>,
+        nameholders: Nameholders,
         call_chain: ast::CallChain,
     ) -> QueryTrisult<AValue>;
 
@@ -151,31 +151,31 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(namespace::query_namespaced_rvalue)]
     fn query_namespaced_rvalue(
         &self,
-        nameholders: Vec<Nameholder>,
+        nameholders: Nameholders,
         ident: Ident,
     ) -> QueryTrisult<im::RValue>;
 
     #[salsa::invoke(namespace::query_namespace)]
-    fn query_namespace(&self, nameholders: Vec<Nameholder>) -> QueryTrisult<Rc<Namespace>>;
+    fn query_namespace(&self, nameholders: Nameholders) -> QueryTrisult<Rc<Namespace>>;
 
     #[salsa::invoke(namespace::query_namespaced_type)]
     fn query_namespaced_type(
         &self,
-        nameholders: Vec<Nameholder>,
+        nameholders: Nameholders,
         ident: Ident,
     ) -> QueryTrisult<im::Type>;
 
     #[salsa::invoke(namespace::query_namespaced_function)]
     fn query_namespaced_function(
         &self,
-        nameholders: Vec<Nameholder>,
+        nameholders: Nameholders,
         ident: Ident,
     ) -> QueryTrisult<im::FunctionDecl>;
 
     #[salsa::invoke(namespace::query_namespaced_event)]
     fn query_namespaced_event(
         &self,
-        nameholders: Vec<Nameholder>,
+        nameholders: Nameholders,
         ident: Ident,
     ) -> QueryTrisult<EventDeclarationId>;
 

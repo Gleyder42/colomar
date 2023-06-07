@@ -1,13 +1,14 @@
+use smallvec::smallvec;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::interner::IntoInternId;
-use crate::language::analysis::namespace::Nameholder;
+use crate::language::analysis::namespace::{Nameholder, Nameholders};
 use crate::language::analysis::QueryTrisult;
 use crate::language::im::CValue;
 use crate::language::{ast, im};
 
 pub(super) fn query_call_chain(
     db: &dyn DeclQuery,
-    nameholders: Vec<Nameholder>,
+    nameholders: Nameholders,
     call_chain: ast::CallChain,
 ) -> QueryTrisult<im::AValue> {
     assert!(
@@ -34,7 +35,7 @@ pub(super) fn query_call_chain(
                     .query_namespaced_rvalue(nameholders, ident.clone())
                     .map(|rvalue| {
                         (
-                            vec![rvalue.clone().into()],
+                            smallvec![rvalue.clone().into()],
                             im::AValue::RValue(rvalue, ident.span),
                         )
                     }),
@@ -43,20 +44,20 @@ pub(super) fn query_call_chain(
                     .and_or_default(
                         args.into_iter()
                             .map(|call_chain| {
-                                db.query_call_chain(vec![Nameholder::Root], call_chain)
+                                db.query_call_chain(smallvec![Nameholder::Root], call_chain)
                             })
                             .collect::<QueryTrisult<_>>(),
                     )
                     .map(|(function_decl, function_args)| {
                         (
-                            vec![function_decl.return_type.clone().into()],
+                            smallvec![function_decl.return_type.clone().into()],
                             im::AValue::FunctionCall(function_decl.intern(db), function_args),
                         )
                     }),
                 ast::Call::String(ident, span) => {
                     db.query_string_type().map(|string_struct_decl| {
                         (
-                            vec![Nameholder::Empty],
+                            smallvec![Nameholder::Empty],
                             im::AValue::CValue(CValue::String(ident, string_struct_decl, span)),
                         )
                     })

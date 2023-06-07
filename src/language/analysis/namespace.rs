@@ -13,6 +13,7 @@ use std::borrow::ToOwned;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use smallvec::{SmallVec, smallvec};
 
 pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> Result<NamespaceId, AnalysisError> {
     let mut namespace = Namespace::new();
@@ -63,7 +64,7 @@ pub(super) fn query_string_name(_db: &dyn DeclQuery) -> ImmutableString {
 }
 
 pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<ImmutableString, Type>> {
-    db.query_namespace(vec![Nameholder::Root]).map(|namespace| {
+    db.query_namespace(smallvec![Nameholder::Root]).map(|namespace| {
         let mut map = HashMap::new();
         let mut add = |name: ImmutableString| {
             if let Some(RValue::Type(r#type)) = namespace.get(&name) {
@@ -137,7 +138,7 @@ pub(super) fn query_struct_namespace(
 
 pub(super) fn query_namespaced_rvalue(
     db: &dyn DeclQuery,
-    nameholders: Vec<Nameholder>,
+    nameholders: Nameholders,
     ident: Ident,
 ) -> QueryTrisult<RValue> {
     db.query_namespace(nameholders).flat_map(|namespace| {
@@ -150,7 +151,7 @@ pub(super) fn query_namespaced_rvalue(
 
 pub(super) fn query_namespace(
     db: &dyn DeclQuery,
-    nameholders: Vec<Nameholder>,
+    nameholders: Nameholders,
 ) -> QueryTrisult<Rc<Namespace>> {
     nameholders
         .into_iter()
@@ -185,7 +186,7 @@ pub(super) fn query_namespace(
 
 pub(super) fn query_namespaced_type(
     db: &dyn DeclQuery,
-    nameholders: Vec<Nameholder>,
+    nameholders: Nameholders,
     ident: Ident,
 ) -> QueryTrisult<im::Type> {
     db.query_namespaced_rvalue(nameholders, ident)
@@ -199,7 +200,7 @@ pub(super) fn query_namespaced_type(
 
 pub(super) fn query_namespaced_function(
     db: &dyn DeclQuery,
-    nameholders: Vec<Nameholder>,
+    nameholders: Nameholders,
     ident: Ident,
 ) -> QueryTrisult<FunctionDecl> {
     db.query_namespaced_rvalue(nameholders, ident)
@@ -213,7 +214,7 @@ pub(super) fn query_namespaced_function(
 
 pub(super) fn query_namespaced_event(
     db: &dyn DeclQuery,
-    nameholders: Vec<Nameholder>,
+    nameholders: Nameholders,
     ident: Ident,
 ) -> QueryTrisult<EventDeclarationId> {
     db.query_namespaced_type(nameholders, ident)
@@ -235,6 +236,8 @@ pub enum Nameholder {
     Struct(StructDeclarationId),
     Event(EventDeclarationId),
 }
+
+pub type Nameholders = SmallVec<[Nameholder; 2]>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum EnumNameholder {

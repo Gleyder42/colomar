@@ -1,3 +1,4 @@
+use smallvec::smallvec;
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
@@ -19,7 +20,7 @@ pub(super) fn query_rule_actions(
         .into_iter()
         .map(|action| match action {
             Action::CallChain(call_chain) => db.query_call_chain(
-                vec![Nameholder::Root, Nameholder::Event(event_decl_id)],
+                smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
                 call_chain,
             ),
             Action::Property(ast_property) => db.query_property(ast_property).map(|it| {
@@ -39,7 +40,7 @@ pub(super) fn query_rule_cond(
         .into_iter()
         .map(|condition| {
             db.query_call_chain(
-                vec![Nameholder::Root, Nameholder::Event(event_decl_id)],
+                smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
                 condition,
             )
         })
@@ -63,7 +64,7 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryTrisul
     let arguments = |event_decl_id: EventDeclarationId| {
         rule.arguments
             .into_iter()
-            .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain))
+            .map(|call_chain| db.query_call_chain(smallvec![Nameholder::Root], call_chain))
             .collect::<QueryTrisult<Vec<_>>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
             .flat_map(|(arguments, event_def)| {
@@ -93,7 +94,7 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryTrisul
             })
     };
 
-    db.query_namespaced_event(vec![Nameholder::Root], rule.event)
+    db.query_namespaced_event(smallvec![Nameholder::Root], rule.event)
         .map_and_require(arguments)
         .map_and_require(|(event_decl_id, _)| {
             db.query_rule_cond(event_decl_id, rule.conditions)

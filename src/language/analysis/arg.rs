@@ -1,3 +1,4 @@
+use smallvec::smallvec;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::QueryTrisult;
@@ -20,14 +21,14 @@ pub(super) fn query_declared_arg(
 ) -> QueryTrisult<im::DeclaredArgumentId> {
     let default_value_option = decl_arg
         .default_value
-        .map(|call_chain| db.query_call_chain(vec![Nameholder::Root], call_chain));
+        .map(|call_chain| db.query_call_chain(smallvec![Nameholder::Root], call_chain));
 
     decl_arg
         .types
         .clone()
         .into_iter()
         .map(|ident| {
-            db.query_namespaced_type(vec![Nameholder::Root], ident.clone())
+            db.query_namespaced_type(smallvec![Nameholder::Root], ident.clone())
                 .map(|r#type| CalledType {
                     r#type,
                     span: ident.span.clone(),
