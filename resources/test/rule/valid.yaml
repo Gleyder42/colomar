@@ -1,0 +1,7 @@
+code: !!str |+
+  rule "Hello other world" OngoingEachPlayer(Hero.Ana, Slot.Slot1) {
+    
+  }
+expected:
+  name: "Hello other world"
+  event: "OngoingEachPlayer"

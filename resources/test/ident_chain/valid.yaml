@@ -1,0 +1,30 @@
+code: !!str |+
+  hello.world
+expected:
+  idents:
+    - "hello"
+    - "world"
+---
+code: !!str |+
+  player.heal.fast
+expected:
+  idents:
+    - "player"
+    - "heal"
+    - "fast"
+---
+code: !!str |+
+  player
+expected:
+  idents:
+    - "player"
+---
+code: !!str |+
+  player.heal(100)
+expected:
+  idents:
+    - "player"
+    -
+      ident: "heal"
+      args: ["100"]
+

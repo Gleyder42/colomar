@@ -24,7 +24,7 @@ pub(super) fn query_call_chain(
         // We are allowed to unwrap here, because we know value must be some.
         // The call chain is not null, so we hava at least one call to operate on.
         // fold_map does not guarantee to call func by itself, because in case of Err,
-        // func will not be called. However, QueryResult::from(call_chain) returns Ok,
+        // func will not be called. However, QueryResult::from(ident_chain) returns Ok,
         // so func will definitely be called.
         // If the result returned in func is error, value could be none, but it doesn't matter
         // as map_func in that case is not called

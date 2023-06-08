@@ -1,9 +1,0 @@
-workshop enum Hero {
-    Reaper,
-    Tracer,
-    Mercy
-}
-
-enum MyEnum {
-    First, Second
-}
