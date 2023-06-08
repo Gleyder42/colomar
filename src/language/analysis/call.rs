@@ -1,10 +1,10 @@
-use smallvec::smallvec;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::{Nameholder, Nameholders};
 use crate::language::analysis::QueryTrisult;
 use crate::language::im::CValue;
 use crate::language::{ast, im};
+use smallvec::smallvec;
 
 pub(super) fn query_call_chain(
     db: &dyn DeclQuery,

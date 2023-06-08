@@ -9,11 +9,11 @@ use crate::language::im::{
 use crate::language::{im, Ident, ImmutableString};
 use crate::{impl_intern_key, query_error};
 use salsa::InternId;
+use smallvec::{smallvec, SmallVec};
 use std::borrow::ToOwned;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use smallvec::{SmallVec, smallvec};
 
 pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> Result<NamespaceId, AnalysisError> {
     let mut namespace = Namespace::new();
@@ -64,19 +64,20 @@ pub(super) fn query_string_name(_db: &dyn DeclQuery) -> ImmutableString {
 }
 
 pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<ImmutableString, Type>> {
-    db.query_namespace(smallvec![Nameholder::Root]).map(|namespace| {
-        let mut map = HashMap::new();
-        let mut add = |name: ImmutableString| {
-            if let Some(RValue::Type(r#type)) = namespace.get(&name) {
-                map.insert(name.clone(), r#type);
-            }
-        };
+    db.query_namespace(smallvec![Nameholder::Root])
+        .map(|namespace| {
+            let mut map = HashMap::new();
+            let mut add = |name: ImmutableString| {
+                if let Some(RValue::Type(r#type)) = namespace.get(&name) {
+                    map.insert(name.clone(), r#type);
+                }
+            };
 
-        add(db.query_string_name());
-        add(db.query_bool_name());
+            add(db.query_string_name());
+            add(db.query_bool_name());
 
-        map
-    })
+            map
+        })
 }
 
 fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {

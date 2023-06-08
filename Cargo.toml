@@ -14,3 +14,4 @@ smallvec = { version = "1.10.0", features = ["const_generics", "union"] }
 [dev-dependencies]
 serde = { version = "1.0.163", features = ["derive"] }
 serde_yaml = "0.9.21"
+derive-new = "0.5.9"
