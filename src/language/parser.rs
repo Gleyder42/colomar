@@ -329,7 +329,7 @@ mod tests {
     use chumsky::error::Simple;
     use chumsky::{Parser, Stream};
     use serde::Deserialize;
-    use std::fmt::{Debug, Display, Formatter};
+    use std::fmt::{Debug};
     use std::fs;
     use std::path::PathBuf;
 
@@ -372,17 +372,17 @@ mod tests {
 
     #[derive(Debug, Deserialize)]
     #[serde(untagged)]
-    enum IdentHelper {
+    enum VarIdent {
         Single(IdentTestData),
         Many(Vec<IdentTestData>)
     }
 
-    impl IdentHelper {
+    impl VarIdent {
 
-        fn as_vec(&self) -> Vec<&IdentTestData> {
+        fn as_ident_vec(&self) -> Vec<&IdentTestData> {
             match self {
-                IdentHelper::Single(single) => vec![single],
-                IdentHelper::Many(many) => many.iter().collect()
+                VarIdent::Single(single) => vec![single],
+                VarIdent::Many(many) => many.iter().collect()
             }
         }
     }
@@ -393,7 +393,7 @@ mod tests {
         Ident(String),
         IdentWithArgs {
             ident: String,
-            args: Vec<IdentHelper>,
+            args: Vec<VarIdent>,
         },
     }
 
@@ -494,7 +494,7 @@ mod tests {
                                 expected_args.into_iter()
                                     .zip(actual_args.into_iter())
                                     .for_each(|(expected, actual)| {
-                                        compare_call_chain(expected.as_vec(), actual);
+                                        compare_call_chain(expected.as_ident_vec(), actual);
                                     })
                             }
                             IdentTestData::Ident(expected) => {
