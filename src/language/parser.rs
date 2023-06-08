@@ -322,9 +322,9 @@ pub fn parser() -> impl Parser<Token, Ast, Error = Simple<Token>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::language::ast::{Call, CallChain};
+    use crate::language::ast::{Call, CallChain, Rule};
     use crate::language::lexer::{lexer, Token};
-    use crate::language::parser::{chain, r#enum};
+    use crate::language::parser::{chain, r#enum, rule};
     use crate::Span;
     use chumsky::error::Simple;
     use chumsky::{Parser, Stream};
@@ -402,6 +402,15 @@ mod tests {
         idents: Vec<IdentTestData>,
     }
 
+    #[derive(Debug, Deserialize)]
+    struct RuleTestData {
+        name: String,
+        event: String,
+
+        #[serde(default)]
+        args: Vec<VarIdent>
+    }
+
     fn read_test_data<T: for<'a> serde::Deserialize<'a>>(
         path_buf: PathBuf,
     ) -> Vec<BaseTestData<T>> {
@@ -432,6 +441,7 @@ mod tests {
         parser: impl Parser<Token, Ac, Error = Simple<Token>>,
         func: F,
     ) where
+        Ac: Debug,
         Ex: for<'a> serde::Deserialize<'a>,
         F: Fn(Ex, Ac),
     {
@@ -442,7 +452,7 @@ mod tests {
             let code = parse_code(&test_data.code, &parser);
 
             if let Some(expected) = test_data.expected {
-                func(expected, code)
+                func(expected, code);
             }
         }
 
@@ -479,7 +489,7 @@ mod tests {
     fn test_invalid_enum() {
         let key = ResKey::new(TEST_DIR, "enum", "invalid");
 
-        test_parser_result::<EnumTestData, _, _>(&key, r#enum(), nothing);
+        test_parser_result(&key, r#enum(), nothing::<EnumTestData, _>);
     }
 
     fn compare_call_chain(expected: Vec<&IdentTestData>, actual: CallChain) {
@@ -537,5 +547,24 @@ mod tests {
                 compare_call_chain(expected.idents.iter().collect(), actual);
             },
         );
+    }
+
+    #[test]
+    fn test_valid_rule() {
+        let key = ResKey::new(TEST_DIR, "rule", "valid");
+
+        test_parser_result(
+            &key,
+            rule(),
+            |expected: RuleTestData, actual: Rule| {
+                assert_eq!(expected.name, actual.name.value);
+                assert_eq!(expected.event, actual.event.value);
+                expected.args.into_iter()
+                    .zip(actual.arguments.into_iter())
+                    .for_each(|(actual, expected)| {
+                        compare_call_chain(actual.as_ident_vec(), expected)
+                    })
+            }
+        )
     }
 }
