@@ -16,7 +16,7 @@ open workshop struct Player {
 
     workshop fn displaySmallMessage(message: string)
 
-    workshop fn heal(amount: num)
+    workshop fn heal(amount: num, player: Player)
 }
 
 workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
@@ -35,5 +35,5 @@ rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading
 
     player.displaySmallMessage("Hello World")
-    player.heal(100)
+    player.heal(100, player)
 }

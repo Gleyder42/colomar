@@ -8,7 +8,7 @@ use smallvec::smallvec;
 
 pub(super) fn query_call_chain(
     db: &dyn DeclQuery,
-    nameholders: Nameholders,
+    inital_nameholders: Nameholders,
     call_chain: ast::CallChain,
 ) -> QueryTrisult<im::AValue> {
     assert!(
@@ -17,7 +17,7 @@ pub(super) fn query_call_chain(
     );
 
     QueryTrisult::<ast::CallChain>::from(call_chain).fold_flat_map::<im::AValue, _, _, _>(
-        (nameholders, None),
+        (inital_nameholders.clone(), None),
         // func refers to the closure processing the call.
         // map_func refers to the closure unwrapping the value .
         //
@@ -44,7 +44,7 @@ pub(super) fn query_call_chain(
                     .and_or_default(
                         args.into_iter()
                             .map(|call_chain| {
-                                db.query_call_chain(smallvec![Nameholder::Root], call_chain)
+                                db.query_call_chain(inital_nameholders.clone(), call_chain)
                             })
                             .collect::<QueryTrisult<_>>(),
                     )

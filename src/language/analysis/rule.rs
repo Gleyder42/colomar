@@ -28,7 +28,7 @@ pub(super) fn query_rule_actions(
                 im::AValue::RValue(RValue::Property(it), span)
             }),
         })
-        .collect()
+        .collect::<QueryTrisult<_>>()
 }
 
 pub(super) fn query_rule_cond(

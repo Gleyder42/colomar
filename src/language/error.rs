@@ -19,7 +19,21 @@ pub enum Trisult<T, E> {
     Err(Vec<E>),
 }
 
+impl<T: Debug, E: Debug> Trisult<T, E> {
+
+    pub fn debug_print(self) -> Trisult<T, E> {
+        println!("Current Trisult: {:#?}", self);
+        self
+    }
+
+    pub fn debug_print_labeled(self, label: impl Debug) -> Trisult<T, E> {
+        println!("{:?}: Current Trisult: {:#?}", label, self);
+        self
+    }
+}
+
 impl<T, E> Trisult<T, E> {
+
     /// Converts the [Trisult] to an option and error vec.
     /// The option is none if [Trisult::Err] otherwise none.
     /// The error vec contains errors, if any.
@@ -189,7 +203,11 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
                 }
             }
 
-            Trisult::Ok(map_func(current))
+            if errors.is_empty() {
+                Trisult::Ok(map_func(current))
+            } else {
+                Trisult::Par(map_func(current), errors)
+            }
         })
     }
 
