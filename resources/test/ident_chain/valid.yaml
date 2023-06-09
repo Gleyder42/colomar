@@ -1,11 +1,11 @@
-code: |+
+code: |-
   hello.world
 expected:
   idents:
     - "hello"
     - "world"
 ---
-code: |+
+code: |-
   player.heal.fast
 expected:
   idents:
@@ -13,13 +13,13 @@ expected:
     - "heal"
     - "fast"
 ---
-code: |+
+code: |-
   player
 expected:
   idents:
     - "player"
 ---
-code: |+
+code: |-
   player.heal(100)
 expected:
   idents:
@@ -28,7 +28,7 @@ expected:
       ident: "heal"
       args: ["100"]
 ---
-code: |+
+code: |-
   player.sendMessage("Hello World", 10, 5)
 expected:
   idents:
@@ -37,7 +37,7 @@ expected:
       ident: "sendMessage"
       args: ["Hello World", "10", "5"]
 ---
-code: |+
+code: |-
   getNearbyPlayers(Team1, 10).heal(add(5, 10))
 expected:
   idents:
@@ -51,7 +51,7 @@ expected:
           ident: "add"
           args: ["5", "10"]
 ---
-code: |+
+code: |-
   hello("World").of(10).and(100)
 expected:
   idents:

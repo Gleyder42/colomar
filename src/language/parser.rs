@@ -6,14 +6,14 @@ use crate::language::{Ident, Spanned};
 use chumsky::prelude::*;
 use smallvec::SmallVec;
 
-fn ident() -> impl Parser<Token, Ident, Error = Simple<Token>> {
+fn ident() -> impl Parser<Token, Ident, Error=Simple<Token>> {
     filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(Ident { value: ident, span }),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     })
 }
 
-fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error = Simple<Token>>
+fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error=Simple<Token>>
 {
     ident()
         .then_ignore(just(Token::Ctrl(':')))
@@ -41,13 +41,13 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
         .map_with_span(Spanned::new)
 }
 
-fn workshop_or_not() -> impl Parser<Token, SpannedBool, Error = Simple<Token>> {
+fn workshop_or_not() -> impl Parser<Token, SpannedBool, Error=Simple<Token>> {
     just(Token::Workshop)
         .or_not()
         .map_with_span(Spanned::ignore_value)
 }
 
-fn event() -> impl Parser<Token, Event, Error = Simple<Token>> {
+fn event() -> impl Parser<Token, Event, Error=Simple<Token>> {
     just(Token::Workshop)
         .or_not()
         .map_with_span(Spanned::ignore_value)
@@ -87,7 +87,7 @@ fn event() -> impl Parser<Token, Event, Error = Simple<Token>> {
         })
 }
 
-fn r#enum() -> impl Parser<Token, Enum, Error = Simple<Token>> {
+fn r#enum() -> impl Parser<Token, Enum, Error=Simple<Token>> {
     let constants = ident()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
@@ -109,7 +109,7 @@ fn r#enum() -> impl Parser<Token, Enum, Error = Simple<Token>> {
         })
 }
 
-fn property() -> impl Parser<Token, PropertyDeclaration, Error = Simple<Token>> {
+fn property() -> impl Parser<Token, PropertyDeclaration, Error=Simple<Token>> {
     workshop_or_not()
         .then(choice((just(Token::GetVal), just(Token::Val))).map_with_span(Spanned::new))
         .then(ident())
@@ -140,7 +140,7 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = Simple<Token>> 
         })
 }
 
-fn r#struct() -> impl Parser<Token, Struct, Error = Simple<Token>> {
+fn r#struct() -> impl Parser<Token, Struct, Error=Simple<Token>> {
     let member_function = workshop_or_not()
         .then_ignore(just(Token::Fn))
         .then(ident())
@@ -199,7 +199,7 @@ fn r#struct() -> impl Parser<Token, Struct, Error = Simple<Token>> {
         })
 }
 
-fn newline_repeated() -> impl Parser<Token, (), Error = Simple<Token>> + Clone {
+fn newline_repeated() -> impl Parser<Token, (), Error=Simple<Token>> + Clone {
     just(Token::NewLine).repeated().ignored()
 }
 
@@ -260,7 +260,7 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
     }
 }
 
-fn block() -> impl Parser<Token, Block, Error = Simple<Token>> {
+fn block() -> impl Parser<Token, Block, Error=Simple<Token>> {
     let cond = just(Token::Cond)
         .ignore_then(chain().ident_chain())
         .map(|it| it as Condition);
@@ -284,11 +284,11 @@ fn block() -> impl Parser<Token, Block, Error = Simple<Token>> {
         })
 }
 
-fn at_least_newlines() -> impl Parser<Token, (), Error = Simple<Token>> {
+fn at_least_newlines() -> impl Parser<Token, (), Error=Simple<Token>> {
     just(Token::NewLine).repeated().at_least(1).map(|_| ())
 }
 
-fn rule() -> impl Parser<Token, Rule, Error = Simple<Token>> {
+fn rule() -> impl Parser<Token, Rule, Error=Simple<Token>> {
     let rule_name = filter_map(|span, token| match token {
         Token::String(string) => Ok(Spanned::new(string, span)),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
@@ -308,7 +308,7 @@ fn rule() -> impl Parser<Token, Rule, Error = Simple<Token>> {
         })
 }
 
-pub fn parser() -> impl Parser<Token, Ast, Error = Simple<Token>> {
+pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
     let rule_parser = rule().map(Root::Rule);
     let event_parser = event().map(Root::Event);
     let enum_parser = r#enum().map(Root::Enum);
@@ -332,6 +332,7 @@ mod tests {
     use std::fmt::{Debug};
     use std::fs;
     use std::path::PathBuf;
+    use chumsky::prelude::end;
 
     #[derive(Debug)]
     struct ResKey {
@@ -370,19 +371,20 @@ mod tests {
         constants: Vec<String>,
     }
 
+    type VarIdent = VarLen<IdentTestData>;
+
     #[derive(Debug, Deserialize)]
     #[serde(untagged)]
-    enum VarIdent {
-        Single(IdentTestData),
-        Many(Vec<IdentTestData>)
+    enum VarLen<T> {
+        Single(T),
+        Many(Vec<T>),
     }
 
-    impl VarIdent {
-
-        fn as_ident_vec(&self) -> Vec<&IdentTestData> {
+    impl<T> VarLen<T> {
+        fn as_ident_vec(&self) -> Vec<&T> {
             match self {
-                VarIdent::Single(single) => vec![single],
-                VarIdent::Many(many) => many.iter().collect()
+                VarLen::Single(single) => vec![single],
+                VarLen::Many(many) => many.iter().collect()
             }
         }
     }
@@ -408,13 +410,13 @@ mod tests {
         event: String,
 
         #[serde(default)]
-        args: Vec<VarIdent>
+        args: Vec<VarIdent>,
     }
 
     fn read_test_data<T: for<'a> serde::Deserialize<'a>>(
         path_buf: PathBuf,
     ) -> Vec<BaseTestData<T>> {
-        let input = fs::read_to_string(&path_buf).expect(&format!("Cannot read file {path_buf:?}"));
+        let input = fs::read_to_string(&path_buf).unwrap();
         input
             .split("---")
             .filter(|it| !it.is_empty())
@@ -422,23 +424,23 @@ mod tests {
             .collect::<Vec<_>>()
     }
 
-    fn parse_code<T>(code: &str, parser: &impl Parser<Token, T, Error = Simple<Token>>) -> T {
-        let tokens: Vec<_> = get_tokens(code);
+    fn parse_code<T>(code: &str, parser: &impl Parser<Token, T, Error=Simple<Token>>) -> Result<T, String> {
+        let tokens: Vec<_> = lex_code(code);
         let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
 
         parser
+            .then_ignore(end())
             .parse(stream)
             .map_err(|_| format!("Cannot parse '{code}'"))
-            .unwrap()
     }
 
-    fn get_tokens(code: &str) -> Vec<(Token, Span)> {
+    fn lex_code(code: &str) -> Vec<(Token, Span)> {
         lexer().parse(code).expect(&format!("Cannot lex {code}"))
     }
 
     fn test_parser_result<Ex, Ac, F>(
         key: &ResKey,
-        parser: impl Parser<Token, Ac, Error = Simple<Token>>,
+        parser: impl Parser<Token, Ac, Error=Simple<Token>>,
         func: F,
     ) where
         Ac: Debug,
@@ -446,51 +448,19 @@ mod tests {
         F: Fn(Ex, Ac),
     {
         let data = read_test_data(key.whole_path());
-        let len = data.len();
 
         for test_data in data {
-            let code = parse_code(&test_data.code, &parser);
+            let code = parse_code::<Ac>(&test_data.code, &parser).unwrap();
 
             if let Some(expected) = test_data.expected {
                 func(expected, code);
             }
         }
-
-        println!("Checked {} code snippets from {:?} successfully", len, key.whole_path());
     }
 
     fn nothing<A, B>(_: A, _: B) {}
 
     const TEST_DIR: &'static str = "resources/test";
-
-    #[test]
-    fn test_valid_enum() {
-        let key = ResKey::new(TEST_DIR, "enum", "valid");
-
-        test_parser_result(&key, r#enum(), |expected: EnumTestData, actual| {
-            assert_eq!(
-                expected.is_workshop,
-                actual.declaration.is_workshop.is_some()
-            );
-            assert_eq!(
-                expected.constants,
-                actual
-                    .definition
-                    .constants
-                    .into_iter()
-                    .map(|it| it.value)
-                    .collect::<Vec<_>>()
-            );
-        });
-    }
-
-    #[test]
-    #[should_panic(expected = "Cannot parse")]
-    fn test_invalid_enum() {
-        let key = ResKey::new(TEST_DIR, "enum", "invalid");
-
-        test_parser_result(&key, r#enum(), nothing::<EnumTestData, _>);
-    }
 
     fn compare_call_chain(expected: Vec<&IdentTestData>, actual: CallChain) {
         actual.into_iter()
@@ -537,7 +507,36 @@ mod tests {
     }
 
     #[test]
-    fn test_valid_ident_chain() {
+    fn test_valid_enum() {
+        let key = ResKey::new(TEST_DIR, "enum", "valid");
+
+        test_parser_result(&key, r#enum(), |expected: EnumTestData, actual| {
+            assert_eq!(
+                expected.is_workshop,
+                actual.declaration.is_workshop.is_some()
+            );
+            assert_eq!(
+                expected.constants,
+                actual
+                    .definition
+                    .constants
+                    .into_iter()
+                    .map(|it| it.value)
+                    .collect::<Vec<_>>()
+            );
+        })
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_enum() {
+        let key = ResKey::new(TEST_DIR, "enum", "invalid");
+
+        test_parser_result(&key, r#enum(), nothing::<EnumTestData, _>);
+    }
+
+    #[test]
+    fn test_valid_ident_chain()  {
         let key = ResKey::new(TEST_DIR, "ident_chain", "valid");
 
         test_parser_result(
@@ -546,6 +545,18 @@ mod tests {
             |expected: CallChainTestData, actual| {
                 compare_call_chain(expected.idents.iter().collect(), actual);
             },
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_ident_chain() {
+        let key = ResKey::new(TEST_DIR, "ident_chain", "invalid");
+
+        test_parser_result(
+            &key,
+            chain().ident_chain(),
+            nothing::<CallChainTestData, _>,
         );
     }
 
@@ -564,7 +575,7 @@ mod tests {
                     .for_each(|(actual, expected)| {
                         compare_call_chain(actual.as_ident_vec(), expected)
                     })
-            }
-        )
+            },
+        );
     }
 }

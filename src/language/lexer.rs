@@ -95,6 +95,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
         .padded_by(whitespace)
         .map_with_span(|tok, span| (tok, span))
         .repeated()
+        .then_ignore(end())
 }
 
 const NEWLINE_CHARS: [char; 7] = [
@@ -112,6 +113,13 @@ mod tests {
     use crate::language::lexer::{lexer, Token};
     use crate::test_assert::assert_vec;
     use chumsky::Parser;
+
+    #[test]
+    #[should_panic]
+    fn test_end_is_consumed() {
+        let code = "hello test νρσ";
+        let _ = lexer().parse(code).unwrap();
+    }
 
     #[test]
     fn test_number_lexer() {
