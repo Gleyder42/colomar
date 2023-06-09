@@ -126,9 +126,6 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(namespace::query_string_name)]
     fn query_string_name(&self) -> ImmutableString;
 
-    #[salsa::invoke(namespace::query_number_name)]
-    fn query_number_name(&self) -> ImmutableString;
-
     #[salsa::invoke(namespace::query_primitives)]
     fn query_primitives(&self) -> QueryTrisult<HashMap<ImmutableString, im::Type>>;
 
@@ -137,9 +134,6 @@ pub trait DeclQuery: Interner {
 
     #[salsa::invoke(namespace::query_string_type)]
     fn query_string_type(&self) -> QueryTrisult<StructDeclarationId>;
-
-    #[salsa::invoke(namespace::query_number_type)]
-    fn query_number_type(&self) -> QueryTrisult<StructDeclarationId>;
 
     #[salsa::invoke(namespace::query_root_namespace)]
     fn query_root_namespace(&self) -> Result<NamespaceId, AnalysisError>;
@@ -152,7 +146,7 @@ pub trait DeclQuery: Interner {
 
     #[salsa::invoke(namespace::query_struct_namespace)]
     fn query_struct_namespace(&self, struct_decl: StructDeclarationId)
-                              -> QueryTrisult<NamespaceId>;
+        -> QueryTrisult<NamespaceId>;
 
     #[salsa::invoke(namespace::query_namespaced_rvalue)]
     fn query_namespaced_rvalue(
