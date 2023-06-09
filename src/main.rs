@@ -29,7 +29,7 @@ pub mod test_assert;
 pub mod workshop;
 
 fn main() {
-    let filename = "v4.colo";
+    let filename = "milestone_one.colo";
     let filepath = format!("dsl/example/{filename}");
     let path = Path::new(&filepath);
     let mut file = fs::File::open(path).expect("Cannot read from file");

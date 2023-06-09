@@ -63,6 +63,10 @@ pub(super) fn query_string_name(_db: &dyn DeclQuery) -> ImmutableString {
     ImmutableString::new("string".to_owned())
 }
 
+pub(super) fn query_number_name(_db: &dyn DeclQuery) -> ImmutableString {
+    ImmutableString::new("num".to_owned())
+}
+
 pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<ImmutableString, Type>> {
     db.query_namespace(smallvec![Nameholder::Root])
         .map(|namespace| {
@@ -75,6 +79,7 @@ pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Immut
 
             add(db.query_string_name());
             add(db.query_bool_name());
+            add(db.query_number_name());
 
             map
         })
@@ -87,6 +92,16 @@ fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {
         Type::Event(_) => panic!("Cannot get struct decl id of type Event"),
         Type::Unit => panic!("Cannot get struct decl id of type Unit"),
     }
+}
+
+
+pub(super) fn query_number_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarationId> {
+    db.query_primitives().flat_map(|map| {
+        map.get(&db.query_number_name())
+            .map(struct_decl_id_or_panic)
+            .ok_or(AnalysisError::WrongType)
+            .into()
+    })
 }
 
 pub(super) fn query_string_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarationId> {
@@ -220,8 +235,8 @@ pub(super) fn query_namespaced_event(
 ) -> QueryTrisult<EventDeclarationId> {
     db.query_namespaced_type(nameholders, ident)
         .flat_map(|r#type| match r#type {
-            im::Type::Event(event) => Trisult::Ok(event),
-            im::Type::Enum(_) | im::Type::Struct(_) | im::Type::Unit => {
+            Type::Event(event) => Trisult::Ok(event),
+            Type::Enum(_) | Type::Struct(_) | Type::Unit => {
                 Trisult::Err(vec![AnalysisError::WrongType])
             }
         })
@@ -304,7 +319,7 @@ impl Namespace {
                     first: root.name(db), // TODO How to deal with errors?
                     second: ident,
                 }
-                .into()
+                    .into()
             }
             None => {
                 self.map.insert(ident.value.clone(), rvalue);
