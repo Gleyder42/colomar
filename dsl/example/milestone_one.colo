@@ -16,7 +16,7 @@ open workshop struct Player {
 
     workshop fn displaySmallMessage(message: string)
 
-    workshop fn heal(amount: num, healer: Player = null)
+    workshop fn heal(amount: num)
 }
 
 workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
@@ -27,7 +27,7 @@ workshop enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
 }
 
-rule "Hello other world" OngoingEachPlayer(Hero.Ana, Slot.Slot1) {
+rule "Hello other world" OngoingEachPlayer(Team.All, Hero.Ana) {
 
 }
 
