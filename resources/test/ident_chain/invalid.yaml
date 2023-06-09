@@ -1,18 +1,18 @@
-code: |+
+code: |-
   hel ol
 ---
-code: |+
+code: |-
   .test
 ---
-code: |+
+code: |-
   test.
 ---
-code: |+
+code: |-
   test(,hell)
 ---
-code: |+
-  test(hell,)
+code: |-
+  test(,hell,)
 ---
-code: |+
-  test()
+code: |-
+  ()test
 ---

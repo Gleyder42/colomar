@@ -332,6 +332,7 @@ mod tests {
     use std::fmt::{Debug};
     use std::fs;
     use std::path::PathBuf;
+    use anyhow::{anyhow};
     use chumsky::prelude::end;
 
     #[derive(Debug)]
@@ -415,45 +416,79 @@ mod tests {
 
     fn read_test_data<T: for<'a> serde::Deserialize<'a>>(
         path_buf: PathBuf,
-    ) -> Vec<BaseTestData<T>> {
-        let input = fs::read_to_string(&path_buf).unwrap();
-        input
+    ) -> anyhow::Result<Vec<BaseTestData<T>>> {
+        let input = fs::read_to_string(&path_buf)?;
+        let vec = input
             .split("---")
             .filter(|it| !it.is_empty())
             .map(|it| serde_yaml::from_str(it).expect(&format!("Cannot read {it}")))
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+        Ok(vec)
     }
 
-    fn parse_code<T>(code: &str, parser: &impl Parser<Token, T, Error=Simple<Token>>) -> Result<T, String> {
-        let tokens: Vec<_> = lex_code(code);
+    fn parse_code<T>(code: &str, parser: &impl Parser<Token, T, Error=Simple<Token>>) -> anyhow::Result<T> {
+        let tokens: Vec<_> = lex_code(code)?;
         let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
 
         parser
             .then_ignore(end())
             .parse(stream)
-            .map_err(|_| format!("Cannot parse '{code}'"))
+            .map_err(|_| anyhow!("Cannot parse '{code}'"))
     }
 
-    fn lex_code(code: &str) -> Vec<(Token, Span)> {
-        lexer().parse(code).expect(&format!("Cannot lex {code}"))
+    fn lex_code(code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
+        lexer().parse(code)
+            .map_err(|errors| {
+                let error_message = errors.into_iter()
+                    .map(|it| it.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                anyhow!(error_message)
+            })
     }
 
     fn test_parser_result<Ex, Ac, F>(
         key: &ResKey,
+        should_panic: bool,
         parser: impl Parser<Token, Ac, Error=Simple<Token>>,
-        func: F,
+        assertion: F,
     ) where
         Ac: Debug,
         Ex: for<'a> serde::Deserialize<'a>,
         F: Fn(Ex, Ac),
     {
-        let data = read_test_data(key.whole_path());
+        let data = read_test_data(key.whole_path()).unwrap();
 
-        for test_data in data {
-            let code = parse_code::<Ac>(&test_data.code, &parser).unwrap();
+        let results = data.into_iter()
+            .map(|test_data| {
+                let code = parse_code::<Ac>(&test_data.code, &parser);
+                let code = match code {
+                    Ok(code) => code,
+                    Err(error) => return Err(error)
+                };
 
-            if let Some(expected) = test_data.expected {
-                func(expected, code);
+                if let Some(expected) = test_data.expected {
+                    assertion(expected, code);
+                }
+                Ok(())
+            })
+            .collect::<Vec<_>>();
+
+        let error_messages = results.iter()
+            .map(|it| match it {
+                Ok(_) => "Successful".to_string(),
+                Err(error) => format!("Error: {:?}", error)
+            }).collect::<Vec<_>>()
+            .join("\n");
+
+        println!("{}", error_messages);
+        if should_panic {
+            if results.iter().any(|it| it.is_ok()) {
+                panic!("There were some successful tests, but were expected to fail");
+            }
+        } else {
+            if results.iter().any(|it| it.is_err()) {
+                panic!("There were some failed tests, but were expected to pass")
             }
         }
     }
@@ -462,7 +497,7 @@ mod tests {
 
     const TEST_DIR: &'static str = "resources/test";
 
-    fn compare_call_chain(expected: Vec<&IdentTestData>, actual: CallChain) {
+    fn assert_call_chain(expected: Vec<&IdentTestData>, actual: CallChain) {
         actual.into_iter()
             .zip(expected.into_iter())
             .for_each(|(call, test_data)| {
@@ -474,7 +509,7 @@ mod tests {
                                 expected_args.into_iter()
                                     .zip(actual_args.into_iter())
                                     .for_each(|(expected, actual)| {
-                                        compare_call_chain(expected.as_ident_vec(), actual);
+                                        assert_call_chain(expected.as_ident_vec(), actual);
                                     })
                             }
                             IdentTestData::Ident(expected) => {
@@ -510,7 +545,7 @@ mod tests {
     fn test_valid_enum() {
         let key = ResKey::new(TEST_DIR, "enum", "valid");
 
-        test_parser_result(&key, r#enum(), |expected: EnumTestData, actual| {
+        test_parser_result(&key, false, r#enum(), |expected: EnumTestData, actual| {
             assert_eq!(
                 expected.is_workshop,
                 actual.declaration.is_workshop.is_some()
@@ -528,33 +563,33 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_invalid_enum() {
         let key = ResKey::new(TEST_DIR, "enum", "invalid");
 
-        test_parser_result(&key, r#enum(), nothing::<EnumTestData, _>);
+        test_parser_result(&key, true, r#enum(), nothing::<EnumTestData, _>);
     }
 
     #[test]
-    fn test_valid_ident_chain()  {
+    fn test_valid_ident_chain() {
         let key = ResKey::new(TEST_DIR, "ident_chain", "valid");
 
         test_parser_result(
             &key,
+            false,
             chain().ident_chain(),
             |expected: CallChainTestData, actual| {
-                compare_call_chain(expected.idents.iter().collect(), actual);
+                assert_call_chain(expected.idents.iter().collect(), actual);
             },
         );
     }
 
     #[test]
-    #[should_panic]
     fn test_invalid_ident_chain() {
         let key = ResKey::new(TEST_DIR, "ident_chain", "invalid");
 
         test_parser_result(
             &key,
+            true,
             chain().ident_chain(),
             nothing::<CallChainTestData, _>,
         );
@@ -566,6 +601,7 @@ mod tests {
 
         test_parser_result(
             &key,
+            false,
             rule(),
             |expected: RuleTestData, actual: Rule| {
                 assert_eq!(expected.name, actual.name.value);
@@ -573,7 +609,7 @@ mod tests {
                 expected.args.into_iter()
                     .zip(actual.arguments.into_iter())
                     .for_each(|(actual, expected)| {
-                        compare_call_chain(actual.as_ident_vec(), expected)
+                        assert_call_chain(actual.as_ident_vec(), expected)
                     })
             },
         );
