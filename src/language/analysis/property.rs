@@ -1,9 +1,9 @@
-use smallvec::smallvec;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::QueryTrisult;
 use crate::language::ast;
 use crate::language::im::PropertyDecl;
+use smallvec::smallvec;
 
 pub(super) fn query_property(
     db: &dyn DeclQuery,

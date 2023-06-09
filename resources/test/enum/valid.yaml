@@ -1,0 +1,44 @@
+code: |-
+  workshop enum Hero {
+    Ana, Zarya
+  }
+expected:
+  is_workshop: true
+  constants:
+    - 'Ana'
+    - 'Zarya'
+---
+code: |-
+  enum Team {
+    Team1, Team2,
+  }
+expected:
+  is_workshop: false
+  constants:
+    - 'Team1'
+    - 'Team2'
+---
+code: |-
+  enum Hero {
+    Ana, Zarya
+  }
+expected:
+  is_workshop: false
+  constants:
+    - 'Ana'
+    - 'Zarya'
+---
+code: |-
+  enum Hero { }
+---
+code: |-
+  enum Hero {}
+---
+code: |-
+  enum Hero {
+    
+  }
+---
+code: |-
+  enum Hero {
+  }

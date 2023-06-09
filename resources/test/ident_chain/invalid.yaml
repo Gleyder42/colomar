@@ -1,0 +1,18 @@
+code: |-
+  hel ol
+---
+code: |-
+  .test
+---
+code: |-
+  test.
+---
+code: |-
+  test(,hell)
+---
+code: |-
+  test(,hell,)
+---
+code: |-
+  ()test
+---

@@ -1,0 +1,14 @@
+code: |+
+  workshop enum {
+    Ana, Zarya
+  }
+---
+code: |+
+  workshop {
+    Ana, Zarya
+  }
+---
+code: |+
+  workshop {
+    ,Ana, Zarya
+  }

@@ -1,0 +1,24 @@
+code: |+
+  rule "Hello other world" OngoingEachPlayer(Hero.Ana, Slot.Slot1) {
+    
+  }
+expected:
+  name: "Hello other world"
+  event: "OngoingEachPlayer"
+  args:
+    - ["Hero", "Ana"]
+    - ["Slot", "Slot1"]
+---
+code: |+
+  rule "Hello" OngoingEachPlayer() {
+  
+  }
+expected:
+  name: "Hello"
+  event: "OngoingEachPlayer"
+---
+code: |+
+  rule "" OngoingEachPlayer() {}
+expected:
+  name: ""
+  event: "OngoingEachPlayer"

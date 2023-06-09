@@ -1,9 +1,9 @@
-use smallvec::smallvec;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::QueryTrisult;
 use crate::language::im::{CalledType, CalledTypes, DeclaredArgumentIds};
 use crate::language::{ast, im};
+use smallvec::smallvec;
 
 pub(super) fn query_declared_args(
     db: &dyn DeclQuery,
