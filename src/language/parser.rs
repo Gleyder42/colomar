@@ -322,10 +322,10 @@ pub fn parser() -> impl Parser<Token, Ast, Error=Simple<Token>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::language::ast::{Call, CallChain, Rule};
+    use crate::language::ast::{Call, DeclaredArgument, Rule};
     use crate::language::lexer::{lexer, Token};
-    use crate::language::parser::{chain, r#enum, rule};
-    use crate::Span;
+    use crate::language::parser::{chain, declared_arguments, r#enum, rule};
+    use crate::{assert_iterator, Span};
     use chumsky::error::Simple;
     use chumsky::{Parser, Stream};
     use serde::Deserialize;
@@ -334,6 +334,7 @@ mod tests {
     use std::path::PathBuf;
     use anyhow::{anyhow};
     use chumsky::prelude::end;
+    use crate::language::Spanned;
 
     #[derive(Debug)]
     struct ResKey {
@@ -382,10 +383,23 @@ mod tests {
     }
 
     impl<T> VarLen<T> {
-        fn as_ident_vec(&self) -> Vec<&T> {
+
+        fn len(&self) -> usize {
             match self {
-                VarLen::Single(single) => vec![single],
-                VarLen::Many(many) => many.iter().collect()
+                VarLen::Single(_) => 1,
+                VarLen::Many(many) => many.len()
+            }
+        }
+    }
+
+    impl<T> IntoIterator for VarLen<T> {
+        type Item = T;
+        type IntoIter = std::vec::IntoIter<Self::Item>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            match self {
+                VarLen::Single(single) => vec![single].into_iter(),
+                VarLen::Many(many) => many.into_iter()
             }
         }
     }
@@ -400,7 +414,7 @@ mod tests {
         },
     }
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Default, Debug, Deserialize)]
     struct CallChainTestData {
         idents: Vec<IdentTestData>,
     }
@@ -414,14 +428,28 @@ mod tests {
         args: Vec<VarIdent>,
     }
 
+    #[derive(Debug, Deserialize)]
+    struct DeclArgsTestData {
+        args: Vec<DeclArgTestData>
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct DeclArgTestData {
+        name: String,
+        r#type: VarLen<String>,
+        default: Option<CallChainTestData>
+    }
+
     fn read_test_data<T: for<'a> serde::Deserialize<'a>>(
         path_buf: PathBuf,
     ) -> anyhow::Result<Vec<BaseTestData<T>>> {
         let input = fs::read_to_string(&path_buf)?;
         let vec = input
             .split("---")
-            .filter(|it| !it.is_empty())
-            .map(|it| serde_yaml::from_str(it).expect(&format!("Cannot read {it}")))
+            .enumerate()
+            .filter(|(_, it)| !it.is_empty())
+            .map(|(index, it)| serde_yaml::from_str(it)
+                .expect(&format!("{index}: Cannot read {it}")))
             .collect::<Vec<_>>();
         Ok(vec)
     }
@@ -497,7 +525,10 @@ mod tests {
 
     const TEST_DIR: &'static str = "resources/test";
 
-    fn assert_call_chain(expected: Vec<&IdentTestData>, actual: CallChain) {
+    fn assert_call_chain(
+        expected: impl IntoIterator<Item=IdentTestData>,
+        actual: impl IntoIterator<Item=Box<Call>>
+    ) {
         actual.into_iter()
             .zip(expected.into_iter())
             .for_each(|(call, test_data)| {
@@ -509,7 +540,7 @@ mod tests {
                                 expected_args.into_iter()
                                     .zip(actual_args.into_iter())
                                     .for_each(|(expected, actual)| {
-                                        assert_call_chain(expected.as_ident_vec(), actual);
+                                        assert_call_chain(expected, actual);
                                     })
                             }
                             IdentTestData::Ident(expected) => {
@@ -578,7 +609,7 @@ mod tests {
             false,
             chain().ident_chain(),
             |expected: CallChainTestData, actual| {
-                assert_call_chain(expected.idents.iter().collect(), actual);
+                assert_call_chain(expected.idents, actual);
             },
         );
     }
@@ -609,9 +640,48 @@ mod tests {
                 expected.args.into_iter()
                     .zip(actual.arguments.into_iter())
                     .for_each(|(actual, expected)| {
-                        assert_call_chain(actual.as_ident_vec(), expected)
+                        assert_call_chain(actual, expected)
                     })
             },
         );
+    }
+
+    #[test]
+    fn test_invalid_decl_args() {
+        let key = ResKey::new(TEST_DIR, "decl_args", "invalid");
+
+        test_parser_result(
+            &key,
+            true,
+            declared_arguments(),
+            nothing::<DeclArgsTestData, _>
+        )
+    }
+
+    #[test]
+    fn test_valid_decl_args() {
+        let key = ResKey::new(TEST_DIR, "decl_args", "valid");
+
+        test_parser_result(
+            &key,
+            false,
+            declared_arguments(),
+            |expected: DeclArgsTestData, actual: Spanned<Vec<DeclaredArgument>>| {
+                expected.args.into_iter()
+                            .zip(actual.into_iter())
+                            .for_each(|(expected, actual)| {
+                                assert_eq!(expected.name, actual.name.value);
+
+                                let actual_types = actual.types.into_iter()
+                                    .map(|it| it.value)
+                                    .collect::<Vec<_>>();
+
+                                assert_iterator!(expected.r#type, actual_types);
+                                if let (Some(expected), Some(actual)) = (expected.default, actual.default_value) {
+                                    assert_call_chain(expected.idents, actual)
+                                }
+                            })
+            }
+        )
     }
 }

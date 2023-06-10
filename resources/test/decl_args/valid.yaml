@@ -1,0 +1,33 @@
+code: |-
+  (team: Team)
+expected:
+  args:
+    -
+      name: "team"
+      type: "Team"
+---
+code: |-
+  (hero: Hero, health: HealthType)
+expected:
+  args:
+    -
+      name: "hero"
+      type: "Hero"
+    -
+      name: "health"
+      type: "HealthType"
+---
+code: |-
+  (hero: Hero = Hero.Ana, health: HealthType = HealthType.Armor)
+expected:
+  args:
+    -
+      name: "hero"
+      type: "Hero"
+      default:
+        idents: ["Hero", "Ana"]
+    -
+      name: "health"
+      type: "HealthType"
+      default:
+        idents: ["HealthType", "Armor"]
