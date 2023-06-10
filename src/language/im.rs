@@ -197,6 +197,7 @@ pub enum Type {
     Unit,
 }
 
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Predicate {
     pub return_value: AValue,
@@ -238,15 +239,24 @@ impl Display for Type {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledTypes {
+    // TODO Use small_vec here
     pub types: Vec<CalledType>,
     pub span: Span,
+}
+
+impl From<CalledType> for CalledTypes {
+    fn from(value: CalledType) -> Self {
+        let span = value.span.clone();
+
+        CalledTypes { types: vec![value], span }
+    }
 }
 
 impl CalledTypes {
     // TODO This should not be O(n)
     // Either make it a map or sort the vec before
-    pub fn contains_type(&self, r#type: Type) -> bool {
-        self.types.iter().any(|it| it.r#type == r#type)
+    pub fn contains_type(&self, r#type: &Type) -> bool {
+        self.types.iter().any(|it| it.r#type == *r#type)
     }
 }
 
@@ -386,20 +396,21 @@ impl RValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
     // TODO Should this be FunctionDeclId or FunctionDecl?
-    FunctionCall(FunctionDeclId, Actions),
+    FunctionCall(FunctionDeclId, Actions, Span),
     RValue(RValue, Span),
     CValue(CValue),
 }
 
 impl AValue {
+
     // TODO Rename this to return_type
-    pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> Type {
+    pub fn return_called_type<I: Interner + ?Sized>(&self, db: &I) -> CalledType {
         match self {
-            AValue::RValue(rvalue, _) => rvalue.r#type(db),
-            AValue::CValue(cvalue) => cvalue.r#type(),
-            AValue::FunctionCall(function_decl_id, _) => {
+            AValue::RValue(rvalue, span) => CalledType { r#type: rvalue.r#type(db), span: span.clone() },
+            AValue::CValue(cvalue) => CalledType { r#type: cvalue.r#type(), span: cvalue.span() },
+            AValue::FunctionCall(function_decl_id, _, span) => {
                 let function_decl: FunctionDecl = db.lookup_intern_function_decl(*function_decl_id);
-                function_decl.return_type
+                CalledType { r#type: function_decl.return_type, span: span.clone() }
             }
         }
     }
@@ -413,6 +424,13 @@ pub enum CValue {
 }
 
 impl CValue {
+
+    pub fn span(&self) -> Span {
+        match self {
+            CValue::String(_, _, span) | CValue::Number(_, _, span) => span.clone()
+        }
+    }
+
     pub fn r#type(&self) -> Type {
         match self {
             CValue::String(_, struct_decl_id, _) => Type::Struct(*struct_decl_id),

@@ -1,3 +1,4 @@
+use either::Either;
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
@@ -50,10 +51,14 @@ pub(super) fn query_rule_cond(
             avalues
                 .into_iter()
                 .map(|avalue| {
-                    if avalue.r#type(db) == bool_id {
+                    let called_type = avalue.return_called_type(db);
+                    if called_type.r#type == bool_id {
                         Trisult::Ok(avalue)
                     } else {
-                        query_error!(AnalysisError::WrongType)
+                        query_error!(AnalysisError::WrongType {
+                            actual: called_type,
+                            expected: Either::Left(bool_id.clone())
+                        })
                     }
                 })
                 .collect()
@@ -76,17 +81,21 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryTrisul
                     })
                     .zip(arguments.into_iter())
                     .map(|(decl_arg, avalue)| {
-                        let valid_type = decl_arg.types.contains_type(avalue.r#type(db));
+                        let called_type = avalue.return_called_type(db);
+                        let valid_type = decl_arg.types.contains_type(&called_type.r#type);
 
                         let called_argument = CalledArgument {
                             value: avalue,
-                            declared: decl_arg.intern(db),
+                            declared: decl_arg.clone().intern(db),
                         };
 
                         if valid_type {
                             Trisult::Ok(called_argument)
                         } else {
-                            let error = AnalysisError::WrongType;
+                            let error = AnalysisError::WrongType {
+                                actual: called_type,
+                                expected: Either::Right(decl_arg.types),
+                            };
                             Trisult::Par(called_argument, vec![error])
                         }
                     })

@@ -39,7 +39,7 @@ pub(super) fn query_call_chain(
                             im::AValue::RValue(rvalue, ident.span),
                         )
                     }),
-                ast::Call::IdentArguments { name, args, .. } => db
+                ast::Call::IdentArguments { name, args, span } => db
                     .query_namespaced_function(nameholders, name)
                     .and_or_default(
                         args.into_iter()
@@ -51,7 +51,7 @@ pub(super) fn query_call_chain(
                     .map(|(function_decl, function_args)| {
                         (
                             smallvec![function_decl.return_type.clone().into()],
-                            im::AValue::FunctionCall(function_decl.intern(db), function_args),
+                            im::AValue::FunctionCall(function_decl.intern(db), function_args, span),
                         )
                     }),
                 ast::Call::String(ident, span) => {

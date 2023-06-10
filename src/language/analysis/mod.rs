@@ -1,9 +1,11 @@
+use either::Either;
 use crate::language::error::Trisult;
-use crate::language::Ident;
+use crate::language::{Ident, ImmutableString};
 use crate::query_error;
 use decl::DeclDatabase;
 use def::DefDatabase;
 use interner::InternerDatabase;
+use crate::language::im::{CalledType, CalledTypes, RValue, Type};
 
 pub mod arg;
 pub mod call;
@@ -50,9 +52,9 @@ pub enum AnalysisError {
     DuplicateIdent { first: Ident, second: Ident },
     CannotFindDefinition(salsa::InternId),
     CannotFindIdent(Ident),
-    WrongType,
-    NotABool,
-    CannotFindPrimitive,
+    NotA(&'static str, RValue),
+    WrongType { actual: CalledType, expected: Either<Type, CalledTypes> },
+    CannotFindPrimitiveDeclaration(ImmutableString)
 }
 
 impl<T> From<AnalysisError> for Result<T, AnalysisError> {

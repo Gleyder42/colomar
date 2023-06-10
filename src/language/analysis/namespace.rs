@@ -6,7 +6,7 @@ use crate::language::im::{
     EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId,
     FunctionDecl, PropertyDecl, RValue, StructDeclarationId, Type,
 };
-use crate::language::{im, Ident, ImmutableString};
+use crate::language::{Ident, ImmutableString};
 use crate::{impl_intern_key, query_error};
 use salsa::InternId;
 use std::borrow::ToOwned;
@@ -99,7 +99,7 @@ pub(super) fn query_number_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclar
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_number_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::WrongType)
+            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(db.query_number_name()))
             .into()
     })
 }
@@ -108,7 +108,7 @@ pub(super) fn query_string_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclar
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_string_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::WrongType)
+            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(db.query_string_name()))
             .into()
     })
 }
@@ -117,7 +117,7 @@ pub(super) fn query_bool_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarat
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_bool_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::WrongType)
+            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(db.query_bool_name()))
             .into()
     })
 }
@@ -204,13 +204,11 @@ pub(super) fn query_namespaced_type(
     db: &dyn DeclQuery,
     nameholders: Nameholders,
     ident: Ident,
-) -> QueryTrisult<im::Type> {
+) -> QueryTrisult<Type> {
     db.query_namespaced_rvalue(nameholders, ident)
         .flat_map(|rvalue| match rvalue {
             RValue::Type(r#type) => Trisult::Ok(r#type),
-            RValue::EnumConstant(_) => AnalysisError::WrongType.into(),
-            RValue::Property(_) => AnalysisError::WrongType.into(),
-            RValue::Function(_) => AnalysisError::WrongType.into(), // TODO is this correct?
+            rvalue @ (RValue::EnumConstant(_) | RValue::Property(_) | RValue::Function(_)) => AnalysisError::NotA("Type", rvalue).into(),
         })
 }
 
@@ -222,8 +220,8 @@ pub(super) fn query_namespaced_function(
     db.query_namespaced_rvalue(nameholders, ident)
         .flat_map(|rvalue| match rvalue {
             RValue::Function(function) => Trisult::Ok(function),
-            RValue::Type(_) | RValue::Property(_) | RValue::EnumConstant(_) => {
-                query_error!(AnalysisError::WrongType)
+            rvalue @ (RValue::Type(_) | RValue::Property(_) | RValue::EnumConstant(_)) => {
+                query_error!(AnalysisError::NotA("Function", rvalue))
             }
         })
 }
@@ -236,8 +234,8 @@ pub(super) fn query_namespaced_event(
     db.query_namespaced_type(nameholders, ident)
         .flat_map(|r#type| match r#type {
             Type::Event(event) => Trisult::Ok(event),
-            Type::Enum(_) | Type::Struct(_) | Type::Unit => {
-                Trisult::Err(vec![AnalysisError::WrongType])
+            r#type @ (Type::Enum(_) | Type::Struct(_) | Type::Unit) => {
+                Trisult::Err(vec![AnalysisError::NotA("Event", RValue::Type(r#type))])
             }
         })
 }
