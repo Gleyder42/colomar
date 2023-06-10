@@ -1,3 +1,4 @@
+use std::ops::Range;
 use crate::language::ast::SpannedBool;
 use smol_str::SmolStr;
 
@@ -7,9 +8,14 @@ pub mod error;
 pub mod im;
 pub mod lexer;
 pub mod parser;
+pub mod interner;
+
+pub type SpanSource = usize;
 
 // pub mod converter;
-pub type Span = std::ops::Range<usize>;
+pub type Span = (SpanSource, Range<usize>);
+
+
 pub type ImmutableString = SmolStr;
 
 const CONDITIONS_LEN: usize = 6;
@@ -28,11 +34,11 @@ pub struct Ident {
 }
 
 impl<T> Spanned<T> {
-    pub fn new(value: T, span: crate::Span) -> Self {
+    pub fn new(value: T, span: Span) -> Self {
         Spanned { value, span }
     }
 
-    pub fn ignore_value(option: Option<T>, span: crate::Span) -> SpannedBool {
+    pub fn ignore_value(option: Option<T>, span: Span) -> SpannedBool {
         option.map(|_| Spanned::new((), span))
     }
 }
@@ -40,7 +46,7 @@ impl<T> Spanned<T> {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Spanned<T> {
     pub value: T,
-    pub span: crate::Span,
+    pub span: Span,
 }
 
 impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {

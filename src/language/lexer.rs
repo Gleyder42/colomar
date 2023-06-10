@@ -1,6 +1,6 @@
 extern crate core;
 
-use crate::language::{ImmutableString, Span};
+use crate::language::{ImmutableString, Span, SpanSource};
 use chumsky::prelude::*;
 use chumsky::text::Character;
 use std::fmt::{Debug, Display, Formatter};
@@ -51,7 +51,7 @@ impl Display for Token {
     }
 }
 
-pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
+pub fn lexer(source: SpanSource) -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     let num = text::int(10)
         .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
         .collect::<String>()
@@ -93,7 +93,7 @@ pub fn lexer() -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
 
     token
         .padded_by(whitespace)
-        .map_with_span(|tok, span| (tok, span))
+        .map_with_span(move |tok, span| (tok, (source, span)))
         .repeated()
         .then_ignore(end())
 }

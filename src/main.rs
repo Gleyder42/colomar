@@ -5,7 +5,7 @@ extern crate core;
 extern crate salsa;
 
 use crate::language::analysis::interner::Interner;
-use crate::language::analysis::AnalysisDatabase;
+use crate::language::analysis::{AnalysisDatabase, AnalysisError};
 use crate::language::im;
 use crate::language::im::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::language::lexer::lexer;
@@ -15,13 +15,12 @@ use chumsky::Stream;
 use language::error::Trisult;
 use std::fs;
 use std::io::Read;
-use std::ops::Range;
 use std::path::Path;
 
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::def::DefQuery;
 
-pub type Span = Range<usize>;
+use crate::language::interner::Interner as SimpleInterner;
 
 mod compiler;
 pub mod language;
@@ -38,11 +37,14 @@ fn main() {
     file.read_to_string(&mut source)
         .expect("Cannot read file content");
 
-    let (tokens, lexer_errors) = lexer().parse_recovery(source.as_str());
+    let mut file_interner = SimpleInterner::new();
+    let index = file_interner.intern(path);
+
+    let (tokens, lexer_errors) = lexer(index).parse_recovery(source.as_str());
     println!("{:#?}", lexer_errors);
 
     let (ast, parser_errors) = if let Some(tokens) = tokens {
-        let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
+        let stream = Stream::from_iter((index, tokens.len()..tokens.len() + 1), tokens.into_iter());
         parser().parse_recovery(stream)
     } else {
         (None, Vec::new())
@@ -54,7 +56,7 @@ fn main() {
         let mut database = AnalysisDatabase::default();
         database.set_input_content(ast);
 
-        let im: Trisult<im::Im, _> = database.query_im();
+        let im: Trisult<im::Im, AnalysisError> = database.query_im();
 
         let output = im.to_option();
 
