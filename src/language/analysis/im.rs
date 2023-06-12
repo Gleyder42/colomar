@@ -12,5 +12,8 @@ pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<im::Im> {
             ast::Root::Struct(r#struct) => db.query_struct(r#struct).map(im::Root::Struct),
         })
         .collect::<QueryTrisult<_>>()
+        // TODO Decide how to handle this
+        // query_root_namespace() has to be called here to include the errors
+        .and_ignore_value(db.query_root_namespace())
         .map(im::Im)
 }

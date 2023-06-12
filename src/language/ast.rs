@@ -1,4 +1,7 @@
-use crate::language::{Ident, ImmutableString, Spanned, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN, Span};
+use crate::language::{
+    Ident, ImmutableString, Span, Spanned, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
+    FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+};
 use smallvec::SmallVec;
 
 pub type Condition = CallChain;

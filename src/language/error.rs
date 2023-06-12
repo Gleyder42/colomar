@@ -20,7 +20,6 @@ pub enum Trisult<T, E> {
 }
 
 impl<T: Debug, E: Debug> Trisult<T, E> {
-
     pub fn debug_print(self) -> Trisult<T, E> {
         println!("Current Trisult: {:#?}", self);
         self
@@ -33,6 +32,22 @@ impl<T: Debug, E: Debug> Trisult<T, E> {
 }
 
 impl<T, E> Trisult<T, E> {
+    pub fn drop_errors(self, fallback: impl Fn() -> T) -> Trisult<T, E> {
+        match self {
+            Trisult::Ok(_) => self,
+            Trisult::Par(value, _) => Trisult::Ok(value),
+            Trisult::Err(_) => Trisult::Ok(fallback()),
+        }
+    }
+
+    pub fn and_ignore_value<U>(self, other: Trisult<U, E>) -> Trisult<T, E> {
+        let other_errors = match other {
+            Trisult::Ok(_) => Vec::new(),
+            Trisult::Par(_, errors) | Trisult::Err(errors) => errors,
+        };
+
+        self.flat_map(|value| Trisult::Par(value, other_errors))
+    }
 
     /// Converts the [Trisult] to an option and error vec.
     /// The option is none if [Trisult::Err] otherwise none.

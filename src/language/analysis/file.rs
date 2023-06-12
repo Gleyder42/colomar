@@ -2,7 +2,7 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::{Definition, EventDefinition, Root, StructDefinition};
 use crate::language::im::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
-use salsa::InternKey;
+use either::Either;
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -31,7 +31,7 @@ pub(super) fn query_ast_struct_def(
 ) -> QueryTrisult<StructDefinition> {
     db.query_ast_struct_def_map()
         .remove(&DefKey::Struct(struct_decl_id))
-        .ok_or_else(|| AnalysisError::CannotFindDefinition(struct_decl_id.as_intern_id()))
+        .ok_or_else(|| AnalysisError::CannotFindDefinition(Either::Left(struct_decl_id)))
         .into()
 }
 
@@ -84,6 +84,6 @@ pub(super) fn query_ast_event_def(
 ) -> QueryTrisult<EventDefinition> {
     db.query_ast_event_def_map()
         .remove(&DefKey::Event(event_decl_id))
-        .ok_or_else(|| AnalysisError::CannotFindDefinition(event_decl_id.as_intern_id()))
+        .ok_or_else(|| AnalysisError::CannotFindDefinition(Either::Right(event_decl_id)))
         .into()
 }

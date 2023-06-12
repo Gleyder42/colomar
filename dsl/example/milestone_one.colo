@@ -19,7 +19,7 @@ open workshop struct Player {
     workshop fn heal(amount: num, player: Player)
 }
 
-workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+wor event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
     val player: Player
 }
 

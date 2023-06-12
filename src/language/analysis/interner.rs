@@ -1,3 +1,4 @@
+use crate::language::{SpanSource, SpanSourceId};
 use crate::language::analysis::namespace::{Namespace, NamespaceId};
 use crate::language::im::{
     DeclaredArgument, DeclaredArgumentId, EnumConstant, EnumConstantId, EnumDeclaration,
@@ -31,6 +32,9 @@ pub trait Interner {
 
     #[salsa::interned]
     fn intern_namespace(&self, namespace: Rc<Namespace>) -> NamespaceId;
+
+    #[salsa::interned]
+    fn intern_span_source(&self, span_source: SpanSource) -> SpanSourceId;
 }
 
 pub trait IntoInternId {

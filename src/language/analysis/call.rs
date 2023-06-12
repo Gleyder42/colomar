@@ -54,24 +54,20 @@ pub(super) fn query_call_chain(
                             im::AValue::FunctionCall(function_decl.intern(db), function_args, span),
                         )
                     }),
-                ast::Call::String(ident, span) => {
-                    db.query_string_type().map(|string_struct_id| {
-                        (
-                            smallvec![Nameholder::Empty],
-                            im::AValue::CValue(CValue::String(ident, string_struct_id, span)),
-                        )
-                    })
-                }
-                ast::Call::Number(ident, span) => {
-                    db.query_number_type().map(|number_struct_id| {
-                        (
-                            smallvec![Nameholder::Empty],
-                            im::AValue::CValue(CValue::Number(ident, number_struct_id, span))
-                        )
-                    })
-                }
+                ast::Call::String(ident, span) => db.query_string_type().map(|string_struct_id| {
+                    (
+                        smallvec![Nameholder::Empty],
+                        im::AValue::CValue(CValue::String(ident, string_struct_id, span)),
+                    )
+                }),
+                ast::Call::Number(ident, span) => db.query_number_type().map(|number_struct_id| {
+                    (
+                        smallvec![Nameholder::Empty],
+                        im::AValue::CValue(CValue::Number(ident, number_struct_id, span)),
+                    )
+                }),
             }
-                .map(|(acc, avalue)| (acc, Some(avalue)))
+            .map(|(acc, avalue)| (acc, Some(avalue)))
         },
     )
 }

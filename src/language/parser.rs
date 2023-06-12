@@ -8,15 +8,18 @@ use smallvec::SmallVec;
 
 pub type ParserError = Simple<Token, Span>;
 
-fn ident() -> impl Parser<Token, Ident, Error=ParserError> {
+fn ident() -> impl Parser<Token, Ident, Error = ParserError> {
     filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(Ident { value: ident, span }),
-        _ => Err(ParserError::expected_input_found(span, Vec::new(), Some(token))),
+        _ => Err(ParserError::expected_input_found(
+            span,
+            Vec::new(),
+            Some(token),
+        )),
     })
 }
 
-fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error=ParserError>
-{
+fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error = ParserError> {
     ident()
         .then_ignore(just(Token::Ctrl(':')))
         .then(
@@ -43,13 +46,13 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
         .map_with_span(Spanned::new)
 }
 
-fn workshop_or_not() -> impl Parser<Token, SpannedBool, Error=ParserError> {
+fn workshop_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
     just(Token::Workshop)
         .or_not()
         .map_with_span(Spanned::ignore_value)
 }
 
-fn event() -> impl Parser<Token, Event, Error=ParserError> {
+fn event() -> impl Parser<Token, Event, Error = ParserError> {
     just(Token::Workshop)
         .or_not()
         .map_with_span(Spanned::ignore_value)
@@ -89,7 +92,7 @@ fn event() -> impl Parser<Token, Event, Error=ParserError> {
         })
 }
 
-fn r#enum() -> impl Parser<Token, Enum, Error=ParserError> {
+fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
     let constants = ident()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
@@ -111,7 +114,7 @@ fn r#enum() -> impl Parser<Token, Enum, Error=ParserError> {
         })
 }
 
-fn property() -> impl Parser<Token, PropertyDeclaration, Error=ParserError> {
+fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
     workshop_or_not()
         .then(choice((just(Token::GetVal), just(Token::Val))).map_with_span(Spanned::new))
         .then(ident())
@@ -142,7 +145,7 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error=ParserError> {
         })
 }
 
-fn r#struct() -> impl Parser<Token, Struct, Error=ParserError> {
+fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
     let member_function = workshop_or_not()
         .then_ignore(just(Token::Fn))
         .then(ident())
@@ -201,7 +204,7 @@ fn r#struct() -> impl Parser<Token, Struct, Error=ParserError> {
         })
 }
 
-fn newline_repeated() -> impl Parser<Token, (), Error=ParserError> + Clone {
+fn newline_repeated() -> impl Parser<Token, (), Error = ParserError> + Clone {
     just(Token::NewLine).repeated().ignored()
 }
 
@@ -262,7 +265,7 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
     }
 }
 
-fn block() -> impl Parser<Token, Block, Error=ParserError> {
+fn block() -> impl Parser<Token, Block, Error = ParserError> {
     let cond = just(Token::Cond)
         .ignore_then(chain().ident_chain())
         .map(|it| it as Condition);
@@ -286,11 +289,11 @@ fn block() -> impl Parser<Token, Block, Error=ParserError> {
         })
 }
 
-fn at_least_newlines() -> impl Parser<Token, (), Error=ParserError> {
+fn at_least_newlines() -> impl Parser<Token, (), Error = ParserError> {
     just(Token::NewLine).repeated().at_least(1).map(|_| ())
 }
 
-fn rule() -> impl Parser<Token, Rule, Error=ParserError> {
+fn rule() -> impl Parser<Token, Rule, Error = ParserError> {
     let rule_name = filter_map(|span, token| match token {
         Token::String(string) => Ok(Spanned::new(string, span)),
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
@@ -310,7 +313,7 @@ fn rule() -> impl Parser<Token, Rule, Error=ParserError> {
         })
 }
 
-pub fn parser() -> impl Parser<Token, Ast, Error=ParserError> {
+pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
     let rule_parser = rule().map(Root::Rule);
     let event_parser = event().map(Root::Event);
     let enum_parser = r#enum().map(Root::Enum);
@@ -326,17 +329,17 @@ pub fn parser() -> impl Parser<Token, Ast, Error=ParserError> {
 mod tests {
     use crate::language::ast::{Call, DeclaredArgument, Rule};
     use crate::language::lexer::{lexer, Token};
-    use crate::language::parser::{chain, declared_arguments, r#enum, rule};
+    use crate::language::parser::{chain, declared_arguments, ParserError, r#enum, rule};
+    use crate::language::Spanned;
     use crate::{assert_iterator, Span};
+    use anyhow::anyhow;
     use chumsky::error::Simple;
+    use chumsky::prelude::end;
     use chumsky::{Parser, Stream};
     use serde::Deserialize;
-    use std::fmt::{Debug};
+    use std::fmt::Debug;
     use std::fs;
     use std::path::PathBuf;
-    use anyhow::{anyhow};
-    use chumsky::prelude::end;
-    use crate::language::Spanned;
 
     #[derive(Debug)]
     struct ResKey {
@@ -385,11 +388,10 @@ mod tests {
     }
 
     impl<T> VarLen<T> {
-
         fn len(&self) -> usize {
             match self {
                 VarLen::Single(_) => 1,
-                VarLen::Many(many) => many.len()
+                VarLen::Many(many) => many.len(),
             }
         }
     }
@@ -401,7 +403,7 @@ mod tests {
         fn into_iter(self) -> Self::IntoIter {
             match self {
                 VarLen::Single(single) => vec![single].into_iter(),
-                VarLen::Many(many) => many.into_iter()
+                VarLen::Many(many) => many.into_iter(),
             }
         }
     }
@@ -410,10 +412,7 @@ mod tests {
     #[serde(untagged)]
     enum IdentTestData {
         Ident(String),
-        IdentWithArgs {
-            ident: String,
-            args: Vec<VarIdent>,
-        },
+        IdentWithArgs { ident: String, args: Vec<VarIdent> },
     }
 
     #[derive(Default, Debug, Deserialize)]
@@ -432,14 +431,14 @@ mod tests {
 
     #[derive(Debug, Deserialize)]
     struct DeclArgsTestData {
-        args: Vec<DeclArgTestData>
+        args: Vec<DeclArgTestData>,
     }
 
     #[derive(Debug, Deserialize)]
     struct DeclArgTestData {
         name: String,
         r#type: VarLen<String>,
-        default: Option<CallChainTestData>
+        default: Option<CallChainTestData>,
     }
 
     fn read_test_data<T: for<'a> serde::Deserialize<'a>>(
@@ -450,13 +449,17 @@ mod tests {
             .split("---")
             .enumerate()
             .filter(|(_, it)| !it.is_empty())
-            .map(|(index, it)| serde_yaml::from_str(it)
-                .expect(&format!("{index}: Cannot read {it}")))
+            .map(|(index, it)| {
+                serde_yaml::from_str(it).expect(&format!("{index}: Cannot read {it}"))
+            })
             .collect::<Vec<_>>();
         Ok(vec)
     }
 
-    fn parse_code<T>(code: &str, parser: &impl Parser<Token, T, Error=ParserError>) -> anyhow::Result<T> {
+    fn parse_code<T>(
+        code: &str,
+        parser: &impl Parser<Token, T, Error = ParserError>,
+    ) -> anyhow::Result<T> {
         let tokens: Vec<_> = lex_code(code)?;
         let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
 
@@ -467,20 +470,20 @@ mod tests {
     }
 
     fn lex_code(code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
-        lexer().parse(code)
-            .map_err(|errors| {
-                let error_message = errors.into_iter()
-                    .map(|it| it.to_string())
-                    .collect::<Vec<String>>()
-                    .join("\n");
-                anyhow!(error_message)
-            })
+        lexer().parse(code).map_err(|errors| {
+            let error_message = errors
+                .into_iter()
+                .map(|it| it.to_string())
+                .collect::<Vec<String>>()
+                .join("\n");
+            anyhow!(error_message)
+        })
     }
 
     fn test_parser_result<Ex, Ac, F>(
         key: &ResKey,
         should_panic: bool,
-        parser: impl Parser<Token, Ac, Error=ParserError>,
+        parser: impl Parser<Token, Ac, Error = ParserError>,
         assertion: F,
     ) where
         Ac: Debug,
@@ -489,12 +492,13 @@ mod tests {
     {
         let data = read_test_data(key.whole_path()).unwrap();
 
-        let results = data.into_iter()
+        let results = data
+            .into_iter()
             .map(|test_data| {
                 let code = parse_code::<Ac>(&test_data.code, &parser);
                 let code = match code {
                     Ok(code) => code,
-                    Err(error) => return Err(error)
+                    Err(error) => return Err(error),
                 };
 
                 if let Some(expected) = test_data.expected {
@@ -504,11 +508,13 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let error_messages = results.iter()
+        let error_messages = results
+            .iter()
             .map(|it| match it {
                 Ok(_) => "Successful".to_string(),
-                Err(error) => format!("Error: {:?}", error)
-            }).collect::<Vec<_>>()
+                Err(error) => format!("Error: {:?}", error),
+            })
+            .collect::<Vec<_>>()
             .join("\n");
 
         println!("{}", error_messages);
@@ -528,8 +534,8 @@ mod tests {
     const TEST_DIR: &'static str = "resources/test";
 
     fn assert_call_chain(
-        expected: impl IntoIterator<Item=IdentTestData>,
-        actual: impl IntoIterator<Item=Box<Call>>
+        expected: impl IntoIterator<Item = IdentTestData>,
+        actual: impl IntoIterator<Item = Box<Call>>,
     ) {
         actual.into_iter()
             .zip(expected.into_iter())
@@ -639,11 +645,11 @@ mod tests {
             |expected: RuleTestData, actual: Rule| {
                 assert_eq!(expected.name, actual.name.value);
                 assert_eq!(expected.event, actual.event.value);
-                expected.args.into_iter()
+                expected
+                    .args
+                    .into_iter()
                     .zip(actual.arguments.into_iter())
-                    .for_each(|(actual, expected)| {
-                        assert_call_chain(actual, expected)
-                    })
+                    .for_each(|(actual, expected)| assert_call_chain(actual, expected))
             },
         );
     }
@@ -656,7 +662,7 @@ mod tests {
             &key,
             true,
             declared_arguments(),
-            nothing::<DeclArgsTestData, _>
+            nothing::<DeclArgsTestData, _>,
         )
     }
 
@@ -669,21 +675,27 @@ mod tests {
             false,
             declared_arguments(),
             |expected: DeclArgsTestData, actual: Spanned<Vec<DeclaredArgument>>| {
-                expected.args.into_iter()
-                            .zip(actual.into_iter())
-                            .for_each(|(expected, actual)| {
-                                assert_eq!(expected.name, actual.name.value);
+                expected
+                    .args
+                    .into_iter()
+                    .zip(actual.into_iter())
+                    .for_each(|(expected, actual)| {
+                        assert_eq!(expected.name, actual.name.value);
 
-                                let actual_types = actual.types.into_iter()
-                                    .map(|it| it.value)
-                                    .collect::<Vec<_>>();
+                        let actual_types = actual
+                            .types
+                            .into_iter()
+                            .map(|it| it.value)
+                            .collect::<Vec<_>>();
 
-                                assert_iterator!(expected.r#type, actual_types);
-                                if let (Some(expected), Some(actual)) = (expected.default, actual.default_value) {
-                                    assert_call_chain(expected.idents, actual)
-                                }
-                            })
-            }
+                        assert_iterator!(expected.r#type, actual_types);
+                        if let (Some(expected), Some(actual)) =
+                            (expected.default, actual.default_value)
+                        {
+                            assert_call_chain(expected.idents, actual)
+                        }
+                    })
+            },
         )
     }
 }

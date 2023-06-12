@@ -142,7 +142,7 @@ pub trait DeclQuery: Interner {
     fn query_number_type(&self) -> QueryTrisult<StructDeclarationId>;
 
     #[salsa::invoke(namespace::query_root_namespace)]
-    fn query_root_namespace(&self) -> Result<NamespaceId, AnalysisError>;
+    fn query_root_namespace(&self) -> QueryTrisult<NamespaceId>;
 
     #[salsa::invoke(namespace::query_enum_namespace)]
     fn query_enum_namespace(&self, r#enum: EnumDeclarationId) -> QueryTrisult<NamespaceId>;
@@ -152,7 +152,7 @@ pub trait DeclQuery: Interner {
 
     #[salsa::invoke(namespace::query_struct_namespace)]
     fn query_struct_namespace(&self, struct_decl: StructDeclarationId)
-                              -> QueryTrisult<NamespaceId>;
+        -> QueryTrisult<NamespaceId>;
 
     #[salsa::invoke(namespace::query_namespaced_rvalue)]
     fn query_namespaced_rvalue(

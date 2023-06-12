@@ -9,20 +9,21 @@ use crate::language::im::{
 use crate::language::{Ident, ImmutableString};
 use crate::{impl_intern_key, query_error};
 use salsa::InternId;
+use smallvec::{smallvec, SmallVec};
 use std::borrow::ToOwned;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use smallvec::{SmallVec, smallvec};
 
-pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> Result<NamespaceId, AnalysisError> {
+pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> QueryTrisult<NamespaceId> {
     let mut namespace = Namespace::new();
 
-    for (ident, r#type) in db.query_type_map() {
-        namespace.add(ident, RValue::Type(r#type), db)?;
-    }
-
-    Ok(Rc::new(namespace).intern(db))
+    db.query_type_map()
+        .into_iter()
+        .map(|(ident, r#type)| namespace.add(ident, RValue::Type(r#type), db))
+        .collect::<QueryTrisult<_>>()
+        .map(|_| Rc::new(namespace))
+        .intern(db)
 }
 
 pub(super) fn query_enum_namespace(
@@ -94,12 +95,13 @@ fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {
     }
 }
 
-
 pub(super) fn query_number_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarationId> {
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_number_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(db.query_number_name()))
+            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(
+                db.query_number_name(),
+            ))
             .into()
     })
 }
@@ -108,7 +110,9 @@ pub(super) fn query_string_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclar
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_string_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(db.query_string_name()))
+            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(
+                db.query_string_name(),
+            ))
             .into()
     })
 }
@@ -117,7 +121,9 @@ pub(super) fn query_bool_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarat
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_bool_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(db.query_bool_name()))
+            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(
+                db.query_bool_name(),
+            ))
             .into()
     })
 }
@@ -173,7 +179,10 @@ pub(super) fn query_namespace(
         .into_iter()
         .map(|nameholder| {
             match nameholder {
-                Nameholder::Root => db.query_root_namespace().into(),
+                Nameholder::Root => db
+                    .query_root_namespace()
+                    .drop_errors(|| empty_namespace(db))
+                    .into(),
                 Nameholder::Enum(enum_placeholder) => match enum_placeholder {
                     // TODO Current match should return the enum constant id and not the namespace id
                     EnumNameholder::ByEnum(enum_decl) => db.query_enum_namespace(enum_decl),
@@ -208,7 +217,9 @@ pub(super) fn query_namespaced_type(
     db.query_namespaced_rvalue(nameholders, ident)
         .flat_map(|rvalue| match rvalue {
             RValue::Type(r#type) => Trisult::Ok(r#type),
-            rvalue @ (RValue::EnumConstant(_) | RValue::Property(_) | RValue::Function(_)) => AnalysisError::NotA("Type", rvalue).into(),
+            rvalue @ (RValue::EnumConstant(_) | RValue::Property(_) | RValue::Function(_)) => {
+                AnalysisError::NotA("Type", rvalue).into()
+            }
         })
 }
 
@@ -276,6 +287,10 @@ pub struct Namespace {
     map: HashMap<ImmutableString, RValue>,
 }
 
+pub fn empty_namespace(db: &(impl Interner + ?Sized)) -> NamespaceId {
+    Rc::new(Namespace::new()).intern(db)
+}
+
 impl Namespace {
     fn new() -> Namespace {
         Namespace {
@@ -317,7 +332,7 @@ impl Namespace {
                     first: root.name(db), // TODO How to deal with errors?
                     second: ident,
                 }
-                    .into()
+                .into()
             }
             None => {
                 self.map.insert(ident.value.clone(), rvalue);

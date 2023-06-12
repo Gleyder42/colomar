@@ -197,7 +197,6 @@ pub enum Type {
     Unit,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Predicate {
     pub return_value: AValue,
@@ -248,7 +247,10 @@ impl From<CalledType> for CalledTypes {
     fn from(value: CalledType) -> Self {
         let span = value.span.clone();
 
-        CalledTypes { types: vec![value], span }
+        CalledTypes {
+            types: vec![value],
+            span,
+        }
     }
 }
 
@@ -402,15 +404,23 @@ pub enum AValue {
 }
 
 impl AValue {
-
     // TODO Rename this to return_type
     pub fn return_called_type<I: Interner + ?Sized>(&self, db: &I) -> CalledType {
         match self {
-            AValue::RValue(rvalue, span) => CalledType { r#type: rvalue.r#type(db), span: span.clone() },
-            AValue::CValue(cvalue) => CalledType { r#type: cvalue.r#type(), span: cvalue.span() },
+            AValue::RValue(rvalue, span) => CalledType {
+                r#type: rvalue.r#type(db),
+                span: span.clone(),
+            },
+            AValue::CValue(cvalue) => CalledType {
+                r#type: cvalue.r#type(),
+                span: cvalue.span(),
+            },
             AValue::FunctionCall(function_decl_id, _, span) => {
                 let function_decl: FunctionDecl = db.lookup_intern_function_decl(*function_decl_id);
-                CalledType { r#type: function_decl.return_type, span: span.clone() }
+                CalledType {
+                    r#type: function_decl.return_type,
+                    span: span.clone(),
+                }
             }
         }
     }
@@ -424,10 +434,9 @@ pub enum CValue {
 }
 
 impl CValue {
-
     pub fn span(&self) -> Span {
         match self {
-            CValue::String(_, _, span) | CValue::Number(_, _, span) => span.clone()
+            CValue::String(_, _, span) | CValue::Number(_, _, span) => span.clone(),
         }
     }
 

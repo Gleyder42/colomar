@@ -1,4 +1,3 @@
-use either::Either;
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
@@ -10,6 +9,7 @@ use crate::language::im::{
 };
 use crate::language::{ast, im};
 use crate::query_error;
+use either::Either;
 use smallvec::smallvec;
 
 pub(super) fn query_rule_actions(

@@ -1,11 +1,13 @@
-use either::Either;
 use crate::language::error::Trisult;
+use crate::language::im::{
+    CalledType, CalledTypes, EventDeclarationId, RValue, StructDeclarationId, Type,
+};
 use crate::language::{Ident, ImmutableString};
 use crate::query_error;
 use decl::DeclDatabase;
 use def::DefDatabase;
+use either::Either;
 use interner::InternerDatabase;
-use crate::language::im::{CalledType, CalledTypes, RValue, Type};
 
 pub mod arg;
 pub mod call;
@@ -49,12 +51,32 @@ macro_rules! impl_intern_key {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AnalysisError {
-    DuplicateIdent { first: Ident, second: Ident },
-    CannotFindDefinition(salsa::InternId),
+    DuplicateIdent {
+        first: Ident,
+        second: Ident,
+    },
+    CannotFindDefinition(Either<StructDeclarationId, EventDeclarationId>),
     CannotFindIdent(Ident),
     NotA(&'static str, RValue),
-    WrongType { actual: CalledType, expected: Either<Type, CalledTypes> },
-    CannotFindPrimitiveDeclaration(ImmutableString)
+    // TODO Dont use either here, make an own type
+    WrongType {
+        actual: CalledType,
+        expected: Either<Type, CalledTypes>,
+    },
+    CannotFindPrimitiveDeclaration(ImmutableString),
+}
+
+impl AnalysisError {
+    pub fn error_code(&self) -> u16 {
+        match self {
+            AnalysisError::DuplicateIdent { .. } => 1,
+            AnalysisError::CannotFindDefinition(_) => 2,
+            AnalysisError::CannotFindIdent(_) => 3,
+            AnalysisError::NotA(_, _) => 4,
+            AnalysisError::WrongType { .. } => 5,
+            AnalysisError::CannotFindPrimitiveDeclaration(_) => 6,
+        }
+    }
 }
 
 impl<T> From<AnalysisError> for Result<T, AnalysisError> {
