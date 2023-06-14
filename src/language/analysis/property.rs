@@ -11,7 +11,7 @@ pub(super) fn query_property(
 ) -> QueryTrisult<PropertyDecl> {
     db.query_namespaced_type(smallvec![Nameholder::Root], property_decl.r#type)
         .map(|r#type| PropertyDecl {
-            is_workshop: property_decl.is_workshop,
+            is_workshop: property_decl.is_native,
             name: property_decl.name,
             desc: property_decl.use_restriction,
             r#type,

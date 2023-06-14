@@ -46,20 +46,20 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
         .map_with_span(Spanned::new)
 }
 
-fn workshop_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
-    just(Token::Workshop)
+fn native_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
+    just(Token::Native)
         .or_not()
         .map_with_span(Spanned::ignore_value)
 }
 
 fn event() -> impl Parser<Token, Event, Error = ParserError> {
-    just(Token::Workshop)
+    just(Token::Native)
         .or_not()
         .map_with_span(Spanned::ignore_value)
         .then_ignore(just(Token::Event))
         .then(ident())
-        .map_with_span(|(is_workshop, name), span| EventDeclaration {
-            is_workshop,
+        .map_with_span(|(is_native, name), span| EventDeclaration {
+            is_native,
             name,
             span,
         })
@@ -71,10 +71,10 @@ fn event() -> impl Parser<Token, Event, Error = ParserError> {
                 .or_not(),
         )
         .validate(|((a, b), c), span, emit| {
-            if a.is_workshop.is_some() && c.is_some() {
+            if a.is_native.is_some() && c.is_some() {
                 emit(Simple::custom(
                     span,
-                    "Workshop functions cannot have a by clause",
+                    "native functions cannot have a by clause",
                 ));
             }
             ((a, b), c)
@@ -98,11 +98,11 @@ fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
         .allow_trailing()
         .padded_by(newline_repeated());
 
-    workshop_or_not()
+    native_or_not()
         .then_ignore(just(Token::Enum))
         .then(ident())
-        .map_with_span(|(is_workshop, name), span| EnumDeclaration {
-            is_workshop,
+        .map_with_span(|(is_native, name), span| EnumDeclaration {
+            is_native,
             name,
             span,
         })
@@ -115,12 +115,12 @@ fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
 }
 
 fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
-    workshop_or_not()
+    native_or_not()
         .then(choice((just(Token::GetVal), just(Token::Val))).map_with_span(Spanned::new))
         .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident())
-        .map(|(((is_workshop, property_type), name), r#type)| {
+        .map(|(((is_native, property_type), name), r#type)| {
             let use_restriction = match property_type {
                 // Write a test which tries to put other tokens here
                 Spanned {
@@ -138,7 +138,7 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
             };
             PropertyDeclaration {
                 name,
-                is_workshop,
+                is_native,
                 use_restriction,
                 r#type,
             }
@@ -146,13 +146,13 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
 }
 
 fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
-    let member_function = workshop_or_not()
+    let member_function = native_or_not()
         .then_ignore(just(Token::Fn))
         .then(ident())
         .then(declared_arguments())
-        .map(|((is_workshop, name), arguments)| FunctionDeclaration {
+        .map(|((is_native, name), arguments)| FunctionDeclaration {
             name,
-            is_workshop,
+            is_native,
             arguments: arguments.inner_into(),
         });
 
@@ -166,12 +166,12 @@ fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
         .map_with_span(Spanned::ignore_value);
 
     open_keyword
-        .then(workshop_or_not())
+        .then(native_or_not())
         .then_ignore(just(Token::Struct))
         .then(ident())
-        .map_with_span(|((is_open, is_workshop), name), span| StructDeclaration {
+        .map_with_span(|((is_open, is_native), name), span| StructDeclaration {
             is_open,
-            is_workshop,
+            is_native,
             name,
             span,
         })
@@ -375,7 +375,7 @@ mod tests {
     #[derive(Debug, Deserialize)]
     struct EnumTestData {
         #[serde(default)]
-        is_workshop: bool,
+        is_native: bool,
         #[serde(default)]
         constants: Vec<String>,
     }
@@ -593,8 +593,8 @@ mod tests {
 
         test_parser_result(&key, false, r#enum(), |expected: EnumTestData, actual| {
             assert_eq!(
-                expected.is_workshop,
-                actual.declaration.is_workshop.is_some()
+                expected.is_native,
+                actual.declaration.is_native.is_some()
             );
             assert_eq!(
                 expected.constants,

@@ -67,6 +67,7 @@ impl Root {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionDecl {
+    // Bug
     pub is_workshop: SpannedBool,
     pub name: Ident,
     pub arguments: DeclaredArgumentIds,
@@ -88,6 +89,7 @@ impl IntoInternId for FunctionDecl {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PropertyDecl {
+    // Bug
     pub is_workshop: SpannedBool,
     pub name: Ident,
     pub desc: Spanned<UseRestriction>,
@@ -116,7 +118,7 @@ pub struct Struct {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StructDeclaration {
     pub is_open: SpannedBool,
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
     pub name: Ident,
 }
 
@@ -142,7 +144,7 @@ impl_intern_key!(StructDeclarationId);
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct EnumDeclaration {
     pub name: Ident,
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
 }
 
 impl IntoInternId for EnumDeclaration {

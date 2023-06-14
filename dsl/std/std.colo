@@ -1,38 +1,38 @@
-workshop event OngoingEachPlayer(team: Team, heroSlot: Hero | Slot) {
+native event OngoingEachPlayer(team: Team, heroSlot: Hero | Slot) {
     val player: Player
 }
 
-workshop event OngoingGlobal(team: Team, heroSlot: Hero | Slot) { }
+native event OngoingGlobal(team: Team, heroSlot: Hero | Slot) { }
 
-workshop open struct Player {
-	workshop getval hero: Hero
-	workshop getval isReloading: bool
+native open struct Player {
+	native getval hero: Hero
+	native getval isReloading: bool
 
-	workshop setvar ability1Enabled: bool
-	workshop setvar isFiringSecondary: bool
-	workshop setvar damageDealt: num
+	native setvar ability1Enabled: bool
+	native setvar isFiringSecondary: bool
+	native setvar damageDealt: num
 
-    workshop fn heal(amount: num, healer: Player = null)
+    native fn heal(amount: num, healer: Player = null)
 
-    workshop fn applyImpulse(direction: Vector, speed: num, relative: Relative, motion: Motion)
+    native fn applyImpulse(direction: Vector, speed: num, relative: Relative, motion: Motion)
 
-    workshop fn raycast(position: Location, direction: Vector, maxDistance: num): bool
+    native fn raycast(position: Location, direction: Vector, maxDistance: num): bool
 }
 
-workshop struct Vector {
-	workshop var x: num
-	workshop var y: num
-	workshop var z: num
+native struct Vector {
+	native var x: num
+	native var y: num
+	native var z: num
 
-	workshop static const ZERO: Vector
+	native static const ZERO: Vector
 }
 
-workshop enum Relative {
+native enum Relative {
 	ToWorld,
 	ToPlayer
 }
 
-workshop enum Slot {
+native enum Slot {
     Slot0,
     Slot1,
     Slot2,
@@ -47,11 +47,11 @@ workshop enum Slot {
     Slot11
 }
 
-workshop enum Team {
+native enum Team {
     Team1, Team2
 }
 
-workshop enum Hero {
+native enum Hero {
     Reaper,
     Tracer,
     Mercy,

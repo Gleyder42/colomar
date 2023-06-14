@@ -1,4 +1,4 @@
-workshop fn eventPlayer(): &Player
+native fn eventPlayer(): &Player
 
 open struct Player {
     var counter: Number = 0

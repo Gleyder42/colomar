@@ -22,7 +22,7 @@ pub(super) fn query_struct_decl(
     im::StructDeclaration {
         name: r#struct.name,
         is_open: r#struct.is_open,
-        is_workshop: r#struct.is_workshop,
+        is_native: r#struct.is_native,
     }
     .intern(db)
 }

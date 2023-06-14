@@ -11,7 +11,8 @@ pub(super) fn query_function_decl(
         .map(|decl_args| {
             im::FunctionDecl {
                 name: function.name,
-                is_workshop: function.is_workshop,
+                // Renaming is_workshop to is_native crashes the compiler
+                is_workshop: function.is_native,
                 return_type: Type::Unit, // TODO Add return types
                 arguments: decl_args,
             }

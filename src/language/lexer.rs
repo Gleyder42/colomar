@@ -11,7 +11,7 @@ pub enum Token {
     Rule,
     Event,
     Cond,
-    Workshop,
+    Native,
     Enum,
     By,
     Open,
@@ -33,7 +33,7 @@ impl Display for Token {
             Token::Rule => write!(f, "rule"),
             Token::Event => write!(f, "event"),
             Token::Cond => write!(f, "cond"),
-            Token::Workshop => write!(f, "workshop"),
+            Token::Native => write!(f, "native"),
             Token::Enum => write!(f, "enum"),
             Token::By => write!(f, "by"),
             Token::Struct => write!(f, "struct"),
@@ -72,7 +72,7 @@ pub fn lexer(
     let ident = text::ident().map(|ident: String| match ident.as_str() {
         "rule" => Token::Rule,
         "cond" => Token::Cond,
-        "workshop" => Token::Workshop,
+        "native" => Token::Native,
         "event" => Token::Event,
         "enum" => Token::Enum,
         "by" => Token::By,
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond workshop event enum by open struct getval val fn type";
+        let code = "rule cond native event enum by open struct getval val fn type";
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
@@ -190,7 +190,7 @@ mod tests {
         let expected = vec![
             Token::Rule,
             Token::Cond,
-            Token::Workshop,
+            Token::Native,
             Token::Event,
             Token::Enum,
             Token::By,

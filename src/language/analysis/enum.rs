@@ -95,7 +95,7 @@ pub(super) fn query_enum_decl(
 ) -> im::EnumDeclarationId {
     im::EnumDeclaration {
         name: r#enum.name,
-        is_workshop: r#enum.is_workshop,
+        is_native: r#enum.is_native,
     }
     .intern(db)
 }

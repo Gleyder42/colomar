@@ -1,9 +1,9 @@
 code: |-
-  workshop enum Hero {
+  native enum Hero {
     Ana, Zarya
   }
 expected:
-  is_workshop: true
+  is_native: true
   constants:
     - 'Ana'
     - 'Zarya'
@@ -13,7 +13,7 @@ code: |-
     Team1, Team2,
   }
 expected:
-  is_workshop: false
+  is_native: false
   constants:
     - 'Team1'
     - 'Team2'
@@ -23,7 +23,7 @@ code: |-
     Ana, Zarya
   }
 expected:
-  is_workshop: false
+  is_native: false
   constants:
     - 'Ana'
     - 'Zarya'

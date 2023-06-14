@@ -84,7 +84,7 @@ impl IntoIterator for Types {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EventDeclaration {
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
     pub name: Ident,
     pub span: Span,
 }
@@ -126,7 +126,7 @@ pub enum UseRestriction {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct PropertyDeclaration {
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
     pub use_restriction: Spanned<UseRestriction>,
     pub name: Ident,
     pub r#type: Ident,
@@ -134,7 +134,7 @@ pub struct PropertyDeclaration {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct FunctionDeclaration {
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
     pub name: Ident,
     pub arguments: Spanned<DeclaredArguments>,
 }
@@ -142,7 +142,7 @@ pub struct FunctionDeclaration {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct StructDeclaration {
     pub is_open: SpannedBool,
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
     pub name: Ident,
     pub span: Span,
 }
@@ -174,7 +174,7 @@ pub struct Struct {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EnumDeclaration {
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
     pub name: Ident,
     pub span: Span,
 }

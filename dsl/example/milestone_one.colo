@@ -1,29 +1,29 @@
-workshop struct bool { }
-workshop struct string { }
-workshop struct num { }
+native struct bool { }
+native struct string { }
+native struct num { }
 
-workshop enum Team {
+native enum Team {
     Team1, Team2, All
 }
 
-workshop enum Slot {
+native enum Slot {
     Slot0, Slot1, All
 }
 
-open workshop struct Player {
+open native struct Player {
 
-    workshop getval isReloading: bool
+    native getval isReloading: bool
 
-    workshop fn displaySmallMessage(message: string | bool)
+    native fn displaySmallMessage(message: string | bool)
 
-    workshop fn heal(amount: num, player: Player)
+    native fn heal(amount: num, player: Player)
 }
 
-workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+native event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
     val player: Player
 }
 
-workshop enum Hero {
+native enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
 }
 
