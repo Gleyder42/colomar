@@ -112,6 +112,8 @@ const NEWLINE_CHARS: [char; 7] = [
 
 #[cfg(test)]
 mod tests {
+    use crate::language::analysis::test::TestDatabase;
+    use crate::language::analysis::test::TestDatabaseHelper;
     use crate::language::lexer::{lexer, Token};
     use crate::test_assert::assert_vec;
     use chumsky::Parser;
@@ -119,15 +121,20 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_end_is_consumed() {
+        let interner = TestDatabase::default();
+        let span_source_id = interner.intern_str("test_end_is_consumed");
+
         let code = "hello test νρσ";
-        let _ = lexer().parse(code).unwrap();
+        let _ = lexer(span_source_id).parse(code).unwrap();
     }
 
     #[test]
     fn test_number_lexer() {
         let code = "1 5 1.2 123.321";
+        let interner = TestDatabase::default();
+        let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer().parse(code).unwrap();
+        let actual = lexer(span_source_id).parse(code).unwrap();
         let expected = vec![
             Token::Num("1".to_string().into()),
             Token::Num("5".to_string().into()),
@@ -141,8 +148,10 @@ mod tests {
     #[test]
     fn test_string_lexer() {
         let code = "\"Hello\" \"Hello World\"";
+        let interner = TestDatabase::default();
+        let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer().parse(code).unwrap();
+        let actual = lexer(span_source_id).parse(code).unwrap();
         let expected = vec![
             Token::String("Hello".to_string().into()),
             Token::String("Hello World".to_string().into()),
@@ -154,8 +163,10 @@ mod tests {
     #[test]
     fn test_newline() {
         let code = "\n \n\n rule\n \rrule";
+        let interner = TestDatabase::default();
+        let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer().parse(code).unwrap();
+        let actual = lexer(span_source_id).parse(code).unwrap();
         let expected = vec![
             Token::NewLine,
             Token::NewLine,
@@ -172,8 +183,10 @@ mod tests {
     #[test]
     fn test_keyword_lexer() {
         let code = "rule cond workshop event enum by open struct getval val fn type";
+        let interner = TestDatabase::default();
+        let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer().parse(code).unwrap();
+        let actual = lexer(span_source_id).parse(code).unwrap();
         let expected = vec![
             Token::Rule,
             Token::Cond,

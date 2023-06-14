@@ -82,16 +82,6 @@ impl IntoIterator for Types {
     }
 }
 
-#[cfg(test)]
-impl From<SmallVec<[Ident; 2]>> for Types {
-    fn from(value: SmallVec<[Ident; 2]>) -> Self {
-        Types {
-            values: value,
-            span: 0..1,
-        }
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EventDeclaration {
     pub is_workshop: SpannedBool,

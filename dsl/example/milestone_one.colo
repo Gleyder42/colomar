@@ -14,7 +14,7 @@ open workshop struct Player {
 
     workshop getval isReloading: bool
 
-    workshop fn displaySmallMessage(message: string)
+    workshop fn displaySmallMessage(message: string | bool)
 
     workshop fn heal(amount: num, player: Player)
 }

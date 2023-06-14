@@ -320,20 +320,22 @@ pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
     let struct_parser = r#struct().map(Root::Struct);
 
     choice((rule_parser, event_parser, enum_parser, struct_parser))
-        .separated_by(just(Token::NewLine).repeated())
+        .padded_by(newline_repeated())
+        .repeated()
         .then_ignore(end())
         .map(Ast)
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::language::analysis::interner::Interner;
+    use crate::language::analysis::test::TestDatabase;
     use crate::language::ast::{Call, DeclaredArgument, Rule};
     use crate::language::lexer::{lexer, Token};
     use crate::language::parser::{chain, declared_arguments, r#enum, rule, ParserError};
-    use crate::language::Spanned;
+    use crate::language::{SpanSourceId, Spanned};
     use crate::{assert_iterator, Span};
     use anyhow::anyhow;
-    use chumsky::error::Simple;
     use chumsky::prelude::end;
     use chumsky::{Parser, Stream};
     use serde::Deserialize;
@@ -442,9 +444,9 @@ mod tests {
     }
 
     fn read_test_data<T: for<'a> serde::Deserialize<'a>>(
-        path_buf: PathBuf,
+        path_buf: &PathBuf,
     ) -> anyhow::Result<Vec<BaseTestData<T>>> {
-        let input = fs::read_to_string(&path_buf)?;
+        let input = fs::read_to_string(path_buf)?;
         let vec = input
             .split("---")
             .enumerate()
@@ -457,11 +459,13 @@ mod tests {
     }
 
     fn parse_code<T>(
+        span_source_id: SpanSourceId,
         code: &str,
         parser: &impl Parser<Token, T, Error = ParserError>,
     ) -> anyhow::Result<T> {
-        let tokens: Vec<_> = lex_code(code)?;
-        let stream = Stream::from_iter(tokens.len()..tokens.len() + 1, tokens.into_iter());
+        let tokens: Vec<_> = lex_code(span_source_id, code)?;
+        let eoi = Span::new(span_source_id, tokens.len()..tokens.len() + 1);
+        let stream = Stream::from_iter(eoi, tokens.into_iter());
 
         parser
             .then_ignore(end())
@@ -469,8 +473,8 @@ mod tests {
             .map_err(|_| anyhow!("Cannot parse '{code}'"))
     }
 
-    fn lex_code(code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
-        lexer().parse(code).map_err(|errors| {
+    fn lex_code(span_source_id: SpanSourceId, code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
+        lexer(span_source_id).parse(code).map_err(|errors| {
             let error_message = errors
                 .into_iter()
                 .map(|it| it.to_string())
@@ -490,12 +494,15 @@ mod tests {
         Ex: for<'a> serde::Deserialize<'a>,
         F: Fn(Ex, Ac),
     {
-        let data = read_test_data(key.whole_path()).unwrap();
+        let interner = TestDatabase::default();
+        let path_buf = key.whole_path();
+        let data = read_test_data(&path_buf).unwrap();
+        let span_source_id = interner.intern_span_source(path_buf.to_string_lossy().into());
 
         let results = data
             .into_iter()
             .map(|test_data| {
-                let code = parse_code::<Ac>(&test_data.code, &parser);
+                let code = parse_code::<Ac>(span_source_id, &test_data.code, &parser);
                 let code = match code {
                     Ok(code) => code,
                     Err(error) => return Err(error),

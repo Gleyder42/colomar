@@ -35,6 +35,30 @@ pub struct AnalysisDatabase {
 
 impl salsa::Database for AnalysisDatabase {}
 
+#[cfg(test)]
+pub mod test {
+    use super::interner::InternerDatabase;
+    use crate::language::analysis::interner::Interner;
+    use crate::language::SpanSourceId;
+
+    #[salsa::database(InternerDatabase, TestDatabaseHelperDatabase)]
+    #[derive(Default)]
+    pub struct TestDatabase {
+        storage: salsa::Storage<Self>,
+    }
+
+    impl salsa::Database for TestDatabase {}
+
+    #[salsa::query_group(TestDatabaseHelperDatabase)]
+    pub trait TestDatabaseHelper: Interner {
+        fn intern_str(&self, name: &'static str) -> SpanSourceId;
+    }
+
+    fn intern_str(db: &dyn TestDatabaseHelper, name: &'static str) -> SpanSourceId {
+        db.intern_span_source(name.into())
+    }
+}
+
 #[macro_export]
 macro_rules! impl_intern_key {
     ($name:ident) => {

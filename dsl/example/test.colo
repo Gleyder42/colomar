@@ -1,19 +1,4 @@
-struct bool { }
-struct string { }
 
-workshop struct Player {
+rule "Hello World" Test() {
 
-    workshop getval isReloading: bool
-
-    workshop fn sendMessage(message: string)
-}
-
-event OngoingEachPlayer() {
-    val player: Player
-}
-
-rule "Hello World" OngoingEachPlayer() {
-    cond player.isReloading
-
-    player.sendMessage("You are reloading")
 }
