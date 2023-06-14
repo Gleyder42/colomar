@@ -12,9 +12,9 @@ native enum Slot {
 
 open native struct Player {
 
-    native getval isReloading: bool
+    native getval isReloading: string
 
-    native fn displaySmallMessage(message: string | bool)
+    native fn displaySmallMessage(message: string)
 
     native fn heal(amount: num, player: Player)
 }

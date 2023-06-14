@@ -233,7 +233,7 @@ fn main() {
                         Label::new(actual_span.clone())
                             .with_color(Color::Blue)
                             .with_message(format!(
-                                "Provided type is {}",
+                                "Returned type is {}",
                                 actual.r#type.name(&db).fg(Color::Cyan)
                             )),
                     );
@@ -241,8 +241,7 @@ fn main() {
                     let report_builder = match expected {
                         Either::Left(r#type) => report_builder.with_label(
                             Label::new(actual_span.clone()).with_message(format!(
-                                "Provided type is {} but expected {}",
-                                actual.r#type.name(&db).fg(Color::Cyan),
+                                "Expected to return type {}",
                                 r#type.name(&db).fg(Color::Cyan)
                             )),
                         ),
@@ -254,8 +253,7 @@ fn main() {
                                 Label::new(called_type_span.clone())
                                     .with_color(Color::Blue)
                                     .with_message(format!(
-                                        "Declared type is {} but expected a {}",
-                                        actual.name(&db).fg(Color::Cyan),
+                                        "Declared type is {}",
                                         called_type.name(&db).fg(Color::Cyan)
                                     )),
                             )
