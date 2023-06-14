@@ -6,19 +6,20 @@ extern crate salsa;
 
 use crate::language::analysis::interner::Interner;
 use crate::language::analysis::{AnalysisDatabase, AnalysisError};
-use crate::language::im::{
-    DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration,
-};
+use crate::language::im::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::language::lexer::lexer;
 use crate::language::parser::parser;
-use crate::language::{im, FatSpan, SpanSourceId, Span};
-use ariadne::{sources, Color, Fmt, Label, Report, ReportKind};
+use crate::language::{im, FatSpan, Span, SpanSourceId};
+use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
 use chumsky::Stream;
+use either::Either;
 use language::error::Trisult;
+use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
-use std::path::{Path};
+use std::ops::Range;
+use std::path::Path;
 
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::def::DefQuery;
@@ -38,9 +39,8 @@ fn main() {
     file.read_to_string(&mut source)
         .expect("Cannot read file content");
 
-    let mut database = AnalysisDatabase::default();
-    let span_source_id: SpanSourceId = database.intern_span_source(path.to_string_lossy().into());
-
+    let mut db = AnalysisDatabase::default();
+    let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
 
     let (tokens, lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
     println!("{:#?}", lexer_errors);
@@ -57,9 +57,9 @@ fn main() {
     if let Some(ast) = ast {
         println!("{:#?}", ast);
 
-        database.set_input_content(ast);
+        db.set_input_content(ast);
 
-        let im: Trisult<im::Im, AnalysisError> = database.query_im();
+        let im: Trisult<im::Im, AnalysisError> = db.query_im();
 
         let output = im.to_option();
 
@@ -72,13 +72,13 @@ fn main() {
                         println!("{:#?}", rule);
                     }
                     Root::Event(event) => {
-                        let decl = database.lookup_intern_event_decl(event.declaration);
+                        let decl = db.lookup_intern_event_decl(event.declaration);
 
                         let vec = event
                             .definition
                             .arguments
                             .into_iter()
-                            .map(|it| database.lookup_intern_decl_arg(it))
+                            .map(|it| db.lookup_intern_decl_arg(it))
                             .collect::<Vec<DeclaredArgument>>();
 
                         println!(
@@ -87,13 +87,13 @@ fn main() {
                         );
                     }
                     Root::Enum(r#enum) => {
-                        let decl = database.lookup_intern_enum_decl(r#enum.declaration);
+                        let decl = db.lookup_intern_enum_decl(r#enum.declaration);
 
                         let constants: Vec<_> = r#enum
                             .definition
                             .constants
                             .into_iter()
-                            .map(|it| database.lookup_intern_enum_constant(it))
+                            .map(|it| db.lookup_intern_enum_constant(it))
                             .collect();
 
                         println!(
@@ -103,20 +103,20 @@ fn main() {
                     }
                     Root::Struct(r#struct) => {
                         let struct_decl: StructDeclaration =
-                            database.lookup_intern_struct_decl(r#struct.decl);
+                            db.lookup_intern_struct_decl(r#struct.decl);
 
                         let properties = r#struct
                             .def
                             .properties
                             .into_iter()
-                            .map(|it| database.lookup_intern_property_decl(it))
+                            .map(|it| db.lookup_intern_property_decl(it))
                             .collect::<Vec<PropertyDecl>>();
 
                         let functions = r#struct
                             .def
                             .functions
                             .into_iter()
-                            .map(|it| database.lookup_intern_function_decl(it))
+                            .map(|it| db.lookup_intern_function_decl(it))
                             .collect::<Vec<FunctionDecl>>();
 
                         println!(
@@ -129,44 +129,154 @@ fn main() {
             }
         }
 
-
         println!("{:#?}", output.1);
-        for analysis_error in output.1 {
+        // Due the nature of demand-driven compilation, the queries return duplicate errors,
+        // if an erroneous query is queried multiple times.
+        // However, the errors only seem to be duplicate, because they just miss context information
+        // which would distinct them.
+        // Filtering here while having the all errors in the result wastes space and computing power.
+        // The question is if this is negligible.
+        let unique_errors = output.1.into_iter().collect::<HashSet<_>>();
+        for analysis_error in unique_errors {
             let error_code = analysis_error.error_code();
+            const ERROR_KIND: ReportKind = ReportKind::Error;
+            const COMPILER_ERROR: ReportKind =
+                ReportKind::Custom("Compiler Error", Color::RGB(219, 13, 17));
 
             match analysis_error {
                 AnalysisError::DuplicateIdent { first, second } => {
-                    let first_span = FatSpan::from_span(&database, first.span);
-                    let second_span = FatSpan::from_span(&database, second.span);
+                    let first_span = FatSpan::from_span(&db, first.span);
+                    let second_span = FatSpan::from_span(&db, second.span);
 
-                    Report::<FatSpan>::build(ReportKind::Error, first_span.source.clone(), first_span.location.start)
+                    Report::<FatSpan>::build(
+                        ERROR_KIND,
+                        first_span.source.clone(),
+                        first_span.location.start,
+                    )
+                    .with_code(error_code)
+                    .with_message(format!(
+                        "{} is already defined in the current scope",
+                        second.value.fg(Color::Cyan)
+                    ))
+                    .with_label(
+                        Label::new(first_span.clone())
+                            .with_color(Color::Cyan)
+                            .with_message("First defined here"),
+                    )
+                    .with_label(
+                        Label::new(second_span.clone())
+                            .with_color(Color::Cyan)
+                            .with_message("Second defined here"),
+                    )
+                    .finish()
+                    .eprint(sources(vec![
+                        (first_span.source.clone(), &source),
+                        (second_span.source.clone(), &source),
+                    ]))
+                    .unwrap();
+                }
+                AnalysisError::CannotFindDefinition(_def) => {
+                    todo!()
+                }
+                AnalysisError::CannotFindIdent(ident) => {
+                    let span = FatSpan::from_span(&db, ident.span);
+
+                    Report::build(ERROR_KIND, span.source.clone(), span.location.start)
                         .with_code(error_code)
                         .with_message(format!(
-                            "{} is already defined in the current scope",
-                            second.value.fg(Color::Cyan)
+                            "Cannot find {} in the current scope",
+                            ident.value.fg(Color::Cyan)
                         ))
                         .with_label(
-                            Label::new(first_span.clone())
+                            Label::new(span.clone())
                                 .with_color(Color::Cyan)
-                                .with_message("First defined here"),
-                        )
-                        .with_label(
-                            Label::new(second_span.clone())
-                                .with_color(Color::Cyan)
-                                .with_message("Second defined here"),
+                                .with_message("This"),
                         )
                         .finish()
+                        .eprint(sources(vec![(span.source.clone(), &source)]))
+                        .unwrap();
+                }
+                AnalysisError::NotA(type_name, actual_rvalue, occurrence) => {
+                    let occurrence_span = FatSpan::from_span(&db, occurrence.span.clone());
+
+                    Report::build(
+                        ERROR_KIND,
+                        occurrence_span.source.clone(),
+                        occurrence_span.location.start,
+                    )
+                    .with_code(error_code)
+                    .with_message(format!(
+                        "{} is not a {}",
+                        actual_rvalue.name(&db).value,
+                        type_name
+                    ))
+                    .with_label(
+                        Label::new(occurrence_span.clone())
+                            .with_message(format!("Is of type {}", actual_rvalue.name(&db).value)),
+                    )
+                    .finish()
+                    .eprint(sources(vec![(occurrence_span.source.clone(), &source)]))
+                    .unwrap();
+                }
+                AnalysisError::WrongType { actual, expected } => {
+                    let actual_span = FatSpan::from_span(&db, actual.span.clone());
+                    let report_builder = Report::build(
+                        ERROR_KIND,
+                        actual_span.source.clone(),
+                        actual_span.location.start,
+                    )
+                    .with_code(error_code)
+                    .with_message("Wrong types")
+                    .with_label(Label::new(actual_span.clone()).with_message(format!(
+                        "Actual type is {}",
+                        actual.r#type.name(&db).fg(Color::Cyan)
+                    )));
+
+                    let report_builder = match expected {
+                        Either::Left(r#type) => report_builder.with_label(
+                            Label::new(actual_span.clone()).with_message(format!(
+                                "Actual type is {} but expected {}",
+                                actual.r#type.name(&db).fg(Color::Cyan),
+                                r#type.name(&db).fg(Color::Cyan)
+                            )),
+                        ),
+                        Either::Right(called_type) => {
+                            let called_type_span =
+                                FatSpan::from_span(&db, called_type.span.clone());
+
+                            report_builder.with_label(
+                                Label::new(called_type_span.clone()).with_message(format!(
+                                    "Actual type is {} but expected {}",
+                                    actual.name(&db).fg(Color::Cyan),
+                                    called_type.name(&db).fg(Color::Cyan)
+                                )),
+                            )
+                        }
+                    };
+
+                    report_builder
+                        .finish()
                         .eprint(sources(vec![
-                            (first_span.source.clone(), &source),
-                            (second_span.source.clone(), &source),
+                            (actual_span.source.clone(), &source),
+                            // TODO Add expected span
                         ]))
                         .unwrap();
                 }
-                AnalysisError::CannotFindDefinition(_) => {}
-                AnalysisError::CannotFindIdent(_) => {}
-                AnalysisError::NotA(_, _) => {}
-                AnalysisError::WrongType { .. } => {}
-                AnalysisError::CannotFindPrimitiveDeclaration(_) => {}
+                AnalysisError::CannotFindPrimitiveDeclaration(name) => {
+                    /// We use ariadne to print the compiler error, even though we have no span
+                    /// nor source message.
+                    /// If want to have a consistent error reporting so I use ariadne instead of
+                    /// manuel error printing.
+                    /// However this requires to have a span of some type.
+                    type DummyType = Range<usize>;
+
+                    Report::<DummyType>::build(COMPILER_ERROR, (), 0)
+                        .with_code(error_code)
+                        .with_message(format!("Cannot find {} primitive", name.fg(Color::Cyan)))
+                        .finish()
+                        .print(Source::from(""))
+                        .unwrap();
+                }
             }
         }
     }

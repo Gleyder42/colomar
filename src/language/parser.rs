@@ -329,7 +329,7 @@ pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
 mod tests {
     use crate::language::ast::{Call, DeclaredArgument, Rule};
     use crate::language::lexer::{lexer, Token};
-    use crate::language::parser::{chain, declared_arguments, ParserError, r#enum, rule};
+    use crate::language::parser::{chain, declared_arguments, r#enum, rule, ParserError};
     use crate::language::Spanned;
     use crate::{assert_iterator, Span};
     use anyhow::anyhow;

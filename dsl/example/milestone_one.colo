@@ -19,7 +19,7 @@ open workshop struct Player {
     workshop fn heal(amount: num, player: Player)
 }
 
-wor event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+workshop event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
     val player: Player
 }
 
@@ -34,6 +34,6 @@ rule "Hello other world" OngoingEachPlayer(Team.All, Hero.Ana) {
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading
 
-    player.displaySmallMessage("Hello World")
+    player.displaySmallMessage(100)
     player.heal(100, player)
 }

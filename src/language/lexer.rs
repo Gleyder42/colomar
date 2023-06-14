@@ -51,7 +51,9 @@ impl Display for Token {
     }
 }
 
-pub fn lexer(span_source_id: SpanSourceId) -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
+pub fn lexer(
+    span_source_id: SpanSourceId,
+) -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     let num = text::int(10)
         .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
         .collect::<String>()

@@ -1,3 +1,19 @@
-workshop struct num { }
+struct bool { }
+struct string { }
 
-workshop enum num { }
+workshop struct Player {
+
+    workshop getval isReloading: bool
+
+    workshop fn sendMessage(message: string)
+}
+
+event OngoingEachPlayer() {
+    val player: Player1
+}
+
+rule "Hello World" OngoingEachPlayer() {
+    cond player.isReloading
+
+    player.sendMessage("You are reloading")
+}

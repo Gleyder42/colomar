@@ -1,8 +1,8 @@
-use crate::language::ast::SpannedBool;
-use smol_str::SmolStr;
-use std::{ops::Range};
 use crate::impl_intern_key;
 use crate::language::analysis::interner::Interner;
+use crate::language::ast::SpannedBool;
+use smol_str::SmolStr;
+use std::ops::Range;
 
 pub mod analysis;
 pub mod ast;
@@ -29,13 +29,13 @@ const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Span {
     pub source: SpanSourceId,
-    pub location: SpanLocation
+    pub location: SpanLocation,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct FatSpan {
     pub source: SpanSource,
-    pub location: SpanLocation
+    pub location: SpanLocation,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -51,14 +51,15 @@ pub struct Ident {
 }
 
 impl Span {
-
     fn new(source: SpanSourceId, span: SpanLocation) -> Self {
-        Span { source, location: span }
+        Span {
+            source,
+            location: span,
+        }
     }
 }
 
 impl FatSpan {
-
     pub fn from_span(db: &(impl Interner + ?Sized), span: Span) -> FatSpan {
         FatSpan {
             location: span.location,
@@ -107,7 +108,10 @@ impl chumsky::Span for Span {
     type Offset = InnerSpan;
 
     fn new(context: Self::Context, range: Range<Self::Offset>) -> Self {
-        Self { source: context, location: range }
+        Self {
+            source: context,
+            location: range,
+        }
     }
 
     fn context(&self) -> Self::Context {
@@ -123,7 +127,7 @@ impl chumsky::Span for Span {
     }
 }
 
-impl<T, I: IntoIterator<Item=T>> IntoIterator for Spanned<I> {
+impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
     type Item = T;
     type IntoIter = <I as IntoIterator>::IntoIter;
 
@@ -136,4 +140,3 @@ impl<T, I: IntoIterator<Item=T>> IntoIterator for Spanned<I> {
 pub struct SpanSourceId(salsa::InternId);
 
 impl_intern_key!(SpanSourceId);
-

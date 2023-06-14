@@ -1,10 +1,10 @@
-use crate::language::{SpanSource, SpanSourceId};
 use crate::language::analysis::namespace::{Namespace, NamespaceId};
 use crate::language::im::{
     DeclaredArgument, DeclaredArgumentId, EnumConstant, EnumConstantId, EnumDeclaration,
     EnumDeclarationId, EventDeclaration, EventDeclarationId, FunctionDecl, FunctionDeclId,
     PropertyDecl, PropertyDeclId, StructDeclaration, StructDeclarationId,
 };
+use crate::language::{SpanSource, SpanSourceId};
 use std::rc::Rc;
 
 #[salsa::query_group(InternerDatabase)]

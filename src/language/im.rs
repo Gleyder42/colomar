@@ -197,6 +197,26 @@ pub enum Type {
     Unit,
 }
 
+impl Type {
+    pub fn name(&self, db: &(impl Interner + ?Sized)) -> ImmutableString {
+        match self {
+            Type::Enum(decl_id) => db.lookup_intern_enum_decl(*decl_id).name.value,
+            Type::Struct(decl_id) => db.lookup_intern_struct_decl(*decl_id).name.value,
+            Type::Event(decl_id) => db.lookup_intern_event_decl(*decl_id).name.value,
+            Type::Unit => ImmutableString::from("Unit"),
+        }
+    }
+
+    pub fn decl_ident(&self, db: &(impl Interner + ?Sized)) -> Option<Ident> {
+        match self {
+            Type::Enum(r#enum) => Some(db.lookup_intern_enum_decl(*r#enum).name),
+            Type::Struct(r#struct) => Some(db.lookup_intern_struct_decl(*r#struct).name),
+            Type::Event(event) => Some(db.lookup_intern_event_decl(*event).name),
+            Type::Unit => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Predicate {
     pub return_value: AValue,
@@ -217,6 +237,12 @@ impl From<Type> for Nameholder {
 pub struct CalledType {
     pub r#type: Type,
     pub span: Span,
+}
+
+impl CalledType {
+    pub fn name(&self, db: &(impl Interner + ?Sized)) -> ImmutableString {
+        self.r#type.name(db)
+    }
 }
 
 impl Display for CalledType {
@@ -241,6 +267,17 @@ pub struct CalledTypes {
     // TODO Use small_vec here
     pub types: Vec<CalledType>,
     pub span: Span,
+}
+
+impl CalledTypes {
+    pub fn name(&self, db: &(impl Interner + ?Sized)) -> ImmutableString {
+        self.types
+            .iter()
+            .map(|it| it.name(db))
+            .collect::<Vec<_>>()
+            .join(", ")
+            .into()
+    }
 }
 
 impl From<CalledType> for CalledTypes {

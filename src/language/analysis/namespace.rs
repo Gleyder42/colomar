@@ -214,11 +214,11 @@ pub(super) fn query_namespaced_type(
     nameholders: Nameholders,
     ident: Ident,
 ) -> QueryTrisult<Type> {
-    db.query_namespaced_rvalue(nameholders, ident)
+    db.query_namespaced_rvalue(nameholders, ident.clone())
         .flat_map(|rvalue| match rvalue {
             RValue::Type(r#type) => Trisult::Ok(r#type),
             rvalue @ (RValue::EnumConstant(_) | RValue::Property(_) | RValue::Function(_)) => {
-                AnalysisError::NotA("Type", rvalue).into()
+                AnalysisError::NotA("Type", rvalue, ident).into()
             }
         })
 }
@@ -228,11 +228,11 @@ pub(super) fn query_namespaced_function(
     nameholders: Nameholders,
     ident: Ident,
 ) -> QueryTrisult<FunctionDecl> {
-    db.query_namespaced_rvalue(nameholders, ident)
+    db.query_namespaced_rvalue(nameholders, ident.clone())
         .flat_map(|rvalue| match rvalue {
             RValue::Function(function) => Trisult::Ok(function),
             rvalue @ (RValue::Type(_) | RValue::Property(_) | RValue::EnumConstant(_)) => {
-                query_error!(AnalysisError::NotA("Function", rvalue))
+                query_error!(AnalysisError::NotA("Function", rvalue, ident))
             }
         })
 }
@@ -242,11 +242,15 @@ pub(super) fn query_namespaced_event(
     nameholders: Nameholders,
     ident: Ident,
 ) -> QueryTrisult<EventDeclarationId> {
-    db.query_namespaced_type(nameholders, ident)
+    db.query_namespaced_type(nameholders, ident.clone())
         .flat_map(|r#type| match r#type {
             Type::Event(event) => Trisult::Ok(event),
             r#type @ (Type::Enum(_) | Type::Struct(_) | Type::Unit) => {
-                Trisult::Err(vec![AnalysisError::NotA("Event", RValue::Type(r#type))])
+                Trisult::Err(vec![AnalysisError::NotA(
+                    "Event",
+                    RValue::Type(r#type),
+                    ident,
+                )])
             }
         })
 }

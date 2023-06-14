@@ -57,7 +57,7 @@ pub enum AnalysisError {
     },
     CannotFindDefinition(Either<StructDeclarationId, EventDeclarationId>),
     CannotFindIdent(Ident),
-    NotA(&'static str, RValue),
+    NotA(&'static str, RValue, Ident),
     // TODO Dont use either here, make an own type
     WrongType {
         actual: CalledType,
@@ -72,7 +72,7 @@ impl AnalysisError {
             AnalysisError::DuplicateIdent { .. } => 1,
             AnalysisError::CannotFindDefinition(_) => 2,
             AnalysisError::CannotFindIdent(_) => 3,
-            AnalysisError::NotA(_, _) => 4,
+            AnalysisError::NotA(_, _, _) => 4,
             AnalysisError::WrongType { .. } => 5,
             AnalysisError::CannotFindPrimitiveDeclaration(_) => 6,
         }
