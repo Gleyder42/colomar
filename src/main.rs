@@ -30,7 +30,7 @@ pub mod test_assert;
 pub mod workshop;
 
 fn main() {
-    let filename = "test.colo";
+    let filename = "milestone_one.colo";
     let filepath = format!("dsl/example/{filename}");
     let path = Path::new(&filepath);
     let mut file = fs::File::open(path).expect("Cannot read from file");
@@ -136,7 +136,9 @@ fn main() {
         // which would distinct them.
         // Filtering here while having the all errors in the result wastes space and computing power.
         // The question is if this is negligible.
+        let original_len = output.1.len();
         let unique_errors = output.1.into_iter().collect::<HashSet<_>>();
+        let new_len = unique_errors.len();
         for analysis_error in unique_errors {
             let error_code = analysis_error.error_code();
             const ERROR_KIND: ReportKind = ReportKind::Error;
@@ -227,15 +229,19 @@ fn main() {
                     )
                     .with_code(error_code)
                     .with_message("Wrong types")
-                    .with_label(Label::new(actual_span.clone()).with_message(format!(
-                        "Actual type is {}",
-                        actual.r#type.name(&db).fg(Color::Cyan)
-                    )));
+                    .with_label(
+                        Label::new(actual_span.clone())
+                            .with_color(Color::Blue)
+                            .with_message(format!(
+                                "Provided type is {}",
+                                actual.r#type.name(&db).fg(Color::Cyan)
+                            )),
+                    );
 
                     let report_builder = match expected {
                         Either::Left(r#type) => report_builder.with_label(
                             Label::new(actual_span.clone()).with_message(format!(
-                                "Actual type is {} but expected {}",
+                                "Provided type is {} but expected {}",
                                 actual.r#type.name(&db).fg(Color::Cyan),
                                 r#type.name(&db).fg(Color::Cyan)
                             )),
@@ -245,11 +251,13 @@ fn main() {
                                 FatSpan::from_span(&db, called_type.span.clone());
 
                             report_builder.with_label(
-                                Label::new(called_type_span.clone()).with_message(format!(
-                                    "Actual type is {} but expected {}",
-                                    actual.name(&db).fg(Color::Cyan),
-                                    called_type.name(&db).fg(Color::Cyan)
-                                )),
+                                Label::new(called_type_span.clone())
+                                    .with_color(Color::Blue)
+                                    .with_message(format!(
+                                        "Declared type is {} but expected a {}",
+                                        actual.name(&db).fg(Color::Cyan),
+                                        called_type.name(&db).fg(Color::Cyan)
+                                    )),
                             )
                         }
                     };
@@ -279,5 +287,11 @@ fn main() {
                 }
             }
         }
+        println!(
+            "Reduced errors from {} to {}. \nReduced size by {}",
+            original_len,
+            new_len,
+            100.0 - (new_len as f32 / original_len as f32) * 100.0
+        );
     }
 }

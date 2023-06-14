@@ -4,8 +4,8 @@ use crate::language::analysis::namespace::{Nameholders, Namespace, NamespaceId};
 use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::Actions;
 use crate::language::im::{
-    DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId, FunctionDeclIds, PropertyDeclIds,
-    PropertyDecls, StructDeclarationId,
+    CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId, FunctionDeclIds,
+    PropertyDeclIds, PropertyDecls, StructDeclarationId,
 };
 use crate::language::{ast, im, Ident, ImmutableString};
 use ast::Ast;
@@ -60,6 +60,14 @@ pub trait DeclQuery: Interner {
 
     // Arg
 
+    /// [arg::query_called_args]
+    #[salsa::invoke(arg::query_called_args)]
+    fn query_called_args(
+        &self,
+        called_arg_avalues: Vec<AValue>,
+        decl_arg_ids: DeclaredArgumentIds,
+    ) -> QueryTrisult<CalledArguments>;
+
     #[salsa::invoke(arg::query_declared_arg)]
     fn query_declared_arg(
         &self,
@@ -74,6 +82,7 @@ pub trait DeclQuery: Interner {
 
     // Call
 
+    /// Impl: [call::query_call_chain]
     #[salsa::invoke(call::query_call_chain)]
     fn query_call_chain(
         &self,
@@ -171,6 +180,7 @@ pub trait DeclQuery: Interner {
         ident: Ident,
     ) -> QueryTrisult<im::Type>;
 
+    /// [namespace::query_namespaced_function]
     #[salsa::invoke(namespace::query_namespaced_function)]
     fn query_namespaced_function(
         &self,

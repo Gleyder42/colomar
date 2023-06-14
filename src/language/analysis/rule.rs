@@ -1,12 +1,9 @@
 use crate::language::analysis::def::DefQuery;
-use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::{Action, Actions, Conditions};
 use crate::language::error::Trisult;
-use crate::language::im::{
-    CalledArgument, DeclaredArgument, EventDeclarationId, Predicate, RValue, Type,
-};
+use crate::language::im::{EventDeclarationId, Predicate, RValue, Type};
 use crate::language::{ast, im};
 use crate::query_error;
 use either::Either;
@@ -72,35 +69,7 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryTrisul
             .map(|call_chain| db.query_call_chain(smallvec![Nameholder::Root], call_chain))
             .collect::<QueryTrisult<Vec<_>>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
-            .flat_map(|(arguments, event_def)| {
-                event_def
-                    .arguments
-                    .into_iter()
-                    .map::<DeclaredArgument, _>(|decl_arg_id| {
-                        db.lookup_intern_decl_arg(decl_arg_id)
-                    })
-                    .zip(arguments.into_iter())
-                    .map(|(decl_arg, avalue)| {
-                        let called_type = avalue.return_called_type(db);
-                        let valid_type = decl_arg.types.contains_type(&called_type.r#type);
-
-                        let called_argument = CalledArgument {
-                            value: avalue,
-                            declared: decl_arg.clone().intern(db),
-                        };
-
-                        if valid_type {
-                            Trisult::Ok(called_argument)
-                        } else {
-                            let error = AnalysisError::WrongType {
-                                actual: called_type,
-                                expected: Either::Right(decl_arg.types),
-                            };
-                            Trisult::Par(called_argument, vec![error])
-                        }
-                    })
-                    .collect::<QueryTrisult<_>>()
-            })
+            .flat_map(|(arguments, event_def)| db.query_called_args(arguments, event_def.arguments))
     };
 
     db.query_namespaced_event(smallvec![Nameholder::Root], rule.event)

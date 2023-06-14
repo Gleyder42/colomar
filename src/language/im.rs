@@ -15,6 +15,7 @@ pub type PropertyDecls = SmallVec<[PropertyDecl; PROPERTY_DECLS_LEN]>;
 pub type PropertyDeclIds = SmallVec<[PropertyDeclId; PROPERTY_DECLS_LEN]>;
 pub type EnumConstantIds = SmallVec<[EnumConstantId; ENUM_CONSTANTS_LEN]>;
 pub type CalledArguments = SmallVec<[CalledArgument; CALLED_ARGUMENTS_LEN]>;
+pub type CalledArgumentIds = SmallVec<[CalledArgumentId; CALLED_ARGUMENTS_LEN]>;
 pub type Predicates = SmallVec<[Predicate; CONDITIONS_LEN]>;
 
 pub type EnumConstants = SmallVec<[EnumConstant; ENUM_CONSTANTS_LEN]>;
@@ -311,8 +312,24 @@ impl Display for CalledTypes {
     }
 }
 
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct CalledArgumentId(salsa::InternId);
+
+impl_intern_key!(CalledArgumentId);
+
+impl IntoInternId for CalledArgument {
+    type Interned = CalledArgumentId;
+
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
+        db.intern_called_argument(self)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledArgument {
+    /// The [DeclaredArgumentId] has not necessarily the same type as the value.
+    /// It may be therefore not the 'correct' declared argument, rather the argument which was
+    /// inputted by the user
     pub declared: DeclaredArgumentId,
     pub value: AValue,
 }
@@ -435,7 +452,7 @@ impl RValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
     // TODO Should this be FunctionDeclId or FunctionDecl?
-    FunctionCall(FunctionDeclId, Actions, Span),
+    FunctionCall(FunctionDeclId, CalledArgumentIds, Span),
     RValue(RValue, Span),
     CValue(CValue),
 }

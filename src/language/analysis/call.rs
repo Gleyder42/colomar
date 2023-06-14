@@ -46,8 +46,13 @@ pub(super) fn query_call_chain(
                             .map(|call_chain| {
                                 db.query_call_chain(inital_nameholders.clone(), call_chain)
                             })
-                            .collect::<QueryTrisult<_>>(),
+                            .collect::<QueryTrisult<Vec<_>>>(),
                     )
+                    .flat_map(|(function_decl, called_avalue_args)| {
+                        db.query_called_args(called_avalue_args, function_decl.arguments.clone())
+                            .intern_inner(db)
+                            .map(|args| (function_decl, args))
+                    })
                     .map(|(function_decl, function_args)| {
                         (
                             smallvec![function_decl.return_type.clone().into()],

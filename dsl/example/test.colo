@@ -9,7 +9,7 @@ workshop struct Player {
 }
 
 event OngoingEachPlayer() {
-    val player: Player1
+    val player: Player
 }
 
 rule "Hello World" OngoingEachPlayer() {
