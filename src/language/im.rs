@@ -67,8 +67,7 @@ impl Root {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionDecl {
-    // Bug
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
     pub name: Ident,
     pub arguments: DeclaredArgumentIds,
     pub return_type: Type,
@@ -90,7 +89,7 @@ impl IntoInternId for FunctionDecl {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PropertyDecl {
     // Bug
-    pub is_workshop: SpannedBool,
+    pub is_native: SpannedBool,
     pub name: Ident,
     pub desc: Spanned<UseRestriction>,
     pub r#type: Type,

@@ -9,7 +9,7 @@ An enum is an enumeration of constants.
 
 #### Workshop Enums
 ```
-workshop enum Slot {
+native enum Slot {
     Slot0,
     Slot1,
     All,

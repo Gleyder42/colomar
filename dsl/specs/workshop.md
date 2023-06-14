@@ -5,27 +5,27 @@ They directly translate to Workshop Code.
 Workshop functions are declared in Colomar and defined in a separate file.
 
 ```
-pub workshop struct Player {
-    pub workshop var ability1Enabled: Bool
-    pub workshop val hero: Hero
-    pub workshop val isFiringSecondary: Bool
+pub native struct Player {
+    pub native var ability1Enabled: Bool
+    pub native val hero: Hero
+    pub native val isFiringSecondary: Bool
 
-    pub workshop fn heal(self, amount: number, healer: Player = null)
+    pub native fn heal(self, amount: number, healer: Player = null)
 
-    pub workshop fn applyImpulse(self, direction: Vector, speed: Number, relative: Relative, motion: Motion)
+    pub native fn applyImpulse(self, direction: Vector, speed: Number, relative: Relative, motion: Motion)
 }
 ```
 
 ## Workshop Rule Events
 
 ```` 
-pub workshop event PlayerDealtFinalBlow(team: Team, heroSlot: HeroSlot) {
+pub native event PlayerDealtFinalBlow(team: Team, heroSlot: HeroSlot) {
     val player: Player
     val attacker: Player
     val victim: Player
 }
 
-pub workshop event OngoingEachPlayer(team: Team, heroSlot: HeroSlot) {
+pub native event OngoingEachPlayer(team: Team, heroSlot: HeroSlot) {
     val player: Player
 }
 ````
@@ -33,7 +33,7 @@ pub workshop event OngoingEachPlayer(team: Team, heroSlot: HeroSlot) {
 ## Workshop Enums
 
 ```
-pub workshop enum Team {
+pub native enum Team {
     Team1, Team2, All
 }
 ```
