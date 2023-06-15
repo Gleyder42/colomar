@@ -50,9 +50,12 @@ pub(super) fn query_call_chain(
                             .collect::<QueryTrisult<Vec<AValueChain>>>(),
                     )
                     .flat_map(|(function_decl, called_avalue_args)| {
-                        db.query_called_args_by_chain(called_avalue_args, function_decl.arguments.clone())
-                            .intern_inner(db)
-                            .map(|args| (function_decl, args))
+                        db.query_called_args_by_chain(
+                            called_avalue_args,
+                            function_decl.arguments.clone(),
+                        )
+                        .intern_inner(db)
+                        .map(|args| (function_decl, args))
                     })
                     .map(|(function_decl, function_args)| {
                         (

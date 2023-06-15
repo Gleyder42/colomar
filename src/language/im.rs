@@ -449,15 +449,13 @@ impl RValue {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AValueChain {
     pub avalues: Vec<AValue>,
-    pub span: Span
+    pub span: Span,
 }
 
 impl AValueChain {
-
     pub fn new(avalues: Vec<AValue>, span: Span) -> Self {
         debug_assert!(!avalues.is_empty(), "Tried to create an empty AValueChain");
         AValueChain { avalues, span }
@@ -489,7 +487,7 @@ impl AValue {
         match self {
             AValue::FunctionCall(_, _, span) => span.clone(),
             AValue::RValue(_, span) => span.clone(),
-            AValue::CValue(cvalue) => cvalue.span()
+            AValue::CValue(cvalue) => cvalue.span(),
         }
     }
 

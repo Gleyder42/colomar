@@ -17,20 +17,17 @@ pub(super) fn query_rule_actions(
     actions
         .into_iter()
         .map(|action| match action {
-            Action::CallChain(call_chain) => {
-                db.query_call_chain(
-                    smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
-                    call_chain,
-                )
-            }
+            Action::CallChain(call_chain) => db.query_call_chain(
+                smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
+                call_chain,
+            ),
             Action::Property(ast_property) => {
-                db
-                    .query_property(ast_property)
-                    .map(|property_decl| {
-                        let span = property_decl.name.span.clone();
-                        let chain: AValueChain = im::AValue::RValue(RValue::Property(property_decl), span).into();
-                        chain
-                    })
+                db.query_property(ast_property).map(|property_decl| {
+                    let span = property_decl.name.span.clone();
+                    let chain: AValueChain =
+                        im::AValue::RValue(RValue::Property(property_decl), span).into();
+                    chain
+                })
             }
         })
         .collect::<QueryTrisult<_>>()
@@ -78,14 +75,18 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: ast::Rule) -> QueryTrisul
             .map(|call_chain| db.query_call_chain(smallvec![Nameholder::Root], call_chain))
             .collect::<QueryTrisult<Vec<_>>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
-            .flat_map(|(arguments, event_def)| db.query_called_args_by_chain(arguments, event_def.arguments))
+            .flat_map(|(arguments, event_def)| {
+                db.query_called_args_by_chain(arguments, event_def.arguments)
+            })
     };
 
     db.query_namespaced_event(smallvec![Nameholder::Root], rule.event)
         .map_and_require(arguments)
         .map_and_require(|(event_decl_id, _)| {
             db.query_rule_cond(event_decl_id, rule.conditions)
-                .map_inner(|avalue| Predicate { return_value: avalue })
+                .map_inner(|avalue| Predicate {
+                    return_value: avalue,
+                })
         })
         .map_and_require(|((event_decl_id, _), _)| {
             db.query_rule_actions(event_decl_id, rule.actions)

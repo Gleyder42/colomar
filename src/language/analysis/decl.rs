@@ -3,7 +3,10 @@ use crate::language::analysis::interner::Interner;
 use crate::language::analysis::namespace::{Nameholders, Namespace, NamespaceId};
 use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::Actions;
-use crate::language::im::{AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId, FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId};
+use crate::language::im::{
+    AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId,
+    FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId,
+};
 use crate::language::{ast, im, Ident, ImmutableString};
 use ast::Ast;
 use im::{AValue, DeclaredArgumentId};

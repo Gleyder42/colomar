@@ -324,7 +324,7 @@ impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
 }
 
 impl<T, E> FromIterator<T> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let results: Vec<T> = iter.into_iter().collect();
         from_vec_results(results, Vec::new())
     }

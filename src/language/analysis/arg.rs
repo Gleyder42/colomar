@@ -2,7 +2,10 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::{AnalysisError, QueryTrisult};
-use crate::language::im::{AValue, AValueChain, CalledArgument, CalledArguments, CalledType, CalledTypes, DeclaredArgumentIds};
+use crate::language::im::{
+    AValue, AValueChain, CalledArgument, CalledArguments, CalledType, CalledTypes,
+    DeclaredArgumentIds,
+};
 use crate::language::{ast, im};
 use either::Either;
 use smallvec::smallvec;
@@ -22,7 +25,8 @@ pub(super) fn query_called_args_by_chain(
     called_avalue_chains: Vec<AValueChain>,
     decl_arg_ids: DeclaredArgumentIds,
 ) -> QueryTrisult<CalledArguments> {
-    let last_avalues: Vec<AValue> = called_avalue_chains.into_iter()
+    let last_avalues: Vec<AValue> = called_avalue_chains
+        .into_iter()
         // An AValue chain is never empty, therefore it is safe to unwrap here
         .map(|avalue_chain| avalue_chain.returning_avalue())
         .collect();

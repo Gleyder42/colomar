@@ -592,10 +592,7 @@ mod tests {
         let key = ResKey::new(TEST_DIR, "enum", "valid");
 
         test_parser_result(&key, false, r#enum(), |expected: EnumTestData, actual| {
-            assert_eq!(
-                expected.is_native,
-                actual.declaration.is_native.is_some()
-            );
+            assert_eq!(expected.is_native, actual.declaration.is_native.is_some());
             assert_eq!(
                 expected.constants,
                 actual
