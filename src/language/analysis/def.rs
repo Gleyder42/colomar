@@ -1,7 +1,7 @@
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::QueryTrisult;
 use crate::language::ast::{Actions, Conditions};
-use crate::language::im::EventDeclarationId;
+use crate::language::im::{AValueChain, EventDeclarationId};
 use crate::language::{ast, im};
 
 use super::event;
@@ -40,14 +40,14 @@ pub trait DefQuery: DeclQuery {
         &self,
         event_decl_id: EventDeclarationId,
         conditions: Conditions,
-    ) -> QueryTrisult<Vec<im::AValue>>;
+    ) -> QueryTrisult<Vec<AValueChain>>;
 
     #[salsa::invoke(rule::query_rule_actions)]
     fn query_rule_actions(
         &self,
         event_decl_id: EventDeclarationId,
         actions: Actions,
-    ) -> QueryTrisult<Vec<im::AValue>>;
+    ) -> QueryTrisult<Vec<AValueChain>>;
 
     // Struct
 

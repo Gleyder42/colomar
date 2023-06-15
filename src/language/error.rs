@@ -323,6 +323,13 @@ impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
     }
 }
 
+impl<T, E> FromIterator<T> for Trisult<Vec<T>, E> {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+        let results: Vec<T> = iter.into_iter().collect();
+        from_vec_results(results, Vec::new())
+    }
+}
+
 fn from_iter_trisults<T, E, I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> (Vec<T>, Vec<E>) {
     let mut results = Vec::new();
     let mut errors = Vec::new();

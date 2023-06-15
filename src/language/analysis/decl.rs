@@ -3,10 +3,7 @@ use crate::language::analysis::interner::Interner;
 use crate::language::analysis::namespace::{Nameholders, Namespace, NamespaceId};
 use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::Actions;
-use crate::language::im::{
-    CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId, FunctionDeclIds,
-    PropertyDeclIds, PropertyDecls, StructDeclarationId,
-};
+use crate::language::im::{AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId, FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId};
 use crate::language::{ast, im, Ident, ImmutableString};
 use ast::Ast;
 use im::{AValue, DeclaredArgumentId};
@@ -60,6 +57,14 @@ pub trait DeclQuery: Interner {
 
     // Arg
 
+    /// [arg::query_called_args_by_chain]
+    #[salsa::invoke(arg::query_called_args_by_chain)]
+    fn query_called_args_by_chain(
+        &self,
+        called_avalue_chains: Vec<AValueChain>,
+        decl_arg_ids: DeclaredArgumentIds,
+    ) -> QueryTrisult<CalledArguments>;
+
     /// [arg::query_called_args]
     #[salsa::invoke(arg::query_called_args)]
     fn query_called_args(
@@ -88,7 +93,7 @@ pub trait DeclQuery: Interner {
         &self,
         nameholders: Nameholders,
         call_chain: ast::CallChain,
-    ) -> QueryTrisult<AValue>;
+    ) -> QueryTrisult<AValueChain>;
 
     // Enum
 

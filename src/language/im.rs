@@ -20,7 +20,7 @@ pub type Predicates = SmallVec<[Predicate; CONDITIONS_LEN]>;
 
 pub type EnumConstants = SmallVec<[EnumConstant; ENUM_CONSTANTS_LEN]>;
 
-pub type Actions = Vec<AValue>;
+pub type Actions = Vec<AValueChain>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Im(pub Vec<Root>);
@@ -221,7 +221,7 @@ impl Type {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Predicate {
-    pub return_value: AValue,
+    pub return_value: AValueChain,
 }
 
 impl From<Type> for Nameholder {
@@ -339,7 +339,7 @@ pub struct CalledArgument {
 pub struct DeclaredArgument {
     pub name: Ident,
     pub types: CalledTypes,
-    pub default_value: Option<AValue>,
+    pub default_value: Option<AValueChain>,
 }
 
 impl IntoInternId for DeclaredArgument {
@@ -449,6 +449,25 @@ impl RValue {
     }
 }
 
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AValueChain {
+    pub avalues: Vec<AValue>,
+    pub span: Span
+}
+
+impl AValueChain {
+
+    pub fn new(avalues: Vec<AValue>, span: Span) -> Self {
+        debug_assert!(!avalues.is_empty(), "Tried to create an empty AValueChain");
+        AValueChain { avalues, span }
+    }
+
+    pub fn returning_avalue(&self) -> AValue {
+        self.avalues.last().unwrap().clone()
+    }
+}
+
 /// Represents a value which is known at runtime time or compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
@@ -458,7 +477,22 @@ pub enum AValue {
     CValue(CValue),
 }
 
+impl From<AValue> for AValueChain {
+    fn from(value: AValue) -> Self {
+        let span = value.span();
+        AValueChain::new(vec![value], span)
+    }
+}
+
 impl AValue {
+    pub fn span(&self) -> Span {
+        match self {
+            AValue::FunctionCall(_, _, span) => span.clone(),
+            AValue::RValue(_, span) => span.clone(),
+            AValue::CValue(cvalue) => cvalue.span()
+        }
+    }
+
     // TODO Rename this to return_type
     pub fn return_called_type<I: Interner + ?Sized>(&self, db: &I) -> CalledType {
         match self {

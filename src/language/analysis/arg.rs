@@ -2,10 +2,7 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::Nameholder;
 use crate::language::analysis::{AnalysisError, QueryTrisult};
-use crate::language::im::{
-    AValue, CalledArgument, CalledArguments, CalledType, CalledTypes, DeclaredArgument,
-    DeclaredArgumentIds,
-};
+use crate::language::im::{AValue, AValueChain, CalledArgument, CalledArguments, CalledType, CalledTypes, DeclaredArgumentIds};
 use crate::language::{ast, im};
 use either::Either;
 use smallvec::smallvec;
@@ -20,6 +17,19 @@ pub(super) fn query_declared_args(
         .collect::<QueryTrisult<_>>()
 }
 
+pub(super) fn query_called_args_by_chain(
+    db: &dyn DeclQuery,
+    called_avalue_chains: Vec<AValueChain>,
+    decl_arg_ids: DeclaredArgumentIds,
+) -> QueryTrisult<CalledArguments> {
+    let last_avalues: Vec<AValue> = called_avalue_chains.into_iter()
+        // An AValue chain is never empty, therefore it is safe to unwrap here
+        .map(|avalue_chain| avalue_chain.returning_avalue())
+        .collect();
+
+    db.query_called_args(last_avalues, decl_arg_ids)
+}
+
 pub(super) fn query_called_args(
     db: &dyn DeclQuery,
     called_arg_avalues: Vec<AValue>,
@@ -27,7 +37,7 @@ pub(super) fn query_called_args(
 ) -> QueryTrisult<CalledArguments> {
     decl_arg_ids
         .into_iter()
-        .map::<DeclaredArgument, _>(|decl_arg_id| db.lookup_intern_decl_arg(decl_arg_id))
+        .map::<im::DeclaredArgument, _>(|decl_arg_id| db.lookup_intern_decl_arg(decl_arg_id))
         .zip(called_arg_avalues)
         .map(|(decl_arg, avalue)| {
             let called_type = avalue.return_called_type(db);

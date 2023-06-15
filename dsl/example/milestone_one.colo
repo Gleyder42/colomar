@@ -12,7 +12,7 @@ native enum Slot {
 
 open native struct Player {
 
-    native getval isReloading: string
+    native getval isReloading: bool
 
     native fn displaySmallMessage(message: string)
 
@@ -34,6 +34,6 @@ rule "Hello other world" OngoingEachPlayer(Team.All, Hero.Ana) {
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading
 
-    player.displaySmallMessage(100)
+    player.displaySmallMessage("Test")
     player.heal(100, player)
 }

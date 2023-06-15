@@ -2,7 +2,7 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::namespace::{Nameholder, Nameholders};
 use crate::language::analysis::QueryTrisult;
-use crate::language::im::CValue;
+use crate::language::im::{AValueChain, CValue};
 use crate::language::{ast, im};
 use smallvec::smallvec;
 
@@ -10,14 +10,15 @@ pub(super) fn query_call_chain(
     db: &dyn DeclQuery,
     inital_nameholders: Nameholders,
     call_chain: ast::CallChain,
-) -> QueryTrisult<im::AValue> {
+) -> QueryTrisult<AValueChain> {
     assert!(
         !call_chain.value.is_empty(),
         "A call chain cannot be empty, but was"
     );
+    let span = call_chain.span;
 
-    QueryTrisult::<ast::CallChain>::from(call_chain).fold_flat_map::<im::AValue, _, _, _>(
-        (inital_nameholders.clone(), None),
+    QueryTrisult::from_iter(call_chain.value).fold_flat_map::<AValueChain, _, _, _>(
+        (inital_nameholders.clone(), Vec::<im::AValue>::new()),
         // func refers to the closure processing the call.
         // map_func refers to the closure unwrapping the value .
         //
@@ -28,8 +29,8 @@ pub(super) fn query_call_chain(
         // so func will definitely be called.
         // If the result returned in func is error, value could be none, but it doesn't matter
         // as map_func in that case is not called
-        |(_, value)| value.unwrap(),
-        |(nameholders, _value), call| {
+        |(_, avalues)| AValueChain::new(avalues, span),
+        |(nameholders, mut avalues), call| {
             match *call {
                 ast::Call::Ident(ident) => db
                     .query_namespaced_rvalue(nameholders, ident.clone())
@@ -46,10 +47,10 @@ pub(super) fn query_call_chain(
                             .map(|call_chain| {
                                 db.query_call_chain(inital_nameholders.clone(), call_chain)
                             })
-                            .collect::<QueryTrisult<Vec<_>>>(),
+                            .collect::<QueryTrisult<Vec<AValueChain>>>(),
                     )
                     .flat_map(|(function_decl, called_avalue_args)| {
-                        db.query_called_args(called_avalue_args, function_decl.arguments.clone())
+                        db.query_called_args_by_chain(called_avalue_args, function_decl.arguments.clone())
                             .intern_inner(db)
                             .map(|args| (function_decl, args))
                     })
@@ -72,7 +73,10 @@ pub(super) fn query_call_chain(
                     )
                 }),
             }
-            .map(|(acc, avalue)| (acc, Some(avalue)))
+            .map(|(acc, avalue)| {
+                avalues.push(avalue);
+                (acc, avalues)
+            })
         },
     )
 }

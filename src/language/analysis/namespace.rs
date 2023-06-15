@@ -21,7 +21,7 @@ pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> QueryTrisult<Namespace
     db.query_type_map()
         .into_iter()
         .map(|(ident, r#type)| namespace.add(ident, RValue::Type(r#type), db))
-        .collect::<QueryTrisult<_>>()
+        .collect::<QueryTrisult<Vec<()>>>()
         .map(|_| Rc::new(namespace))
         .intern(db)
 }
@@ -51,7 +51,7 @@ pub(super) fn query_event_namespace(
                         db,
                     )
                 })
-                .collect::<QueryTrisult<Vec<_>>>()
+                .collect::<QueryTrisult<Vec<()>>>()
                 .map(|_| Rc::new(namespace).intern(db))
         })
 }
