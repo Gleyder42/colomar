@@ -76,6 +76,7 @@ pub trait DeclQuery: Interner {
         decl_arg_ids: DeclaredArgumentIds,
     ) -> QueryTrisult<CalledArguments>;
 
+    /// [arg::query_declared_arg]
     #[salsa::invoke(arg::query_declared_arg)]
     fn query_declared_arg(
         &self,
