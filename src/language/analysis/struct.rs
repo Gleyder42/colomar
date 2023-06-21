@@ -2,7 +2,9 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::QueryTrisult;
-use crate::language::im::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, StructDeclarationId, Type};
+use crate::language::im::{
+    FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, StructDeclarationId, Type,
+};
 use crate::language::{ast, im, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
 use smallvec::SmallVec;
 

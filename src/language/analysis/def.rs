@@ -10,7 +10,6 @@ use super::rule;
 
 #[salsa::query_group(DefDatabase)]
 pub trait DefQuery: DeclQuery {
-
     // Im
 
     /// [super::im::query_im]
@@ -28,8 +27,11 @@ pub trait DefQuery: DeclQuery {
 
     /// [event::query_event_def]
     #[salsa::invoke(event::query_event_def)]
-    fn query_event_def(&self, event_decl_id: EventDeclarationId, event_def: ast::EventDefinition)
-        -> QueryTrisult<im::EventDefinition>;
+    fn query_event_def(
+        &self,
+        event_decl_id: EventDeclarationId,
+        event_def: ast::EventDefinition,
+    ) -> QueryTrisult<im::EventDefinition>;
 
     /// [event::query_event]
     #[salsa::invoke(event::query_event)]

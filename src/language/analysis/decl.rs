@@ -3,7 +3,10 @@ use crate::language::analysis::interner::Interner;
 use crate::language::analysis::namespace::{Nameholders, Namespace, NamespaceId};
 use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::ast::Actions;
-use crate::language::im::{AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId, FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId, Type};
+use crate::language::im::{
+    AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId,
+    FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId, Type,
+};
 use crate::language::{ast, im, Ident, ImmutableString};
 use ast::Ast;
 use im::{AValue, DeclaredArgumentId};
@@ -128,7 +131,11 @@ pub trait DeclQuery: Interner {
 
     /// [event::query_event_properties]
     #[salsa::invoke(event::query_event_properties)]
-    fn query_event_properties(self, event_decl_id: EventDeclarationId, actions: Actions) -> QueryTrisult<im::PropertyDecls>;
+    fn query_event_properties(
+        self,
+        event_decl_id: EventDeclarationId,
+        actions: Actions,
+    ) -> QueryTrisult<im::PropertyDecls>;
 
     /// [event::query_event_decl]
     #[salsa::invoke(event::query_event_decl)]

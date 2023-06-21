@@ -15,7 +15,7 @@ pub enum Category {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum NativeCode {
     Literal(LiteralNativeCode),
-    Template(TemplateNativeCode)
+    Template(TemplateNativeCode),
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]

@@ -23,14 +23,14 @@ pub(super) fn query_rule_actions(
                 smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
                 call_chain,
             ),
-            Action::Property(ast_property) => {
-                db.query_property(Some(event_type), ast_property).map(|property_decl| {
+            Action::Property(ast_property) => db
+                .query_property(Some(event_type), ast_property)
+                .map(|property_decl| {
                     let span = property_decl.name.span.clone();
                     let chain: AValueChain =
                         im::AValue::RValue(RValue::Property(property_decl), span).into();
                     chain
-                })
-            }
+                }),
         })
         .collect::<QueryTrisult<_>>()
 }

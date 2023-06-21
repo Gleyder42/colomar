@@ -5,7 +5,6 @@ use crate::language::analysis::QueryTrisult;
 use crate::language::ast::{Action, Actions};
 use crate::language::im::{EventDeclarationId, PropertyDecls};
 use crate::language::{ast, im};
-use crate::language::im::RValue::Type;
 
 pub(super) fn query_event_def_by_id(
     db: &dyn DefQuery,
@@ -60,11 +59,9 @@ pub(super) fn query_event(db: &dyn DefQuery, event: ast::Event) -> QueryTrisult<
     let event_declaration_id = db.query_event_decl(event.declaration);
 
     db.query_event_def(event_declaration_id, event.definition)
-        .map(|definition| {
-            im::Event {
-                declaration: event_declaration_id,
-                definition,
-            }
+        .map(|definition| im::Event {
+            declaration: event_declaration_id,
+            definition,
         })
 }
 

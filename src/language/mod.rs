@@ -1,6 +1,5 @@
 use crate::impl_intern_key;
 use crate::language::analysis::interner::Interner;
-use crate::language::analysis::namespace::Namespace;
 use crate::language::ast::SpannedBool;
 use smol_str::SmolStr;
 use std::collections::HashMap;

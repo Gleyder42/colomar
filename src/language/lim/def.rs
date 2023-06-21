@@ -1,16 +1,15 @@
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::QueryTrisult;
-use crate::language::lim::tree::{Call, Category, NativeCode, TemplateNativeCode};
-use crate::language::{HashableHashMap, im, ImmutableString};
 use crate::language::im::AValue;
 use crate::language::lim::native;
+use crate::language::lim::tree::{Call, Category, NativeCode, TemplateNativeCode};
+use crate::language::{im, HashableHashMap, ImmutableString};
 
-use super::function;
 use super::call;
+use super::function;
 
 #[salsa::query_group(LimDefDatabase)]
 pub trait LimDefQuery: DefQuery {
-
     #[salsa::input]
     fn input_native_code(&self) -> Vec<native::Element>;
 
@@ -35,6 +34,6 @@ pub trait LimDefQuery: DefQuery {
     fn query_native_struct_property_code(
         &self,
         struct_name: ImmutableString,
-        property_name: ImmutableString
+        property_name: ImmutableString,
     ) -> QueryTrisult<NativeCode>;
 }

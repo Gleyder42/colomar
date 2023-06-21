@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use serde::Deserialize;
 use crate::language::{HashableHashMap, ImmutableString};
+use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Element {

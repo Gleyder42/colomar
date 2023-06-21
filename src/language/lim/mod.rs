@@ -1,9 +1,9 @@
 mod call;
 mod def;
 mod function;
-mod tree;
-mod native;
 mod hashable_map;
+mod native;
+mod tree;
 
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::QueryTrisult;
