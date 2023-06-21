@@ -3,6 +3,7 @@ use crate::language::analysis::namespace::Namespace;
 use crate::language::ast;
 use smallvec::{Array, SmallVec};
 use std::fmt::Debug;
+use crate::language::analysis::QueryTrisult;
 
 /// Trisult is similar to [Result] but has one more in-between state.
 /// These states are
@@ -187,6 +188,35 @@ where
 }
 
 impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
+
+    /// Folds all elements of the current [Trisult] while having a context.
+    /// The context is not part of the accumulator.
+    ///
+    /// # Example
+    /// The function adds all elements together and multiplies each step by the context.
+    /// - (0 + 1) * 1 = 1
+    /// - (1 + 2) * 2 = 6
+    /// - (6 + 3) * 3 = 27
+    ///
+    /// ```
+    /// let trisult = QueryTrisult::Ok(vec![1, 2, 3])
+    ///         .fold_with(1, 0, |ctx, acc, current| {
+    ///             QueryTrisult::Ok((ctx + 1, (acc + current) * ctx))
+    ///         });
+    ///
+    /// assert_eq!(trisult.to_option().0.unwrap(), 27);
+    /// ```
+    pub fn fold_with<C, A, F>(self, initial_ctx: C, initial: A, fold_fn: F) -> Trisult<A, E>
+    where
+        F: Fn(C, A, T) -> Trisult<(C, A), E>,
+    {
+        self.fold_flat_map(
+            (initial_ctx, initial),
+            |(_, acc)| acc,
+            |(ctx, acc), t| fold_fn(ctx, acc, t),
+        )
+    }
+
     pub fn fold<A, F>(self, initial: A, func: F) -> Trisult<A, E>
     where
         F: Fn(A, T) -> Trisult<A, E>,

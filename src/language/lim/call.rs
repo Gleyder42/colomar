@@ -10,7 +10,13 @@ pub(super) fn query_lim_call(
     db: &dyn LimDefQuery,
     avalue_chain: im::AValueChain,
 ) -> QueryTrisult<Call> {
-    QueryTrisult::Ok(avalue_chain.avalues).fold::<Option<AValue>, _>(None, |acc, current| todo!());
+    QueryTrisult::Ok(avalue_chain.avalues).fold_with::<Option<AValue>, Option<Call>, _>(
+        None,
+        None,
+        |acc, ctx, avalue| {
+            todo!()
+        },
+    );
 
     todo!()
 }
