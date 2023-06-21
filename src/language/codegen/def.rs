@@ -22,17 +22,17 @@ pub trait LimDefQuery: DefQuery {
     #[salsa::invoke(native::query_native_code)]
     fn query_native_code(&self, avalue: AValue) -> QueryTrisult<NativeCode>;
 
-    /// Impl [native::query_native_struct_code_map]
-    #[salsa::invoke(native::query_native_struct_code_map)]
-    fn query_native_struct_code_map(&self) -> BTreeMap<Text, native_conf::Struct>;
+    /// Impl [native::query_native_event_code_map]
+    #[salsa::invoke(native::query_native_event_code_map)]
+    fn query_native_event_code_map(&self) -> BTreeMap<Text, native_conf::Event>;
 
-    /// Impl [native::query_native_struct_code]
-    #[salsa::invoke(native::query_native_struct_code)]
-    fn query_native_struct_code(&self, name: Text) -> QueryTrisult<native_conf::Struct>;
+    /// Impl [native::query_native_event_conf]
+    #[salsa::invoke(native::query_native_event_conf)]
+    fn query_native_event_conf(&self, name: Text) -> QueryTrisult<native_conf::Event>;
 
-    /// Impl [native::query_native_struct_property_code]
-    #[salsa::invoke(native::query_native_struct_property_code)]
-    fn query_native_struct_property_code(
+    /// Impl [native::query_native_event_context_code]
+    #[salsa::invoke(native::query_native_event_context_code)]
+    fn query_native_event_context_code(
         &self,
         struct_name: Text,
         property_name: Text,
