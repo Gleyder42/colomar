@@ -15,17 +15,17 @@ use serde::de::{Deserialize, Deserializer, MapAccess, Visitor};
 // keeps the compiler from complaining about unused generic type
 // parameters.
 struct MyMapVisitor<K, V>
-where
-    K: Hash + PartialEq + Eq + Ord,
-    V: Hash + PartialEq,
+    where
+        K: Hash + PartialEq + Eq + Ord,
+        V: Hash + PartialEq,
 {
     marker: PhantomData<fn() -> HashableHashMap<K, V>>,
 }
 
 impl<K, V> MyMapVisitor<K, V>
-where
-    K: Hash + PartialEq + Eq + Ord,
-    V: Hash + PartialEq,
+    where
+        K: Hash + PartialEq + Eq + Ord,
+        V: Hash + PartialEq,
 {
     fn new() -> Self {
         MyMapVisitor {
@@ -41,9 +41,9 @@ where
 // By default those methods will return an error, which makes sense
 // because we cannot deserialize a MyMap from an integer or string.
 impl<'de, K, V> Visitor<'de> for MyMapVisitor<K, V>
-where
-    K: Hash + PartialEq + Eq + Ord + Deserialize<'de>,
-    V: Hash + PartialEq + Deserialize<'de>,
+    where
+        K: Hash + PartialEq + Eq + Ord + Deserialize<'de>,
+        V: Hash + PartialEq + Deserialize<'de>,
 {
     // The type that our Visitor is going to produce.
     type Value = HashableHashMap<K, V>;
@@ -57,8 +57,8 @@ where
     // Deserializer. The MapAccess input is a callback provided by
     // the Deserializer to let us see each entry in the map.
     fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
-    where
-        M: MapAccess<'de>,
+        where
+            M: MapAccess<'de>,
     {
         let mut map = HashMap::with_capacity(access.size_hint().unwrap_or(0));
 
@@ -74,16 +74,34 @@ where
 
 // This is the trait that informs Serde how to deserialize MyMap.
 impl<'de, K, V> Deserialize<'de> for HashableHashMap<K, V>
-where
-    K: Hash + PartialEq + Eq + Ord + Deserialize<'de>,
-    V: Hash + PartialEq + Deserialize<'de>,
+    where
+        K: Hash + PartialEq + Eq + Ord + Deserialize<'de>,
+        V: Hash + PartialEq + Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
     {
         // Instantiate our Visitor and ask the Deserializer to drive
         // it over the input data, resulting in an instance of MyMap.
         deserializer.deserialize_map(MyMapVisitor::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use crate::language::HashableHashMap;
+
+    #[test]
+    fn test_deserialize_map() {
+        let code = r#"
+            name = "Hello World"
+            test = "Test"
+        "#;
+
+        let map: HashableHashMap<String, String> = toml::from_str(code).unwrap();
+        assert_eq!(map.0.get("name").unwrap(), "Hello World");
+        assert_eq!(map.0.get("test").unwrap(), "Test")
     }
 }
