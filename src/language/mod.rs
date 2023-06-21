@@ -1,30 +1,38 @@
 use crate::impl_intern_key;
 use crate::language::analysis::interner::Interner;
+use crate::language::analysis::namespace::Namespace;
 use crate::language::ast::SpannedBool;
 use smol_str::SmolStr;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::ops::Range;
 
 pub mod analysis;
 pub mod ast;
+pub mod codegen;
 pub mod error;
 pub mod im;
 pub mod lexer;
+pub mod lim;
 pub mod parser;
 
 pub type InnerSpan = usize;
 pub type SpanLocation = Range<InnerSpan>;
 pub type SpanSource = SmolStr;
 
+// TODO Rename this type
+// Maybe Text?
 pub type ImmutableString = SmolStr;
 
-const CONDITIONS_LEN: usize = 6;
-const ACTIONS_LEN: usize = 8;
-const DECLARED_ARGUMENTS_LEN: usize = 4;
-const PROPERTY_DECLS_LEN: usize = 4;
-const FUNCTIONS_DECLS_LEN: usize = 6;
-const ENUM_CONSTANTS_LEN: usize = 8;
+pub const CONDITIONS_LEN: usize = 6;
+pub const ACTIONS_LEN: usize = 8;
+pub const DECLARED_ARGUMENTS_LEN: usize = 4;
+// Give this a more generic name
+pub const PROPERTY_DECLS_LEN: usize = 4;
+pub const FUNCTIONS_DECLS_LEN: usize = 6;
+pub const ENUM_CONSTANTS_LEN: usize = 8;
 
-const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
+pub const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Span {
@@ -140,3 +148,46 @@ impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
 pub struct SpanSourceId(salsa::InternId);
 
 impl_intern_key!(SpanSourceId);
+
+// TODO Maybe use a proper linked hash map
+#[derive(Clone, Debug, Eq)]
+pub struct HashableHashMap<K, V>(pub HashMap<K, V>)
+where
+    K: Hash + PartialEq + Eq + Ord,
+    V: Hash + PartialEq;
+
+impl<K, V> HashableHashMap<K, V>
+where
+    K: Hash + PartialEq + Eq + Ord,
+    V: Hash + PartialEq,
+{
+    pub fn new() -> Self {
+        HashableHashMap(HashMap::new())
+    }
+
+    fn sorted_map_entries(&self) -> Vec<(&K, &V)> {
+        let mut content = self.0.iter().collect::<Vec<_>>();
+        content.sort_by_key(|it| it.0);
+        content
+    }
+}
+
+impl<K, V> PartialEq for HashableHashMap<K, V>
+where
+    K: Hash + PartialEq + Eq + Ord,
+    V: Hash + PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.sorted_map_entries() == other.sorted_map_entries()
+    }
+}
+
+impl<K, V> Hash for HashableHashMap<K, V>
+where
+    K: Hash + PartialEq + Eq + Ord,
+    V: Hash + PartialEq,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.sorted_map_entries().hash(state)
+    }
+}

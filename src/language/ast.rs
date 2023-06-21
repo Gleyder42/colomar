@@ -116,11 +116,16 @@ pub struct Event {
     pub span: Span,
 }
 
+// TODO Rename maybe to Get and Set Restriction
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum UseRestriction {
-    GetVal,
+    /// Can not be assigned directly, but can be accessed
+    GetVar,
+    /// Can be assigned, but not be accessed
     SetVar,
+    /// Can only be assigned once and be accessed
     Val,
+    /// Can be assigned and accessed
     Var,
 }
 

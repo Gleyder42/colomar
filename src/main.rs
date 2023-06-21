@@ -283,6 +283,9 @@ fn main() {
                         .print(Source::from(""))
                         .unwrap();
                 }
+                AnalysisError::CannotFindNativeDefinition(_) => {
+                    todo!()
+                }
             }
         }
         println!(

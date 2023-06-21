@@ -5,31 +5,35 @@ use crate::language::analysis::QueryTrisult;
 use crate::language::ast::{Action, Actions};
 use crate::language::im::{EventDeclarationId, PropertyDecls};
 use crate::language::{ast, im};
+use crate::language::im::RValue::Type;
 
 pub(super) fn query_event_def_by_id(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
 ) -> QueryTrisult<im::EventDefinition> {
     db.query_ast_event_def(event_decl_id)
-        .flat_map(|event_def| db.query_event_def(event_def))
+        .flat_map(|event_def| db.query_event_def(event_decl_id, event_def))
 }
 
 pub(super) fn query_event_context_variables(
     db: &dyn DeclQuery,
-    event_decl: EventDeclarationId,
+    event_decl_id: EventDeclarationId,
 ) -> QueryTrisult<PropertyDecls> {
-    db.query_ast_event_def(event_decl)
-        .flat_map(|event_def| db.query_event_properties(event_def.actions))
+    db.query_ast_event_def(event_decl_id)
+        .flat_map(|event_def| db.query_event_properties(event_decl_id, event_def.actions))
 }
 
 pub(super) fn query_event_properties(
     db: &dyn DeclQuery,
+    event_decl_id: EventDeclarationId,
     actions: Actions,
 ) -> QueryTrisult<PropertyDecls> {
+    let event_type = im::Type::Event(event_decl_id);
+
     actions
         .into_iter()
         .map(|action| match action {
-            Action::Property(property_decl) => db.query_property(property_decl),
+            Action::Property(property_decl) => db.query_property(Some(event_type), property_decl),
             Action::CallChain(_) => todo!(),
         })
         .collect::<QueryTrisult<_>>()
@@ -37,6 +41,7 @@ pub(super) fn query_event_properties(
 
 pub(super) fn query_event_def(
     db: &dyn DefQuery,
+    event_decl_id: EventDeclarationId,
     event_def: ast::EventDefinition,
 ) -> QueryTrisult<im::EventDefinition> {
     event_def
@@ -44,7 +49,7 @@ pub(super) fn query_event_def(
         .into_iter()
         .map(|decl_arg| db.query_declared_arg(decl_arg))
         .collect::<QueryTrisult<_>>()
-        .and_or_default(db.query_event_properties(event_def.actions))
+        .and_or_default(db.query_event_properties(event_decl_id, event_def.actions))
         .map(|(arguments, properties)| im::EventDefinition {
             arguments,
             properties,
@@ -52,10 +57,14 @@ pub(super) fn query_event_def(
 }
 
 pub(super) fn query_event(db: &dyn DefQuery, event: ast::Event) -> QueryTrisult<im::Event> {
-    db.query_event_def(event.definition)
-        .map(|definition| im::Event {
-            declaration: db.query_event_decl(event.declaration),
-            definition,
+    let event_declaration_id = db.query_event_decl(event.declaration);
+
+    db.query_event_def(event_declaration_id, event.definition)
+        .map(|definition| {
+            im::Event {
+                declaration: event_declaration_id,
+                definition,
+            }
         })
 }
 

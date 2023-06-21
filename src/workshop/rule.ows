@@ -1,9 +1,9 @@
-rule("%rule_name%")
-{
+rule({rule_name})
+{{
     event
-    {
-        %event_type%
-        %arg0%
-        %arg1%
-    }
-}
+    {{
+        {event_type}
+        {arg0}
+        {arg1}
+    }}
+}}

@@ -187,6 +187,7 @@ where
 }
 
 impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
+
     pub fn fold<A, F>(self, initial: A, func: F) -> Trisult<A, E>
     where
         F: Fn(A, T) -> Trisult<A, E>,

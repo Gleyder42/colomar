@@ -12,7 +12,7 @@ native enum Slot {
 
 open native struct Player {
 
-    native getval isReloading: bool
+    native val isReloading: bool
 
     native fn displaySmallMessage(message: string)
 
@@ -20,7 +20,7 @@ open native struct Player {
 }
 
 native event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
-    val player: Player
+    native val player: Player
 }
 
 native enum Hero {

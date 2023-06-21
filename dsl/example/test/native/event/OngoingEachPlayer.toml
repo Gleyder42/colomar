@@ -1,0 +1,8 @@
+name = "Ongoing - EachPlayer"
+
+[args]
+arg0 = "team"
+arg1 = "slot"
+
+[context]
+player = "Event Player"

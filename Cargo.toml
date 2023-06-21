@@ -12,9 +12,9 @@ smol_str = "0.2.0"
 either = "1.8.1"
 ariadne = "0.3.0"
 smallvec = { version = "1.10.0", features = ["const_generics", "union"] }
+serde = { version = "1.0.163", features = ["derive"] }
 
 [dev-dependencies]
-serde = { version = "1.0.163", features = ["derive"] }
 serde_yaml = "0.9.21"
 test-case = "3.1.0"
 derive-new = "0.5.9"

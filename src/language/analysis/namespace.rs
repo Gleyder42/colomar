@@ -136,7 +136,7 @@ pub(super) fn query_struct_namespace(
         .flat_map(|struct_def| {
             Trisult::Ok(Namespace::new())
                 .fold_with(
-                    db.query_struct_properties(struct_def.properties),
+                    db.query_struct_properties(struct_decl_id, struct_def.properties),
                     |mut namespace, property_id| {
                         let property: PropertyDecl = db.lookup_intern_property_decl(property_id);
                         let result =

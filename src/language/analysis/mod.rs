@@ -25,7 +25,8 @@ pub mod rule;
 pub mod r#struct;
 pub mod r#type;
 
-type QueryTrisult<T> = Trisult<T, AnalysisError>;
+// TODO Move this one mod up
+pub type QueryTrisult<T> = Trisult<T, AnalysisError>;
 
 #[salsa::database(DeclDatabase, DefDatabase, InternerDatabase)]
 #[derive(Default)]
@@ -88,6 +89,7 @@ pub enum AnalysisError {
         expected: Either<Type, CalledTypes>,
     },
     CannotFindPrimitiveDeclaration(ImmutableString),
+    CannotFindNativeDefinition(ImmutableString),
 }
 
 impl AnalysisError {
@@ -99,6 +101,7 @@ impl AnalysisError {
             AnalysisError::NotA(_, _, _) => 4,
             AnalysisError::WrongType { .. } => 5,
             AnalysisError::CannotFindPrimitiveDeclaration(_) => 6,
+            AnalysisError::CannotFindNativeDefinition(_) => 7,
         }
     }
 }

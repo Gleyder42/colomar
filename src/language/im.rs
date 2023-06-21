@@ -88,7 +88,7 @@ impl IntoInternId for FunctionDecl {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PropertyDecl {
-    // Bug
+    pub instance: Option<Type>,
     pub is_native: SpannedBool,
     pub name: Ident,
     pub desc: Spanned<UseRestriction>,
@@ -191,7 +191,7 @@ pub struct Enum {
     pub span: Span,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     Enum(EnumDeclarationId),
     Struct(StructDeclarationId),

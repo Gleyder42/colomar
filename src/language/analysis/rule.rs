@@ -14,6 +14,8 @@ pub(super) fn query_rule_actions(
     event_decl_id: EventDeclarationId,
     actions: Actions,
 ) -> QueryTrisult<Vec<AValueChain>> {
+    let event_type = im::Type::Event(event_decl_id);
+
     actions
         .into_iter()
         .map(|action| match action {
@@ -22,7 +24,7 @@ pub(super) fn query_rule_actions(
                 call_chain,
             ),
             Action::Property(ast_property) => {
-                db.query_property(ast_property).map(|property_decl| {
+                db.query_property(Some(event_type), ast_property).map(|property_decl| {
                     let span = property_decl.name.span.clone();
                     let chain: AValueChain =
                         im::AValue::RValue(RValue::Property(property_decl), span).into();

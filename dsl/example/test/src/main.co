@@ -1,0 +1,26 @@
+native struct bool { }
+native struct string { }
+native struct num { }
+
+native enum Team {
+    Team1, Team2, All
+}
+
+native struct Player {
+
+    native getvar isReloading: bool
+
+    native getvar hero: Hero
+
+    native fn sendSmallMessage(message: string)
+}
+
+native event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+    native val player: Player
+}
+
+rule "Test Rule" OngoingEachPlayer() {
+    cond player.isReloading
+
+    player.sendSmallMessage("You are reloading")
+}

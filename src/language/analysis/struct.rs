@@ -2,13 +2,13 @@ use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::interner::IntoInternId;
 use crate::language::analysis::QueryTrisult;
-use crate::language::im::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds};
+use crate::language::im::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, StructDeclarationId, Type};
 use crate::language::{ast, im, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
 use smallvec::SmallVec;
 
 pub(super) fn query_struct(db: &dyn DefQuery, r#struct: ast::Struct) -> QueryTrisult<im::Struct> {
     let struct_decl = db.query_struct_decl(r#struct.declaration);
-    db.query_struct_def(r#struct.definition)
+    db.query_struct_def(struct_decl, r#struct.definition)
         .map(|struct_def| im::Struct {
             decl: struct_decl,
             def: struct_def,
@@ -40,21 +40,25 @@ pub(super) fn query_struct_functions(
 
 pub(super) fn query_struct_properties(
     db: &dyn DeclQuery,
+    struct_decl_id: StructDeclarationId,
     properties: ast::PropertyDecls,
 ) -> QueryTrisult<PropertyDeclIds> {
+    let struct_type = Type::Struct(struct_decl_id);
+
     properties
         .into_iter()
-        .map(|property_decl| db.query_property(property_decl))
+        .map(|property_decl| db.query_property(Some(struct_type), property_decl))
         .collect::<QueryTrisult<SmallVec<[PropertyDecl; PROPERTY_DECLS_LEN]>>>()
         .intern_inner(db)
 }
 
 pub(super) fn query_struct_def(
     db: &dyn DefQuery,
+    struct_decl_id: StructDeclarationId,
     struct_def: ast::StructDefinition,
 ) -> QueryTrisult<im::StructDefinition> {
     db.query_struct_functions(struct_def.functions)
-        .and_or_default(db.query_struct_properties(struct_def.properties))
+        .and_or_default(db.query_struct_properties(struct_decl_id, struct_def.properties))
         .map(|(functions, properties)| im::StructDefinition {
             functions,
             properties,

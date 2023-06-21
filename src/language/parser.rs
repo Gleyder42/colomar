@@ -116,7 +116,7 @@ fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
 
 fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
     native_or_not()
-        .then(choice((just(Token::GetVal), just(Token::Val))).map_with_span(Spanned::new))
+        .then(choice((just(Token::GetVar), just(Token::Val))).map_with_span(Spanned::new))
         .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident())
@@ -124,9 +124,9 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
             let use_restriction = match property_type {
                 // Write a test which tries to put other tokens here
                 Spanned {
-                    value: Token::GetVal,
+                    value: Token::GetVar,
                     span,
-                } => Spanned::new(UseRestriction::GetVal, span),
+                } => Spanned::new(UseRestriction::GetVar, span),
                 Spanned {
                     value: Token::Val,
                     span,

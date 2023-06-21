@@ -10,5 +10,6 @@ Information based on https://fileinfo.com
 * .mar - Mozilla Archive
 * .cl - Cursor Library
 * .co - Free
+* .col - Grand Theft Auto Collision File
 * .cr - Crystal Source Code
 * .clm - MagicJack Call Log File
