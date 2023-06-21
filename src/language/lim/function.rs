@@ -51,7 +51,6 @@ pub(super) fn query_native_struct_property_code(
         .flat_map(|native_struct| {
             native_struct
                 .properties
-                .0
                 .get(property_name.as_str())
                 .ok_or(AnalysisError::CannotFindNativeDefinition(property_name))
                 .cloned()
