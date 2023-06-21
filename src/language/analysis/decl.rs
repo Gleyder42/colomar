@@ -7,7 +7,7 @@ use crate::language::im::{
     AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId,
     FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId, Type,
 };
-use crate::language::{ast, im, Ident, ImmutableString};
+use crate::language::{ast, im, Ident, Text};
 use ast::Ast;
 use im::{AValue, DeclaredArgumentId};
 use std::collections::HashMap;
@@ -159,19 +159,19 @@ pub trait DeclQuery: Interner {
 
     /// [namespace::query_bool_name]
     #[salsa::invoke(namespace::query_bool_name)]
-    fn query_bool_name(&self) -> ImmutableString;
+    fn query_bool_name(&self) -> Text;
 
     /// [namespace::query_string_name]
     #[salsa::invoke(namespace::query_string_name)]
-    fn query_string_name(&self) -> ImmutableString;
+    fn query_string_name(&self) -> Text;
 
     /// [namespace::query_number_name]
     #[salsa::invoke(namespace::query_number_name)]
-    fn query_number_name(&self) -> ImmutableString;
+    fn query_number_name(&self) -> Text;
 
     /// [namespace::query_primitives]
     #[salsa::invoke(namespace::query_primitives)]
-    fn query_primitives(&self) -> QueryTrisult<HashMap<ImmutableString, im::Type>>;
+    fn query_primitives(&self) -> QueryTrisult<HashMap<Text, im::Type>>;
 
     /// [namespace::query_bool_type]
     #[salsa::invoke(namespace::query_bool_type)]

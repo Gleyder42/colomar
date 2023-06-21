@@ -1,6 +1,6 @@
 extern crate core;
 
-use crate::language::{ImmutableString, Span, SpanSourceId};
+use crate::language::{Span, SpanSourceId, Text};
 use chumsky::prelude::*;
 use chumsky::text::Character;
 use std::fmt::{Debug, Display, Formatter};
@@ -21,9 +21,9 @@ pub enum Token {
     Fn,
     NewLine,
     Type,
-    Ident(ImmutableString),
-    String(ImmutableString),
-    Num(ImmutableString),
+    Ident(Text),
+    String(Text),
+    Num(Text),
     Ctrl(char),
 }
 
@@ -57,14 +57,14 @@ pub fn lexer(
     let num = text::int(10)
         .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
         .collect::<String>()
-        .map(ImmutableString::new)
+        .map(Text::new)
         .map(Token::Num);
 
     let string = just('"')
         .ignore_then(filter(|c| *c != '"').repeated())
         .then_ignore(just('"'))
         .collect::<String>()
-        .map(ImmutableString::new)
+        .map(Text::new)
         .map(Token::String);
 
     let ctrl = one_of("(){},.:|=").map(Token::Ctrl);
@@ -82,7 +82,7 @@ pub fn lexer(
         "fn" => Token::Fn,
         "type" => Token::Type,
         "val" => Token::Val,
-        _ => Token::Ident(ImmutableString::new(ident)),
+        _ => Token::Ident(Text::new(ident)),
     });
 
     let newline = text::newline().map(|_| Token::NewLine);

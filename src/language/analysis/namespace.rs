@@ -6,7 +6,7 @@ use crate::language::im::{
     EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId,
     FunctionDecl, PropertyDecl, RValue, StructDeclarationId, Type,
 };
-use crate::language::{Ident, ImmutableString};
+use crate::language::{Ident, Text};
 use crate::{impl_intern_key, query_error};
 use salsa::InternId;
 use smallvec::{smallvec, SmallVec};
@@ -56,23 +56,23 @@ pub(super) fn query_event_namespace(
         })
 }
 
-pub(super) fn query_bool_name(_db: &dyn DeclQuery) -> ImmutableString {
-    ImmutableString::new("bool".to_owned())
+pub(super) fn query_bool_name(_db: &dyn DeclQuery) -> Text {
+    Text::new("bool".to_owned())
 }
 
-pub(super) fn query_string_name(_db: &dyn DeclQuery) -> ImmutableString {
-    ImmutableString::new("string".to_owned())
+pub(super) fn query_string_name(_db: &dyn DeclQuery) -> Text {
+    Text::new("string".to_owned())
 }
 
-pub(super) fn query_number_name(_db: &dyn DeclQuery) -> ImmutableString {
-    ImmutableString::new("num".to_owned())
+pub(super) fn query_number_name(_db: &dyn DeclQuery) -> Text {
+    Text::new("num".to_owned())
 }
 
-pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<ImmutableString, Type>> {
+pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Text, Type>> {
     db.query_namespace(smallvec![Nameholder::Root])
         .map(|namespace| {
             let mut map = HashMap::new();
-            let mut add = |name: ImmutableString| {
+            let mut add = |name: Text| {
                 if let Some(RValue::Type(r#type)) = namespace.get(&name) {
                     map.insert(name.clone(), r#type);
                 }
@@ -288,7 +288,7 @@ impl_intern_key!(NamespaceId);
 #[derive(Clone, Debug, Eq)]
 pub struct Namespace {
     parent: Vec<Rc<Namespace>>,
-    map: HashMap<ImmutableString, RValue>,
+    map: HashMap<Text, RValue>,
 }
 
 pub fn empty_namespace(db: &(impl Interner + ?Sized)) -> NamespaceId {
@@ -345,7 +345,7 @@ impl Namespace {
         }
     }
 
-    fn get(&self, ident_value: &ImmutableString) -> Option<RValue> {
+    fn get(&self, ident_value: &Text) -> Option<RValue> {
         self.map.get(ident_value).cloned()
     }
 
@@ -364,7 +364,7 @@ impl Namespace {
         }
     }
 
-    fn sorted_map_entries(&self) -> Vec<(&ImmutableString, &RValue)> {
+    fn sorted_map_entries(&self) -> Vec<(&Text, &RValue)> {
         let mut content = self.map.iter().collect::<Vec<_>>();
         content.sort_by_key(|it| it.0);
         content

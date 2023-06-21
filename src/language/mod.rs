@@ -19,9 +19,7 @@ pub type InnerSpan = usize;
 pub type SpanLocation = Range<InnerSpan>;
 pub type SpanSource = SmolStr;
 
-// TODO Rename this type
-// Maybe Text?
-pub type ImmutableString = SmolStr;
+pub type Text = SmolStr;
 
 pub const CONDITIONS_LEN: usize = 6;
 pub const ACTIONS_LEN: usize = 8;
@@ -53,7 +51,7 @@ pub struct Spanned<T> {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
-    pub value: ImmutableString,
+    pub value: Text,
     pub span: Span,
 }
 

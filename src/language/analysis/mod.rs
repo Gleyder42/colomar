@@ -2,7 +2,7 @@ use crate::language::error::Trisult;
 use crate::language::im::{
     CalledType, CalledTypes, EventDeclarationId, RValue, StructDeclarationId, Type,
 };
-use crate::language::{Ident, ImmutableString};
+use crate::language::{Ident, Text};
 use crate::query_error;
 use decl::DeclDatabase;
 use def::DefDatabase;
@@ -88,8 +88,8 @@ pub enum AnalysisError {
         actual: CalledType,
         expected: Either<Type, CalledTypes>,
     },
-    CannotFindPrimitiveDeclaration(ImmutableString),
-    CannotFindNativeDefinition(ImmutableString),
+    CannotFindPrimitiveDeclaration(Text),
+    CannotFindNativeDefinition(Text),
 }
 
 impl AnalysisError {

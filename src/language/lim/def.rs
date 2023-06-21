@@ -3,7 +3,7 @@ use crate::language::analysis::QueryTrisult;
 use crate::language::im::AValue;
 use crate::language::lim::native;
 use crate::language::lim::tree::{Call, Category, NativeCode, TemplateNativeCode};
-use crate::language::{im, HashableHashMap, ImmutableString};
+use crate::language::{im, HashableHashMap, Text};
 
 use super::call;
 use super::function;
@@ -23,17 +23,17 @@ pub trait LimDefQuery: DefQuery {
 
     /// Impl [function::query_native_struct_code_map]
     #[salsa::invoke(function::query_native_struct_code_map)]
-    fn query_native_struct_code_map(&self) -> HashableHashMap<ImmutableString, native::Struct>;
+    fn query_native_struct_code_map(&self) -> HashableHashMap<Text, native::Struct>;
 
     /// Impl [function::query_native_struct_code]
     #[salsa::invoke(function::query_native_struct_code)]
-    fn query_native_struct_code(&self, name: ImmutableString) -> QueryTrisult<native::Struct>;
+    fn query_native_struct_code(&self, name: Text) -> QueryTrisult<native::Struct>;
 
     /// Impl [function::query_native_struct_property_code]
     #[salsa::invoke(function::query_native_struct_property_code)]
     fn query_native_struct_property_code(
         &self,
-        struct_name: ImmutableString,
-        property_name: ImmutableString,
+        struct_name: Text,
+        property_name: Text,
     ) -> QueryTrisult<NativeCode>;
 }

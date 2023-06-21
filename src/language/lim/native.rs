@@ -1,4 +1,4 @@
-use crate::language::{HashableHashMap, ImmutableString};
+use crate::language::{HashableHashMap, Text};
 use serde::Deserialize;
 use std::collections::HashMap;
 

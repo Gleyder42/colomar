@@ -3,8 +3,8 @@ use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::{EnumNameholder, Nameholder};
 use crate::language::ast::{SpannedBool, UseRestriction};
 use crate::language::{
-    Ident, ImmutableString, Span, Spanned, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
-    DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+    Ident, Span, Spanned, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
+    ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
@@ -200,12 +200,12 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> ImmutableString {
+    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
         match self {
             Type::Enum(decl_id) => db.lookup_intern_enum_decl(*decl_id).name.value,
             Type::Struct(decl_id) => db.lookup_intern_struct_decl(*decl_id).name.value,
             Type::Event(decl_id) => db.lookup_intern_event_decl(*decl_id).name.value,
-            Type::Unit => ImmutableString::from("Unit"),
+            Type::Unit => Text::from("Unit"),
         }
     }
 
@@ -242,7 +242,7 @@ pub struct CalledType {
 }
 
 impl CalledType {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> ImmutableString {
+    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
         self.r#type.name(db)
     }
 }
@@ -272,7 +272,7 @@ pub struct CalledTypes {
 }
 
 impl CalledTypes {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> ImmutableString {
+    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
         self.types
             .iter()
             .map(|it| it.name(db))
@@ -387,7 +387,7 @@ pub struct EventDefinition {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rule {
-    pub title: ImmutableString,
+    pub title: Text,
     pub event: EventDeclarationId,
     pub arguments: CalledArguments,
     pub conditions: Predicates,
@@ -516,8 +516,8 @@ impl AValue {
 /// Represent a value which is known at compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CValue {
-    String(ImmutableString, StructDeclarationId, Span),
-    Number(ImmutableString, StructDeclarationId, Span),
+    String(Text, StructDeclarationId, Span),
+    Number(Text, StructDeclarationId, Span),
 }
 
 impl CValue {

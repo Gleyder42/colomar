@@ -1,6 +1,6 @@
 use crate::impl_intern_key;
 use crate::language::PROPERTY_DECLS_LEN;
-use crate::language::{HashableHashMap, ImmutableString, CALLED_ARGUMENTS_LEN};
+use crate::language::{HashableHashMap, Text, CALLED_ARGUMENTS_LEN};
 use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -19,10 +19,10 @@ pub enum NativeCode {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct LiteralNativeCode(pub ImmutableString);
+pub struct LiteralNativeCode(pub Text);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct TemplateNativeCode(pub ImmutableString);
+pub struct TemplateNativeCode(pub Text);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct NativeFunc {
@@ -50,7 +50,7 @@ pub struct CallNativeEvent {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Rule {
-    name: ImmutableString,
+    name: Text,
     event: CallNativeEvent,
     conditions: Vec<Condition>,
     actions: Vec<Call>,
@@ -76,8 +76,8 @@ pub enum Call {
         args: HashableHashMap<String, Box<Call>>,
     },
     Condition(Condition),
-    String(ImmutableString),
-    Number(ImmutableString),
+    String(Text),
+    Number(Text),
     Boolean(bool),
 }
 

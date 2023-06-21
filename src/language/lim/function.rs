@@ -3,7 +3,7 @@ use crate::language::im::{AValue, RValue};
 use crate::language::lim::def::LimDefQuery;
 use crate::language::lim::native;
 use crate::language::lim::tree::{NativeCode, TemplateNativeCode};
-use crate::language::{im, HashableHashMap, ImmutableString};
+use crate::language::{im, HashableHashMap, Text};
 use chumsky::prelude::todo;
 use smol_str::SmolStr;
 use std::collections::HashMap;
@@ -44,8 +44,8 @@ pub(super) fn query_native_code(db: &dyn LimDefQuery, avalue: AValue) -> QueryTr
 
 pub(super) fn query_native_struct_property_code(
     db: &dyn LimDefQuery,
-    struct_name: ImmutableString,
-    property_name: ImmutableString,
+    struct_name: Text,
+    property_name: Text,
 ) -> QueryTrisult<NativeCode> {
     db.query_native_struct_code(struct_name)
         .flat_map(|native_struct| {
@@ -58,13 +58,13 @@ pub(super) fn query_native_struct_property_code(
                 .into()
         })
         // TODO Check code
-        .map(|it| NativeCode::Template(TemplateNativeCode(ImmutableString::new(it))))
+        .map(|it| NativeCode::Template(TemplateNativeCode(Text::new(it))))
         .into()
 }
 
 pub(super) fn query_native_struct_code(
     db: &dyn LimDefQuery,
-    name: ImmutableString,
+    name: Text,
 ) -> QueryTrisult<native::Struct> {
     db.query_native_struct_code_map()
         .0
@@ -77,7 +77,7 @@ pub(super) fn query_native_struct_code(
 // TODO Move this to another package
 pub(super) fn query_native_struct_code_map(
     db: &dyn LimDefQuery,
-) -> HashableHashMap<ImmutableString, native::Struct> {
+) -> HashableHashMap<Text, native::Struct> {
     let map = db
         .input_native_code()
         .into_iter()

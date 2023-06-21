@@ -1,5 +1,5 @@
 use crate::language::{
-    Ident, ImmutableString, Span, Spanned, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
+    Ident, Span, Spanned, Text, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
@@ -218,7 +218,7 @@ pub struct DeclaredArgument {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Rule {
-    pub name: Spanned<ImmutableString>,
+    pub name: Spanned<Text>,
     pub event: Ident,
     pub arguments: CallArguments,
     pub conditions: Conditions,
@@ -289,13 +289,13 @@ pub enum Call {
     /// ## Example
     /// - "Hello World"
     /// - "Greetings"
-    String(ImmutableString, Span),
+    String(Text, Span),
     /// A number literal
     /// ## Example
     /// - 12
     /// - 1.5
     /// - 0
-    Number(ImmutableString, Span),
+    Number(Text, Span),
 }
 
 impl From<Ident> for Box<Call> {

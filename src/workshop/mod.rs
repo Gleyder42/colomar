@@ -1,20 +1,20 @@
-use crate::language::ImmutableString;
+use crate::language::Text;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
 pub struct WorkshopTree(pub Vec<Rule>);
 
-pub struct HeroSlot(pub ImmutableString);
+pub struct HeroSlot(pub Text);
 
-pub struct Team(pub ImmutableString);
+pub struct Team(pub Text);
 
-pub struct Event(pub ImmutableString);
+pub struct Event(pub Text);
 
-pub struct Condition(pub ImmutableString);
+pub struct Condition(pub Text);
 
-pub struct Action(pub ImmutableString);
+pub struct Action(pub Text);
 
-pub struct CustomString(pub ImmutableString);
+pub struct CustomString(pub Text);
 
 pub struct Rule {
     pub name: CustomString,
