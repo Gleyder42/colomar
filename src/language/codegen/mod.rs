@@ -1,6 +1,6 @@
 mod call;
 mod def;
-mod function;
+mod native_conf;
 mod native;
 
 use crate::language::analysis::def::DefQuery;
