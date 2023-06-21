@@ -1,12 +1,11 @@
 use crate::language::analysis::{AnalysisError, QueryTrisult};
+use crate::language::codegen::def::LimDefQuery;
+use crate::language::codegen::native;
 use crate::language::im::{AValue, RValue};
-use crate::language::lim::def::LimDefQuery;
-use crate::language::lim::native;
-use crate::language::lim::tree::{NativeCode, TemplateNativeCode};
+use crate::language::lim::{NativeCode, TemplateNativeCode};
 use crate::language::{im, HashableHashMap, Text};
-use chumsky::prelude::todo;
 use smol_str::SmolStr;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 pub(super) fn query_native_code(db: &dyn LimDefQuery, avalue: AValue) -> QueryTrisult<NativeCode> {
     match avalue {
@@ -66,7 +65,6 @@ pub(super) fn query_native_struct_code(
     name: Text,
 ) -> QueryTrisult<native::Struct> {
     db.query_native_struct_code_map()
-        .0
         .get(&name)
         .cloned()
         .ok_or(AnalysisError::CannotFindNativeDefinition(name))
@@ -74,11 +72,8 @@ pub(super) fn query_native_struct_code(
 }
 
 // TODO Move this to another package
-pub(super) fn query_native_struct_code_map(
-    db: &dyn LimDefQuery,
-) -> HashableHashMap<Text, native::Struct> {
-    let map = db
-        .input_native_code()
+pub(super) fn query_native_struct_code_map(db: &dyn LimDefQuery) -> BTreeMap<Text, native::Struct> {
+    db.input_native_code()
         .into_iter()
         .filter_map(|element| {
             if let native::Element::Struct(name, r#struct) = element {
@@ -87,6 +82,5 @@ pub(super) fn query_native_struct_code_map(
                 None
             }
         })
-        .collect::<HashMap<_, _>>();
-    HashableHashMap(map)
+        .collect::<BTreeMap<_, _>>()
 }

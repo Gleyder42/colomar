@@ -1,9 +1,9 @@
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::Namespace;
+use crate::language::analysis::QueryTrisult;
 use crate::language::ast;
 use smallvec::{Array, SmallVec};
 use std::fmt::Debug;
-use crate::language::analysis::QueryTrisult;
 
 /// Trisult is similar to [Result] but has one more in-between state.
 /// These states are
@@ -188,7 +188,6 @@ where
 }
 
 impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
-
     /// Folds all elements of the current [Trisult] while having a context.
     /// The context is not part of the accumulator.
     ///

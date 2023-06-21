@@ -1,9 +1,10 @@
 use crate::language::analysis::def::DefQuery;
 use crate::language::analysis::QueryTrisult;
+use crate::language::codegen::native;
 use crate::language::im::AValue;
-use crate::language::lim::native;
-use crate::language::lim::tree::{Call, Category, NativeCode, TemplateNativeCode};
-use crate::language::{im, HashableHashMap, Text};
+use crate::language::lim::{Call, NativeCode};
+use crate::language::{im, Text};
+use std::collections::BTreeMap;
 
 use super::call;
 use super::function;
@@ -23,7 +24,7 @@ pub trait LimDefQuery: DefQuery {
 
     /// Impl [function::query_native_struct_code_map]
     #[salsa::invoke(function::query_native_struct_code_map)]
-    fn query_native_struct_code_map(&self) -> HashableHashMap<Text, native::Struct>;
+    fn query_native_struct_code_map(&self) -> BTreeMap<Text, native::Struct>;
 
     /// Impl [function::query_native_struct_code]
     #[salsa::invoke(function::query_native_struct_code)]
