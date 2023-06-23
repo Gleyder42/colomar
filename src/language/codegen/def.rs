@@ -39,7 +39,7 @@ pub trait LimDefQuery: DefQuery {
         &self,
         struct_name: Text,
         property_name: Text,
-    ) -> QueryTrisult<LiteralOwscript>;
+    ) -> QueryTrisult<Owscript>;
 
     /// Impl [native::query_owscript_struct_property_impl]
     #[salsa::invoke(native::query_owscript_struct_property_impl)]
@@ -47,7 +47,7 @@ pub trait LimDefQuery: DefQuery {
         &self,
         struct_name: Text,
         property_name: Text,
-    ) -> QueryTrisult<String>;
+    ) -> QueryTrisult<Owscript>;
 
     /// Impl [native::query_owscript_property_impl]
     #[salsa::invoke(native::query_owscript_property_impl)]

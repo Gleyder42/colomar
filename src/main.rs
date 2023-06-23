@@ -24,10 +24,8 @@ use std::path::Path;
 use crate::language::analysis::decl::DeclQuery;
 use crate::language::analysis::def::DefQuery;
 
-mod compiler;
 pub mod language;
 pub mod test_assert;
-pub mod workshop;
 
 fn main() {
     let filename = "milestone_one.colo";

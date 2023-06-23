@@ -60,12 +60,13 @@ pub(super) fn query_owscript_property_impl(
     let instance = property_decl.instance.unwrap();
 
     match instance {
-        Type::Enum(_) => db
-            .query_owscript_event_context_variable_impl(instance.name(db), property_decl.name.value)
-            .map(|literal| Owscript::Literal(literal)),
-        Type::Struct(_) => db
-            .query_owscript_struct_property_impl(instance.name(db), property_decl.name.value)
-            .map(|raw_script| Owscript::from(raw_script)),
+        Type::Enum(_) => db.query_owscript_event_context_variable_impl(
+            instance.name(db),
+            property_decl.name.value,
+        ),
+        Type::Struct(_) => {
+            db.query_owscript_struct_property_impl(instance.name(db), property_decl.name.value)
+        }
         Type::Event(_) => {
             todo!("Event properties are not yet implemented")
         }
@@ -79,7 +80,7 @@ pub(super) fn query_owscript_struct_property_impl(
     db: &dyn LimDefQuery,
     struct_name: Text,
     property_name: Text,
-) -> QueryTrisult<String> {
+) -> QueryTrisult<Owscript> {
     db.query_owscript_struct_impl(struct_name)
         .flat_map(|owscript_impl| {
             owscript_impl
@@ -89,13 +90,14 @@ pub(super) fn query_owscript_struct_property_impl(
                 .ok_or(AnalysisError::CannotFindNativeDefinition(property_name))
                 .into()
         })
+        .map(|script| Owscript::from(script))
 }
 
 pub(super) fn query_owscript_event_context_variable_impl(
     db: &dyn LimDefQuery,
     struct_name: Text,
     property_name: Text,
-) -> QueryTrisult<LiteralOwscript> {
+) -> QueryTrisult<Owscript> {
     db.query_owscript_event_impl(struct_name)
         .flat_map(|native_event| {
             native_event
@@ -105,14 +107,7 @@ pub(super) fn query_owscript_event_context_variable_impl(
                 .ok_or(AnalysisError::CannotFindNativeDefinition(property_name))
                 .into()
         })
-        .flat_map(|script| {
-            Owscript::from(script)
-                .literal_or_none()
-                .ok_or(AnalysisError::InvalidNativeDefinition(
-                    "Owscript for event context variables must be literal",
-                ))
-                .into()
-        })
+        .map(|script| Owscript::from(script))
 }
 
 macro_rules! impl_owscript_queries {

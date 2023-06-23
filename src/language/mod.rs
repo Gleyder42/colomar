@@ -14,6 +14,7 @@ pub mod im;
 pub mod lexer;
 pub mod lim;
 pub mod parser;
+mod workshop;
 
 pub type InnerSpan = usize;
 pub type SpanLocation = Range<InnerSpan>;

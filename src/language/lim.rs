@@ -92,11 +92,10 @@ lazy_static! {
 }
 
 impl Owscript {
-    pub fn literal_or_none(self) -> Option<LiteralOwscript> {
-        match self {
-            Owscript::Literal(literal) => Some(literal),
-            Owscript::Placeholder(_) => None,
-        }
+
+    pub fn saturated(&self) -> Call {
+
+        todo!()
     }
 }
 
