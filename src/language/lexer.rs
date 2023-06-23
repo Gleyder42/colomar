@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond native event enum by open struct getval val fn type";
+        let code = "rule cond native event enum by open struct getvar val fn type";
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 

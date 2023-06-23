@@ -51,11 +51,12 @@ fn ident() -> impl Parser<char, Token, Error = Simple<char>> {
 }
 
 pub fn lexer() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
-    let ctrl = one_of("()").map(Token::Ctrl);
+    let ctrl = one_of("(),").map(Token::Ctrl);
 
     let token = choice((ident(), ctrl)).recover_with(skip_then_retry_until([]));
 
     token
+        .padded()
         .repeated()
 }
 
@@ -99,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_lexer() {
-        let code = "Is Reloading(Event Player)";
+        let code = "Is Reloading(Event Player, Event Player)";
         let actual = lexer()
             .then_ignore(end())
             .parse(code)
@@ -108,6 +109,8 @@ mod tests {
         let expected = [
             Token::Ident(Text::new("Is Reloading")),
             Token::Ctrl('('),
+            Token::Ident(Text::new("Event Player")),
+            Token::Ctrl(','),
             Token::Ident(Text::new("Event Player")),
             Token::Ctrl(')'),
         ];
