@@ -414,6 +414,6 @@ where
 #[macro_export]
 macro_rules! query_error {
     ($($x:expr),+ $(,)?) => {
-        Trisult::Err(vec![$($x),+])
+        crate::language::error::Trisult::Err(vec![$($x),+])
     };
 }

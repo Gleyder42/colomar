@@ -286,6 +286,9 @@ fn main() {
                 AnalysisError::CannotFindNativeDefinition(_) => {
                     todo!()
                 }
+                AnalysisError::InvalidNativeDefinition(_) => {
+                    todo!()
+                }
             }
         }
         println!(

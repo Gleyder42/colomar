@@ -51,6 +51,7 @@ pub struct Spanned<T> {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
+    // TODO Maybe rename this to Text?
     pub value: Text,
     pub span: Span,
 }

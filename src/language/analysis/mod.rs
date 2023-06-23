@@ -90,6 +90,8 @@ pub enum AnalysisError {
     },
     CannotFindPrimitiveDeclaration(Text),
     CannotFindNativeDefinition(Text),
+    // TODO Add more information
+    InvalidNativeDefinition(&'static str),
 }
 
 impl AnalysisError {
@@ -102,6 +104,7 @@ impl AnalysisError {
             AnalysisError::WrongType { .. } => 5,
             AnalysisError::CannotFindPrimitiveDeclaration(_) => 6,
             AnalysisError::CannotFindNativeDefinition(_) => 7,
+            AnalysisError::InvalidNativeDefinition(_) => 8,
         }
     }
 }
