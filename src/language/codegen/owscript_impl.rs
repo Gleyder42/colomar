@@ -1,7 +1,5 @@
 use crate::language::codegen::HashableMap;
-use crate::language::{HashableHashMap, Text};
 use serde::Deserialize;
-use std::collections::{BTreeMap, HashMap};
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Element {

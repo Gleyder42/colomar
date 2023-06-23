@@ -4,7 +4,6 @@ use crate::language::codegen::{owscript_impl, HashableMap};
 use crate::language::im::{AValue, PropertyDecl};
 use crate::language::lim::{Call, LiteralOwscript, Owscript};
 use crate::language::{im, Text};
-use std::collections::BTreeMap;
 
 use super::call;
 use super::native;

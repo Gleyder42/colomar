@@ -17,8 +17,6 @@ pub(super) fn query_lim_call(
                     todo!()
                 }
                 AValue::RValue(RValue::Property(property_decl), _) => {
-
-
                     todo!()
                 }
                 AValue::RValue(RValue::Type(_), _) => {

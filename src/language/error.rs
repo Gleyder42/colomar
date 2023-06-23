@@ -1,6 +1,5 @@
 use crate::language::analysis::interner::{Interner, IntoInternId};
 use crate::language::analysis::namespace::Namespace;
-use crate::language::analysis::QueryTrisult;
 use crate::language::ast;
 use smallvec::{Array, SmallVec};
 use std::fmt::Debug;

@@ -1,13 +1,9 @@
 use crate::impl_intern_key;
-use crate::language::codegen::def::LimDefQuery;
 use crate::language::codegen::HashableMap;
-use crate::language::PROPERTY_DECLS_LEN;
-use crate::language::{HashableHashMap, Text, CALLED_ARGUMENTS_LEN};
+use crate::language::Text;
 use lazy_static::lazy_static;
 use regex::Regex;
-use smallvec::SmallVec;
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Category {
