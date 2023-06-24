@@ -14,7 +14,7 @@ pub fn assert_vec<T: PartialEq + std::fmt::Debug>(a: &Vec<T>, b: &Vec<T>) {
 #[macro_export]
 macro_rules! assert_iterator {
     ($a:expr, $b:expr) => {
-        assert_eq!($a.len(), $b.len(), "{:?} and {:?}", $a, $b);
+        assert_eq!($a.len(), $b.len(), "{:?} and {:?} do not have the same length", $a, $b);
 
         $a.into_iter()
             .zip($b.into_iter())

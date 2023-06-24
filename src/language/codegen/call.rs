@@ -1,15 +1,16 @@
-use crate::language::analysis::QueryTrisult;
+use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::codegen::def::LimDefQuery;
 use crate::language::im::{AValue, CValue, RValue};
-use crate::language::lim::Call;
+use crate::language::lim::{Call, LiteralOwscript};
 use crate::language::{im, Text};
+use crate::query_error;
 
 pub(super) fn query_lim_call(
     db: &dyn LimDefQuery,
     avalue_chain: im::AValueChain,
 ) -> QueryTrisult<Call> {
-    QueryTrisult::Ok(avalue_chain.avalues).fold_with::<Option<Text>, Option<Call>, _>(
-        None,
+    QueryTrisult::Ok(avalue_chain.avalues).fold_with::<QueryTrisult<LiteralOwscript>, Option<Call>, _>(
+        query_error!(AnalysisError::NoCaller),
         None,
         |caller, acc, avalue| {
             let call: QueryTrisult<Call> = match avalue {
@@ -17,6 +18,10 @@ pub(super) fn query_lim_call(
                     todo!()
                 }
                 AValue::RValue(RValue::Property(property_decl), _) => {
+                    db.query_owscript_property_impl(property_decl)
+                        .and_require(caller)
+                        .map(|(script, caller)| script.saturate(caller));
+
                     todo!()
                 }
                 AValue::RValue(RValue::Type(_), _) => {

@@ -59,14 +59,11 @@ pub(super) fn query_owscript_property_impl(
     // Relies on assert
     let instance = property_decl.instance.unwrap();
 
+    let struct_name = instance.name(db);
+    let property_name = property_decl.name.value;
     match instance {
-        Type::Enum(_) => db.query_owscript_event_context_variable_impl(
-            instance.name(db),
-            property_decl.name.value,
-        ),
-        Type::Struct(_) => {
-            db.query_owscript_struct_property_impl(instance.name(db), property_decl.name.value)
-        }
+        Type::Enum(_) => db.query_owscript_event_context_variable_impl(struct_name, property_name),
+        Type::Struct(_) => db.query_owscript_struct_property_impl(struct_name, property_name),
         Type::Event(_) => {
             todo!("Event properties are not yet implemented")
         }

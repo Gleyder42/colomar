@@ -19,7 +19,7 @@ impl Display for Token {
             Token::Ident(text) => write!(f, "Ident {}", text),
             Token::String(text) => write!(f, "String {}", text),
             Token::Number(text) => write!(f, "Number {}", text),
-            Token::Ctrl(ctrl) => write!(f, "{}", ctrl)
+            Token::Ctrl(ctrl) => write!(f, "{}", ctrl),
         }
     }
 }
@@ -55,16 +55,14 @@ pub fn lexer() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
 
     let token = choice((ident(), ctrl)).recover_with(skip_then_retry_until([]));
 
-    token
-        .padded()
-        .repeated()
+    token.padded().repeated()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chumsky::prelude::end;
     use crate::assert_iterator;
+    use chumsky::prelude::end;
 
     #[test]
     fn test_idents() {

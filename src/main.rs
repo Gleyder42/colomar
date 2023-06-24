@@ -287,6 +287,9 @@ fn main() {
                 AnalysisError::InvalidNativeDefinition(_) => {
                     todo!()
                 }
+                AnalysisError::NoCaller => {
+                    todo!()
+                }
             }
         }
         println!(

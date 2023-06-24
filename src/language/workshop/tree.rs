@@ -11,7 +11,7 @@ pub struct Event {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Element {
+pub enum Call {
     Condition(Condition),
     Ident(Ident),
     Function(Function),
@@ -20,7 +20,7 @@ pub enum Element {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Function {
     pub name: Ident,
-    pub args: Vec<Element>,
+    pub args: Vec<Call>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

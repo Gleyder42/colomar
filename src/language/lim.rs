@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::impl_intern_key;
 use crate::language::codegen::HashableMap;
 use crate::language::Text;
@@ -22,7 +23,7 @@ pub enum Owscript {
 pub struct LiteralOwscript(pub Text);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct PlaceholderOwscript(pub Text);
+pub struct PlaceholderOwscript(Text);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct NativeFunc {
@@ -88,14 +89,26 @@ impl_intern_key!(NativeFuncId);
 impl_intern_key!(NativeEventId);
 
 lazy_static! {
-    static ref TEMPLATE_REGEX: Regex = Regex::new("%\\w*%").unwrap();
+    static ref TEMPLATE_REGEX: Regex = Regex::new(r#"\$\w*\$"#).unwrap();
+}
+
+impl LiteralOwscript {
+
+    pub fn new(text: impl Into<Text>) -> Self {
+        LiteralOwscript(text.into())
+    }
 }
 
 impl Owscript {
 
-    pub fn saturated(&self) -> Call {
-
-        todo!()
+    pub fn saturate(self, caller: LiteralOwscript) -> LiteralOwscript {
+        match self {
+            Owscript::Literal(literal) => literal,
+            Owscript::Placeholder(placeholder) => {
+                let string = placeholder.0.replace("$caller$", caller.0.as_str());
+                LiteralOwscript::new(string)
+            }
+        }
     }
 }
 
@@ -123,14 +136,18 @@ impl From<LiteralOwscript> for Text {
 
 #[cfg(test)]
 mod tests {
+    use crate::assert_iterator;
     use super::*;
 
     #[test]
     fn test_regex_capture() {
-        let code = "Small Message(%caller%, %message%)";
+        let code = "Small Message($caller$, $message$)";
+        let expected_names = ["$caller$", "$message$"];
 
-        let num = TEMPLATE_REGEX.captures_iter(code).count();
+        let actual_name: Vec<_> = TEMPLATE_REGEX.find_iter(code).into_iter()
+            .map(|mat| mat.as_str())
+            .collect();
 
-        assert_eq!(num, 2);
+        assert_iterator!(actual_name, expected_names);
     }
 }
