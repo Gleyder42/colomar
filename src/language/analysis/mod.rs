@@ -106,7 +106,7 @@ impl AnalysisError {
             AnalysisError::CannotFindPrimitiveDeclaration(_) => 6,
             AnalysisError::CannotFindNativeDefinition(_) => 7,
             AnalysisError::InvalidNativeDefinition(_) => 8,
-            AnalysisError::NoCaller => 9
+            AnalysisError::NoCaller => 9,
         }
     }
 }

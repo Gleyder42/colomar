@@ -2,7 +2,7 @@ use crate::language::Text;
 use chumsky::error::Simple;
 use chumsky::prelude::*;
 use chumsky::text::Character;
-use chumsky::{text, Parser};
+use chumsky::Parser;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]

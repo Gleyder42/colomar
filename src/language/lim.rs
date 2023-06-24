@@ -1,4 +1,3 @@
-use std::fmt::{Display, Formatter};
 use crate::impl_intern_key;
 use crate::language::codegen::HashableMap;
 use crate::language::Text;
@@ -93,14 +92,12 @@ lazy_static! {
 }
 
 impl LiteralOwscript {
-
     pub fn new(text: impl Into<Text>) -> Self {
         LiteralOwscript(text.into())
     }
 }
 
 impl Owscript {
-
     pub fn saturate(self, caller: LiteralOwscript) -> LiteralOwscript {
         match self {
             Owscript::Literal(literal) => literal,
@@ -136,15 +133,17 @@ impl From<LiteralOwscript> for Text {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_iterator;
     use super::*;
+    use crate::assert_iterator;
 
     #[test]
     fn test_regex_capture() {
         let code = "Small Message($caller$, $message$)";
         let expected_names = ["$caller$", "$message$"];
 
-        let actual_name: Vec<_> = TEMPLATE_REGEX.find_iter(code).into_iter()
+        let actual_name: Vec<_> = TEMPLATE_REGEX
+            .find_iter(code)
+            .into_iter()
             .map(|mat| mat.as_str())
             .collect();
 

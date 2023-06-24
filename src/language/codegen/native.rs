@@ -2,7 +2,7 @@ use crate::language::analysis::{AnalysisError, QueryTrisult};
 use crate::language::codegen::def::LimDefQuery;
 use crate::language::codegen::{owscript_impl, HashableMap};
 use crate::language::im::{AValue, PropertyDecl, RValue, Type};
-use crate::language::lim::{LiteralOwscript, Owscript};
+use crate::language::lim::Owscript;
 use crate::language::Text;
 
 pub(super) fn query_native_code(db: &dyn LimDefQuery, avalue: AValue) -> QueryTrisult<Owscript> {
