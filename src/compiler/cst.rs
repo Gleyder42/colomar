@@ -1,6 +1,7 @@
-use crate::language::{
-    Ident, Span, Spanned, Text, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
-    FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+use crate::compiler::trisult::Trisult;
+use crate::compiler::{
+    Ident, Span, Spanned, SpannedBool, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN,
+    DECLARED_ARGUMENTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
 
@@ -11,8 +12,6 @@ pub type Actions = SmallVec<[Action; ACTIONS_LEN]>;
 pub type DeclaredArguments = SmallVec<[DeclaredArgument; DECLARED_ARGUMENTS_LEN]>;
 pub type PropertyDecls = SmallVec<[PropertyDeclaration; PROPERTY_DECLS_LEN]>;
 pub type FunctionDecls = SmallVec<[FunctionDeclaration; FUNCTIONS_DECLS_LEN]>;
-
-pub type SpannedBool = Option<Spanned<()>>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Definition {
@@ -114,19 +113,6 @@ pub struct Event {
     pub declaration: EventDeclaration,
     pub definition: EventDefinition,
     pub span: Span,
-}
-
-// TODO Rename maybe to Get and Set Restriction
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub enum UseRestriction {
-    /// Can not be assigned directly, but can be accessed
-    GetVar,
-    /// Can be assigned, but not be accessed
-    SetVar,
-    /// Can only be assigned once and be accessed
-    Val,
-    /// Can be assigned and accessed
-    Var,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -301,5 +287,11 @@ pub enum Call {
 impl From<Ident> for Box<Call> {
     fn from(value: Ident) -> Self {
         Box::new(Call::Ident(value))
+    }
+}
+
+impl<E> From<CallChain> for Trisult<CallChain, E> {
+    fn from(value: CallChain) -> Self {
+        Trisult::Ok(value)
     }
 }

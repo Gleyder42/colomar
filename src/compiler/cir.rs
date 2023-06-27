@@ -1,11 +1,9 @@
-use crate::impl_intern_key;
-use crate::language::analysis::interner::{Interner, IntoInternId};
-use crate::language::analysis::namespace::{EnumNameholder, Nameholder};
-use crate::language::ast::{SpannedBool, UseRestriction};
-use crate::language::{
-    Ident, Span, Spanned, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
-    ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+use crate::compiler::UseRestriction;
+use crate::compiler::{
+    Ident, Span, Spanned, SpannedBool, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
+    DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
+use crate::impl_intern_key;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -78,14 +76,6 @@ pub struct FunctionDeclId(salsa::InternId);
 
 impl_intern_key!(FunctionDeclId);
 
-impl IntoInternId for FunctionDecl {
-    type Interned = FunctionDeclId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
-        db.intern_function_decl(self)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PropertyDecl {
     pub instance: Option<Type>,
@@ -99,14 +89,6 @@ pub struct PropertyDecl {
 pub struct PropertyDeclId(salsa::InternId);
 
 impl_intern_key!(PropertyDeclId);
-
-impl IntoInternId for PropertyDecl {
-    type Interned = PropertyDeclId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
-        db.intern_property_decl(self)
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Struct {
@@ -127,14 +109,6 @@ pub struct StructDefinition {
     pub properties: PropertyDeclIds,
 }
 
-impl IntoInternId for StructDeclaration {
-    type Interned = StructDeclarationId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> StructDeclarationId {
-        db.intern_struct_decl(self)
-    }
-}
-
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct StructDeclarationId(salsa::InternId);
 
@@ -146,27 +120,12 @@ pub struct EnumDeclaration {
     pub is_native: SpannedBool,
 }
 
-impl IntoInternId for EnumDeclaration {
-    type Interned = EnumDeclarationId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> EnumDeclarationId {
-        db.intern_enum_decl(self)
-    }
-}
-
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct EnumDeclarationId(salsa::InternId);
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct EnumConstantId(salsa::InternId);
 
-impl IntoInternId for EnumConstant {
-    type Interned = EnumConstantId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> EnumConstantId {
-        db.intern_enum_constant(self)
-    }
-}
 impl_intern_key!(EnumDeclarationId);
 
 impl_intern_key!(EnumConstantId);
@@ -199,52 +158,15 @@ pub enum Type {
     Unit,
 }
 
-impl Type {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
-        match self {
-            Type::Enum(decl_id) => db.lookup_intern_enum_decl(*decl_id).name.value,
-            Type::Struct(decl_id) => db.lookup_intern_struct_decl(*decl_id).name.value,
-            Type::Event(decl_id) => db.lookup_intern_event_decl(*decl_id).name.value,
-            Type::Unit => Text::from("Unit"),
-        }
-    }
-
-    pub fn decl_ident(&self, db: &(impl Interner + ?Sized)) -> Option<Ident> {
-        match self {
-            Type::Enum(r#enum) => Some(db.lookup_intern_enum_decl(*r#enum).name),
-            Type::Struct(r#struct) => Some(db.lookup_intern_struct_decl(*r#struct).name),
-            Type::Event(event) => Some(db.lookup_intern_event_decl(*event).name),
-            Type::Unit => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Predicate {
     pub return_value: AValueChain,
-}
-
-impl From<Type> for Nameholder {
-    fn from(value: Type) -> Self {
-        match value {
-            Type::Enum(r#enum) => Nameholder::Enum(EnumNameholder::ByEnum(r#enum)),
-            Type::Struct(r#struct) => Nameholder::Struct(r#struct),
-            Type::Event(event) => Nameholder::Event(event),
-            Type::Unit => Nameholder::Empty,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledType {
     pub r#type: Type,
     pub span: Span,
-}
-
-impl CalledType {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
-        self.r#type.name(db)
-    }
 }
 
 impl Display for CalledType {
@@ -269,17 +191,6 @@ pub struct CalledTypes {
     // TODO Use small_vec here
     pub types: Vec<CalledType>,
     pub span: Span,
-}
-
-impl CalledTypes {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
-        self.types
-            .iter()
-            .map(|it| it.name(db))
-            .collect::<Vec<_>>()
-            .join(", ")
-            .into()
-    }
 }
 
 impl From<CalledType> for CalledTypes {
@@ -318,14 +229,6 @@ pub struct CalledArgumentId(salsa::InternId);
 
 impl_intern_key!(CalledArgumentId);
 
-impl IntoInternId for CalledArgument {
-    type Interned = CalledArgumentId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
-        db.intern_called_argument(self)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledArgument {
     /// The [DeclaredArgumentId] has not necessarily the same type as the value.
@@ -342,14 +245,6 @@ pub struct DeclaredArgument {
     pub default_value: Option<AValueChain>,
 }
 
-impl IntoInternId for DeclaredArgument {
-    type Interned = DeclaredArgumentId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> DeclaredArgumentId {
-        db.intern_decl_arg(self)
-    }
-}
-
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct DeclaredArgumentId(salsa::InternId);
 
@@ -363,14 +258,6 @@ impl_intern_key!(EventDeclarationId);
 pub struct EventDeclaration {
     pub name: Ident,
     pub span: Span,
-}
-
-impl IntoInternId for EventDeclaration {
-    type Interned = EventDeclarationId;
-
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> EventDeclarationId {
-        db.intern_event_decl(self)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -402,51 +289,6 @@ pub enum RValue {
     Function(FunctionDecl),
     Property(PropertyDecl),
     EnumConstant(EnumConstantId),
-}
-
-impl From<RValue> for Nameholder {
-    fn from(value: RValue) -> Self {
-        match value {
-            RValue::Type(r#type) => r#type.into(),
-            RValue::EnumConstant(enum_constant_id) => {
-                EnumNameholder::ByConstant(enum_constant_id).into()
-            }
-            RValue::Property(property_decl) => property_decl.r#type.into(),
-            RValue::Function(function_decl) => function_decl.return_type.into(),
-        }
-    }
-}
-
-impl RValue {
-    pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> Type {
-        match self {
-            // What is the type of type?
-            RValue::Type(r#type) => r#type.clone(),
-            RValue::EnumConstant(enum_constant_id) => {
-                let enum_constant: EnumConstant = db.lookup_intern_enum_constant(*enum_constant_id);
-                Type::Enum(enum_constant.r#enum)
-            }
-            RValue::Property(property_decl) => property_decl.r#type.clone(),
-            RValue::Function(function_decl) => function_decl.return_type.clone(),
-        }
-    }
-
-    pub fn name<I: Interner + ?Sized>(&self, db: &I) -> Ident {
-        // TODO Maybe not clone here?
-        match self.clone() {
-            RValue::Type(r#type) => match r#type {
-                Type::Enum(r#enum) => db.lookup_intern_enum_decl(r#enum).name,
-                Type::Struct(r#struct) => db.lookup_intern_struct_decl(r#struct).name,
-                Type::Event(event) => db.lookup_intern_event_decl(event).name,
-                Type::Unit => panic!("Unit type has no name"),
-            },
-            RValue::EnumConstant(enum_constant) => {
-                db.lookup_intern_enum_constant(enum_constant).name
-            }
-            RValue::Property(property_decl) => property_decl.name,
-            RValue::Function(function_decl) => function_decl.name,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -488,27 +330,6 @@ impl AValue {
             AValue::FunctionCall(_, _, span) => span.clone(),
             AValue::RValue(_, span) => span.clone(),
             AValue::CValue(cvalue) => cvalue.span(),
-        }
-    }
-
-    // TODO Rename this to return_type
-    pub fn return_called_type<I: Interner + ?Sized>(&self, db: &I) -> CalledType {
-        match self {
-            AValue::RValue(rvalue, span) => CalledType {
-                r#type: rvalue.r#type(db),
-                span: span.clone(),
-            },
-            AValue::CValue(cvalue) => CalledType {
-                r#type: cvalue.r#type(),
-                span: cvalue.span(),
-            },
-            AValue::FunctionCall(function_decl_id, _, span) => {
-                let function_decl: FunctionDecl = db.lookup_intern_function_decl(*function_decl_id);
-                CalledType {
-                    r#type: function_decl.return_type,
-                    span: span.clone(),
-                }
-            }
         }
     }
 }
