@@ -1,10 +1,10 @@
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::analysis::{AnalysisError, QueryTrisult};
 use crate::compiler::cir::{AValueChain, EventDeclarationId, Predicate, RValue, Type};
 use crate::compiler::cst::{Action, Actions, Conditions};
+use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{cir, cst};
+use crate::compiler::{cir, cst, QueryTrisult};
 use crate::query_error;
 
 use either::Either;
@@ -61,7 +61,7 @@ pub(super) fn query_rule_cond(
                     if called_type.r#type == bool_id {
                         Trisult::Ok(avalue_chain)
                     } else {
-                        query_error!(AnalysisError::WrongType {
+                        query_error!(CompilerError::WrongType {
                             actual: called_type,
                             expected: Either::Left(bool_id.clone())
                         })

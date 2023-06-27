@@ -1,13 +1,13 @@
 use crate::compiler::analysis::file::DefKey;
 use crate::compiler::analysis::interner::Interner;
 use crate::compiler::analysis::namespace::{Nameholders, Namespace, NamespaceId};
-use crate::compiler::analysis::{AnalysisError, QueryTrisult};
 use crate::compiler::cir::{
     AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId,
     FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId, Type,
 };
 use crate::compiler::cst::Actions;
-use crate::compiler::{cir, cst, Ident, Text};
+use crate::compiler::error::CompilerError;
+use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
 
 use cir::{AValue, DeclaredArgumentId};
 use cst::Ast;
@@ -118,7 +118,7 @@ pub trait DeclQuery: Interner {
 
     /// Impl: [eenum::query_enum_ast]
     #[salsa::invoke(eenum::query_enum_ast)]
-    fn query_enum_ast(&self, enum_decl: EnumDeclarationId) -> Result<cst::Enum, AnalysisError>;
+    fn query_enum_ast(&self, enum_decl: EnumDeclarationId) -> Result<cst::Enum, CompilerError>;
 
     /// Impl: [eenum::query_enum_def]
     #[salsa::invoke(eenum::query_enum_def)]

@@ -1,5 +1,5 @@
 use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::analysis::QueryTrisult;
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
 
 pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Im> {

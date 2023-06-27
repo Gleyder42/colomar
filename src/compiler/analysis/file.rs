@@ -1,8 +1,9 @@
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::{AnalysisError, QueryTrisult};
 use crate::compiler::cir::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
 use crate::compiler::cst::{Definition, EventDefinition, Root, StructDefinition};
+use crate::compiler::error::CompilerError;
 
+use crate::compiler::QueryTrisult;
 use either::Either;
 use std::collections::HashMap;
 
@@ -32,7 +33,7 @@ pub(super) fn query_ast_struct_def(
 ) -> QueryTrisult<StructDefinition> {
     db.query_ast_struct_def_map()
         .remove(&DefKey::Struct(struct_decl_id))
-        .ok_or_else(|| AnalysisError::CannotFindDefinition(Either::Left(struct_decl_id)))
+        .ok_or_else(|| CompilerError::CannotFindDefinition(Either::Left(struct_decl_id)))
         .into()
 }
 
@@ -85,6 +86,6 @@ pub(super) fn query_ast_event_def(
 ) -> QueryTrisult<EventDefinition> {
     db.query_ast_event_def_map()
         .remove(&DefKey::Event(event_decl_id))
-        .ok_or_else(|| AnalysisError::CannotFindDefinition(Either::Right(event_decl_id)))
+        .ok_or_else(|| CompilerError::CannotFindDefinition(Either::Right(event_decl_id)))
         .into()
 }

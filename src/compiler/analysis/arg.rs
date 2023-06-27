@@ -1,12 +1,12 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::analysis::{AnalysisError, QueryTrisult};
 use crate::compiler::cir::{
     AValue, AValueChain, CalledArgument, CalledArguments, CalledType, CalledTypes,
     DeclaredArgumentIds,
 };
-use crate::compiler::{cir, cst};
+use crate::compiler::error::CompilerError;
+use crate::compiler::{cir, cst, QueryTrisult};
 use either::Either;
 use smallvec::smallvec;
 
@@ -55,7 +55,7 @@ pub(super) fn query_called_args(
             if valid_type {
                 QueryTrisult::Ok(called_argument)
             } else {
-                let error = AnalysisError::WrongType {
+                let error = CompilerError::WrongType {
                     actual: called_type,
                     expected: Either::Right(decl_arg.types),
                 };

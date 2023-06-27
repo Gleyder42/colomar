@@ -1,10 +1,10 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::interner::IntoInternId;
-use crate::compiler::analysis::QueryTrisult;
 use crate::compiler::cir::{
     FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, StructDeclarationId, Type,
 };
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
 
 use smallvec::SmallVec;

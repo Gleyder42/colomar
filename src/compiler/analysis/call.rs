@@ -1,8 +1,8 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::{Nameholder, Nameholders};
-use crate::compiler::analysis::QueryTrisult;
 use crate::compiler::cir::{AValueChain, CValue};
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
 use smallvec::smallvec;
 

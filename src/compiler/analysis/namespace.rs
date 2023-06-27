@@ -1,12 +1,12 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::{Interner, IntoInternId};
-use crate::compiler::analysis::{AnalysisError, QueryTrisult};
 use crate::compiler::cir::{
     EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId,
     FunctionDecl, PropertyDecl, RValue, StructDeclarationId, Type,
 };
+use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{Ident, Text};
+use crate::compiler::{Ident, QueryTrisult, Text};
 use crate::{impl_intern_key, query_error};
 
 use salsa::InternId;
@@ -100,7 +100,7 @@ pub(super) fn query_number_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclar
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_number_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(
+            .ok_or(CompilerError::CannotFindPrimitiveDeclaration(
                 db.query_number_name(),
             ))
             .into()
@@ -111,7 +111,7 @@ pub(super) fn query_string_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclar
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_string_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(
+            .ok_or(CompilerError::CannotFindPrimitiveDeclaration(
                 db.query_string_name(),
             ))
             .into()
@@ -122,7 +122,7 @@ pub(super) fn query_bool_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarat
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_bool_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(AnalysisError::CannotFindPrimitiveDeclaration(
+            .ok_or(CompilerError::CannotFindPrimitiveDeclaration(
                 db.query_bool_name(),
             ))
             .into()
@@ -167,7 +167,7 @@ pub(super) fn query_namespaced_rvalue(
     db.query_namespace(nameholders).flat_map(|namespace| {
         namespace
             .get(&ident.value)
-            .ok_or(AnalysisError::CannotFindIdent(ident))
+            .ok_or(CompilerError::CannotFindIdent(ident))
             .into()
     })
 }
@@ -219,7 +219,7 @@ pub(super) fn query_namespaced_type(
         .flat_map(|rvalue| match rvalue {
             RValue::Type(r#type) => Trisult::Ok(r#type),
             rvalue @ (RValue::EnumConstant(_) | RValue::Property(_) | RValue::Function(_)) => {
-                AnalysisError::NotA("Type", rvalue, ident).into()
+                CompilerError::NotA("Type", rvalue, ident).into()
             }
         })
 }
@@ -233,7 +233,7 @@ pub(super) fn query_namespaced_function(
         .flat_map(|rvalue| match rvalue {
             RValue::Function(function) => Trisult::Ok(function),
             rvalue @ (RValue::Type(_) | RValue::Property(_) | RValue::EnumConstant(_)) => {
-                query_error!(AnalysisError::NotA("Function", rvalue, ident))
+                query_error!(CompilerError::NotA("Function", rvalue, ident))
             }
         })
 }
@@ -247,7 +247,7 @@ pub(super) fn query_namespaced_event(
         .flat_map(|r#type| match r#type {
             Type::Event(event) => Trisult::Ok(event),
             r#type @ (Type::Enum(_) | Type::Struct(_) | Type::Unit) => {
-                Trisult::Err(vec![AnalysisError::NotA(
+                Trisult::Err(vec![CompilerError::NotA(
                     "Event",
                     RValue::Type(r#type),
                     ident,
@@ -330,10 +330,10 @@ impl Namespace {
         ident: Ident,
         rvalue: RValue,
         db: &I,
-    ) -> Result<(), AnalysisError> {
+    ) -> Result<(), CompilerError> {
         match self.contains(&ident) {
             Some(root) => {
-                AnalysisError::DuplicateIdent {
+                CompilerError::DuplicateIdent {
                     first: root.name(db), // TODO How to deal with errors?
                     second: ident,
                 }

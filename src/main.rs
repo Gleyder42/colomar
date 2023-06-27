@@ -4,14 +4,14 @@
 extern crate salsa;
 
 use crate::compiler::analysis::interner::Interner;
-use crate::compiler::analysis::{AnalysisDatabase, AnalysisError};
 use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cir, FatSpan, Span, SpanSourceId};
-use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
+use ariadne::{Color, Fmt, Label, Report, ReportKind, Source, sources};
 use chumsky::prelude::*;
 use chumsky::Stream;
+use compiler::database::AnalysisDatabase;
 use compiler::trisult::Trisult;
 use either::Either;
 use std::collections::HashSet;
@@ -19,6 +19,7 @@ use std::fs;
 use std::io::Read;
 use std::ops::Range;
 use std::path::Path;
+use compiler::error::CompilerError;
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
@@ -57,7 +58,7 @@ fn main() {
 
         db.set_input_content(ast);
 
-        let im: Trisult<cir::Im, AnalysisError> = db.query_im();
+        let im: Trisult<cir::Im, CompilerError> = db.query_im();
 
         let output = im.to_option();
 
@@ -144,7 +145,7 @@ fn main() {
                 ReportKind::Custom("Compiler Error", Color::RGB(219, 13, 17));
 
             match analysis_error {
-                AnalysisError::DuplicateIdent { first, second } => {
+                CompilerError::DuplicateIdent { first, second } => {
                     let first_span = FatSpan::from_span(&db, first.span);
                     let second_span = FatSpan::from_span(&db, second.span);
 
@@ -175,10 +176,10 @@ fn main() {
                     ]))
                     .unwrap();
                 }
-                AnalysisError::CannotFindDefinition(_def) => {
+                CompilerError::CannotFindDefinition(_def) => {
                     todo!()
                 }
-                AnalysisError::CannotFindIdent(ident) => {
+                CompilerError::CannotFindIdent(ident) => {
                     let span = FatSpan::from_span(&db, ident.span);
 
                     Report::build(ERROR_KIND, span.source.clone(), span.location.start)
@@ -196,7 +197,7 @@ fn main() {
                         .eprint(sources(vec![(span.source.clone(), &source)]))
                         .unwrap();
                 }
-                AnalysisError::NotA(type_name, actual_rvalue, occurrence) => {
+                CompilerError::NotA(type_name, actual_rvalue, occurrence) => {
                     let occurrence_span = FatSpan::from_span(&db, occurrence.span.clone());
 
                     Report::build(
@@ -218,7 +219,7 @@ fn main() {
                     .eprint(sources(vec![(occurrence_span.source.clone(), &source)]))
                     .unwrap();
                 }
-                AnalysisError::WrongType { actual, expected } => {
+                CompilerError::WrongType { actual, expected } => {
                     let actual_span = FatSpan::from_span(&db, actual.span.clone());
                     let report_builder = Report::build(
                         ERROR_KIND,
@@ -266,7 +267,7 @@ fn main() {
                         ]))
                         .unwrap();
                 }
-                AnalysisError::CannotFindPrimitiveDeclaration(name) => {
+                CompilerError::CannotFindPrimitiveDeclaration(name) => {
                     /// We use ariadne to print the compiler error, even though we have no span
                     /// nor source message.
                     /// If want to have a consistent error reporting so I use ariadne instead of
@@ -281,13 +282,13 @@ fn main() {
                         .print(Source::from(""))
                         .unwrap();
                 }
-                AnalysisError::CannotFindNativeDefinition(_) => {
+                CompilerError::CannotFindNativeDefinition(_) => {
                     todo!()
                 }
-                AnalysisError::InvalidNativeDefinition(_) => {
+                CompilerError::InvalidNativeDefinition(_) => {
                     todo!()
                 }
-                AnalysisError::NoCaller => {
+                CompilerError::NoCaller => {
                     todo!()
                 }
             }

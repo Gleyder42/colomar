@@ -1,9 +1,9 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::interner::IntoInternId;
-use crate::compiler::analysis::QueryTrisult;
 use crate::compiler::cir::{EventDeclarationId, PropertyDecls};
 use crate::compiler::cst::{Action, Actions};
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
 
 pub(super) fn query_event_def_by_id(

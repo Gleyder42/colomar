@@ -1,7 +1,7 @@
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::QueryTrisult;
 use crate::compiler::cir::{AValueChain, EventDeclarationId, StructDeclarationId};
 use crate::compiler::cst::{Actions, Conditions};
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
 
 use super::event;

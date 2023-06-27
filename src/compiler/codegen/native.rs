@@ -1,9 +1,9 @@
-use crate::compiler::analysis::{AnalysisError, QueryTrisult};
 use crate::compiler::cir::{AValue, PropertyDecl, RValue, Type};
 use crate::compiler::codegen::def::LimDefQuery;
 use crate::compiler::codegen::owscript_impl;
+use crate::compiler::error::CompilerError;
 use crate::compiler::wir::Owscript;
-use crate::compiler::{HashableMap, Text};
+use crate::compiler::{HashableMap, QueryTrisult, Text};
 
 pub(super) fn query_native_code(db: &dyn LimDefQuery, avalue: AValue) -> QueryTrisult<Owscript> {
     match avalue {
@@ -84,7 +84,7 @@ pub(super) fn query_owscript_struct_property_impl(
                 .properties
                 .get(property_name.as_str())
                 .cloned()
-                .ok_or(AnalysisError::CannotFindNativeDefinition(property_name))
+                .ok_or(CompilerError::CannotFindNativeDefinition(property_name))
                 .into()
         })
         .map(|script| Owscript::from(script))
@@ -101,7 +101,7 @@ pub(super) fn query_owscript_event_context_variable_impl(
                 .context
                 .get(property_name.as_str())
                 .cloned()
-                .ok_or(AnalysisError::CannotFindNativeDefinition(property_name))
+                .ok_or(CompilerError::CannotFindNativeDefinition(property_name))
                 .into()
         })
         .map(|script| Owscript::from(script))
@@ -129,7 +129,7 @@ macro_rules! impl_owscript_queries {
             db.$name()
                 .get(&name)
                 .cloned()
-                .ok_or(AnalysisError::CannotFindNativeDefinition(name))
+                .ok_or(CompilerError::CannotFindNativeDefinition(name))
                 .into()
         }
     };

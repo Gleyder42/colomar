@@ -1,6 +1,6 @@
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::QueryTrisult;
 use crate::compiler::cir::Type;
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
 
 pub(super) fn query_function_decl(

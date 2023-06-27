@@ -113,10 +113,9 @@ const NEWLINE_CHARS: [char; 7] = [
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compiler::analysis::test::TestDatabase;
-    use crate::compiler::analysis::test::TestDatabaseHelper;
     use crate::test_assert::assert_vec;
     use chumsky::Parser;
+    use crate::compiler::database::test::TestDatabase;
 
     #[test]
     #[should_panic]

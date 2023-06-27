@@ -1,4 +1,6 @@
+use crate::compiler::trisult::Trisult;
 use crate::impl_intern_key;
+use error::CompilerError;
 use smol_str::SmolStr;
 use std::collections::BTreeMap;
 use std::ops::Range;
@@ -7,11 +9,13 @@ pub mod analysis;
 pub mod cir;
 pub mod codegen;
 pub mod cst;
+pub mod database;
 pub mod language;
 pub mod trisult;
 pub mod wir;
 mod workshop;
 pub mod wst;
+pub mod error;
 
 pub type InnerSpan = usize;
 pub type SpanLocation = Range<InnerSpan>;
@@ -164,3 +168,6 @@ pub enum UseRestriction {
     /// Can be assigned and accessed
     Var,
 }
+
+// TODO Move this one mod up
+pub type QueryTrisult<T> = Trisult<T, CompilerError>;

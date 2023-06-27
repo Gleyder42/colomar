@@ -1,8 +1,8 @@
 use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::analysis::QueryTrisult;
 use crate::compiler::cir::{AValue, PropertyDecl};
 use crate::compiler::codegen::owscript_impl;
 use crate::compiler::wir::{Call, Owscript};
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, HashableMap, Text};
 
 use super::call;

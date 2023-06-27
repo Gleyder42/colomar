@@ -1,22 +1,22 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::IntoInternId;
-use crate::compiler::analysis::{AnalysisError, QueryTrisult};
 use crate::compiler::cir::{EnumConstant, EnumConstants, EnumDeclarationId};
+use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{cir, cst, Ident};
+use crate::compiler::{cir, cst, Ident, QueryTrisult};
 
 use std::collections::HashMap;
 
 pub(super) fn query_enum_ast(
     db: &dyn DeclQuery,
     enum_decl_id: EnumDeclarationId,
-) -> Result<cst::Enum, AnalysisError> {
+) -> Result<cst::Enum, CompilerError> {
     db.query_enum_ast_map()
         .get(&enum_decl_id)
         .cloned()
         .ok_or_else(|| {
             let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_decl_id);
-            AnalysisError::CannotFindIdent(enum_decl.name)
+            CompilerError::CannotFindIdent(enum_decl.name)
         })
 }
 
@@ -57,7 +57,7 @@ fn no_duplicates(constants: EnumConstants) -> QueryTrisult<EnumConstants> {
                 span: error.entry.get().name.span.clone(),
             };
 
-            duplicates.push(AnalysisError::DuplicateIdent {
+            duplicates.push(CompilerError::DuplicateIdent {
                 first,
                 second: enum_constant.name.clone(),
             })

@@ -1,8 +1,8 @@
-use crate::compiler::analysis::{AnalysisError, QueryTrisult};
-use crate::compiler::cir;
 use crate::compiler::cir::{AValue, CValue, RValue};
 use crate::compiler::codegen::def::LimDefQuery;
+use crate::compiler::error::CompilerError;
 use crate::compiler::wir::{Call, LiteralOwscript};
+use crate::compiler::{cir, QueryTrisult};
 use crate::query_error;
 
 pub(super) fn query_lim_call(
@@ -11,7 +11,7 @@ pub(super) fn query_lim_call(
 ) -> QueryTrisult<Call> {
     QueryTrisult::Ok(avalue_chain.avalues)
         .fold_with::<QueryTrisult<LiteralOwscript>, Option<Call>, _>(
-            query_error!(AnalysisError::NoCaller),
+            query_error!(CompilerError::NoCaller),
             None,
             |caller, _acc, avalue| {
                 let _call: QueryTrisult<Call> = match avalue {
