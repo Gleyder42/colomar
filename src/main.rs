@@ -1,30 +1,30 @@
 #![feature(result_flattening)]
 #![feature(map_try_insert)]
 
-extern crate core;
 extern crate salsa;
 
-use crate::language::analysis::interner::Interner;
-use crate::language::analysis::{AnalysisDatabase, AnalysisError};
-use crate::language::im::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
-use crate::language::lexer::lexer;
-use crate::language::parser::parser;
-use crate::language::{im, FatSpan, Span, SpanSourceId};
+use crate::compiler::analysis::interner::Interner;
+use crate::compiler::analysis::{AnalysisDatabase, AnalysisError};
+use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
+use crate::compiler::language::lexer::lexer;
+use crate::compiler::language::parser::parser;
+use crate::compiler::{cir, FatSpan, Span, SpanSourceId};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
 use chumsky::Stream;
+use compiler::trisult::Trisult;
 use either::Either;
-use language::error::Trisult;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use std::ops::Range;
 use std::path::Path;
 
-use crate::language::analysis::decl::DeclQuery;
-use crate::language::analysis::def::DefQuery;
+use crate::compiler::analysis::decl::DeclQuery;
+use crate::compiler::analysis::def::DefQuery;
+use crate::compiler::SpanInterner;
 
-pub mod language;
+pub mod compiler;
 pub mod test_assert;
 
 fn main() {
@@ -57,7 +57,7 @@ fn main() {
 
         db.set_input_content(ast);
 
-        let im: Trisult<im::Im, AnalysisError> = db.query_im();
+        let im: Trisult<cir::Im, AnalysisError> = db.query_im();
 
         let output = im.to_option();
 
