@@ -5,11 +5,11 @@ use crate::compiler::SpanInternerDatabase;
 
 #[salsa::database(DeclDatabase, DefDatabase, SpanInternerDatabase, InternerDatabase)]
 #[derive(Default)]
-pub struct AnalysisDatabase {
+pub struct CompilerDatabase {
     storage: salsa::Storage<Self>,
 }
 
-impl salsa::Database for AnalysisDatabase {}
+impl salsa::Database for CompilerDatabase {}
 
 #[macro_export]
 macro_rules! impl_intern_key {

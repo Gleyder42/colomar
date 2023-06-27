@@ -11,7 +11,7 @@ use crate::compiler::{cir, FatSpan, Span, SpanSourceId};
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source, sources};
 use chumsky::prelude::*;
 use chumsky::Stream;
-use compiler::database::AnalysisDatabase;
+use compiler::database::CompilerDatabase;
 use compiler::trisult::Trisult;
 use either::Either;
 use std::collections::HashSet;
@@ -38,7 +38,7 @@ fn main() {
     file.read_to_string(&mut source)
         .expect("Cannot read file content");
 
-    let mut db = AnalysisDatabase::default();
+    let mut db = CompilerDatabase::default();
     let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
 
     let (tokens, lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
