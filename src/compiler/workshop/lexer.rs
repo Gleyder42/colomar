@@ -37,7 +37,7 @@ fn string() -> impl Parser<char, Token, Error = Simple<char>> {
 
 fn placeholder() -> impl Parser<char, Token, Error = Simple<char>> {
     filter::<char, _, _>(|c| *c == '%')
-        .then(filter::<char, _, _>(|c| c.is_ascii_alphanumeric()).repeated().at_least(1))
+        .then(filter::<char, _, _>(|c| c.is_ascii_alphanumeric() || *c == '_').repeated().at_least(1))
         .then(filter::<char, _, _>(|c| *c == '%'))
         .map(|((first, mut mid), last)| {
             let mut combined = Vec::with_capacity(mid.len() + 2);
@@ -78,6 +78,36 @@ mod tests {
     use super::*;
     use crate::assert_iterator;
     use chumsky::prelude::end;
+
+    #[test]
+    fn test_placeholders() {
+        let placeholders = [
+            "%hello%",
+            "%world%",
+            "%t%",
+            "%10%",
+            "%a_b%",
+        ];
+
+        for code in placeholders {
+            let actual = placeholder()
+                .then_ignore(end())
+                .parse(code)
+                .expect(&format!("Cannot parse {code}"));
+            assert_eq!(actual, Token::Placeholder(code.into()))
+        }
+    }
+
+    #[test]
+    fn test_wrong_placeholders() {
+        let placeholders = ["test", "%%", "%%%", "  ", ""];
+
+        for code in placeholders {
+            let actual = placeholder().then_ignore(end()).parse(code);
+
+            assert!(!actual.is_ok(), "'{}' was parsed, but should fail", code)
+        }
+    }
 
     #[test]
     fn test_idents() {

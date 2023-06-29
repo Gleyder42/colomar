@@ -5,7 +5,8 @@ use crate::compiler::cir::Type;
 use crate::compiler::cst::DeclaredArguments;
 use crate::compiler::error::CompilerError;
 use crate::compiler::recognizer::{Caller, Recognizer};
-use crate::compiler::wst::{Ident, Placeholder};
+use crate::compiler::wst::{Ident};
+use crate::compiler::wst::partial::Placeholder;
 use crate::query_error;
 
 pub(super) fn query_wir_call(db: &dyn Recognizer, caller: Option<Caller>, avalue_chain: cir::AValueChain) -> QueryTrisult<wst::Call> {

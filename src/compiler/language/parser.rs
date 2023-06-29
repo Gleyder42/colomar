@@ -330,7 +330,6 @@ pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
 mod tests {
     use super::*;
     use crate::compiler::analysis::interner::Interner;
-    use crate::compiler::analysis::test::TestDatabase;
     use crate::compiler::cst::{Call, DeclaredArgument, Rule};
     use crate::compiler::language::lexer::{lexer, Token};
     use crate::compiler::language::parser::ParserError;
@@ -343,6 +342,8 @@ mod tests {
     use std::fmt::Debug;
     use std::fs;
     use std::path::PathBuf;
+    use crate::compiler::database::test::TestDatabase;
+    use crate::compiler::SpanInterner;
 
     #[derive(Debug)]
     struct ResKey {

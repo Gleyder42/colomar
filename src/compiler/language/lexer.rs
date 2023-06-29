@@ -116,6 +116,7 @@ mod tests {
     use crate::test_assert::assert_vec;
     use chumsky::Parser;
     use crate::compiler::database::test::TestDatabase;
+    use crate::compiler::database::test::TestDatabaseHelper;
 
     #[test]
     #[should_panic]

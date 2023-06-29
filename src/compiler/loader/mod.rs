@@ -30,7 +30,7 @@ pub trait WorkshopScriptLoader {
 
     fn query_wscript_enum_constant_impl(&self, enum_name: Text, constant_name: Text) -> QueryTrisult<wst::Call>;
 
-    fn query_wscript_struct_property_impl(&self, struct_name: Text, function_name: Text) -> QueryTrisult<wst::PartialCall>;
+    fn query_wscript_struct_property_impl(&self, struct_name: Text, function_name: Text) -> QueryTrisult<wst::partial::Call>;
 
     fn query_wscript_event_context_property_impl(&self, event_name: Text, property_name: Text) -> QueryTrisult<wst::Call>;
 }
@@ -72,7 +72,7 @@ fn query_wscript_enum_constant_impl(db: &dyn WorkshopScriptLoader, enum_name: Te
         .flat_map(|partial_call| partial_call.complete().map_err(|err| CompilerError::PlaceholderError(err)).into())
 }
 
-fn query_wscript_struct_property_impl(db: &dyn WorkshopScriptLoader, struct_name: Text, function_name: Text) -> QueryTrisult<wst::PartialCall> {
+fn query_wscript_struct_property_impl(db: &dyn WorkshopScriptLoader, struct_name: Text, function_name: Text) -> QueryTrisult<wst::partial::Call> {
     query_wscript_impl(|| db.query_wscript_struct_impl(struct_name).map(|it| it.properties), function_name)
 }
 
@@ -84,7 +84,7 @@ fn query_wscript_event_context_property_impl(db: &dyn WorkshopScriptLoader, enum
 fn query_wscript_impl(
     query: impl FnOnce() -> QueryTrisult<HashableMap<String, String>>,
     selection: Text,
-) -> QueryTrisult<wst::PartialCall> {
+) -> QueryTrisult<wst::partial::Call> {
     query()
         .flat_map(|map| map
             .get(selection.as_str())

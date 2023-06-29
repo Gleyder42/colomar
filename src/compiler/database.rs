@@ -29,11 +29,11 @@ macro_rules! impl_intern_key {
 
 #[cfg(test)]
 pub mod test {
-    use super::interner::InternerDatabase;
     use crate::compiler::analysis::interner::Interner;
-    use crate::compiler::SpanSourceId;
+    use crate::compiler::{SpanInterner, SpanSourceId};
+    use crate::compiler::SpanInternerDatabase;
 
-    #[salsa::database(InternerDatabase, TestDatabaseHelperDatabase)]
+    #[salsa::database(SpanInternerDatabase, TestDatabaseHelperDatabase)]
     #[derive(Default)]
     pub struct TestDatabase {
         storage: salsa::Storage<Self>,
@@ -42,7 +42,7 @@ pub mod test {
     impl salsa::Database for TestDatabase {}
 
     #[salsa::query_group(TestDatabaseHelperDatabase)]
-    pub trait TestDatabaseHelper: Interner {
+    pub trait TestDatabaseHelper: SpanInterner {
         fn intern_str(&self, name: &'static str) -> SpanSourceId;
     }
 
