@@ -1,5 +1,4 @@
 mod call;
-mod func;
 
 use crate::compiler::analysis::interner::Interner as AnalysisInterner;
 use crate::compiler::loader::WorkshopScriptLoader;
