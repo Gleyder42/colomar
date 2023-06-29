@@ -1,13 +1,8 @@
-use std::collections::HashMap;
-use std::fmt::Formatter;
-use std::marker::PhantomData;
-use serde::de::{Error, Visitor};
-use serde::{Deserialize, Deserializer};
-use crate::compiler::{HashableMap, Op, Text};
+use crate::compiler::{Op, Text};
 
 pub mod partial {
+    use crate::compiler::{wst, Op, Text};
     use std::collections::HashMap;
-    use crate::compiler::{Op, Text, wst};
 
     #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
     pub struct Placeholder(pub Text);
@@ -29,27 +24,37 @@ pub mod partial {
     }
 
     impl Call {
-
         pub fn complete(self) -> Result<wst::Call, String> {
-            self.try_into_call(|placeholder| Err(format!("Assumed Call but was PartialCall with placeholder {:?}", placeholder)))
+            self.try_into_call(|placeholder| {
+                Err(format!(
+                    "Assumed Call but was PartialCall with placeholder {:?}",
+                    placeholder
+                ))
+            })
         }
 
-        pub fn saturate(self, map: &mut HashMap<Placeholder, super::Call>) -> Result<super::Call, String> {
-            self.try_into_call(|placeholder| map
-                .get(&placeholder)
-                .ok_or(format!("Cannot find placeholder {:?}", placeholder))
-                .cloned()
-            )
+        pub fn saturate(
+            self,
+            map: &mut HashMap<Placeholder, wst::Call>,
+        ) -> Result<wst::Call, String> {
+            self.try_into_call(|placeholder| {
+                map.get(&placeholder)
+                    .ok_or(format!("Cannot find placeholder {:?}", placeholder))
+                    .cloned()
+            })
         }
 
-        pub(super) fn try_into_call(self, error_func: impl Fn(Placeholder)->Result<super::Call, String>) -> Result<wst::Call, String> {
+        pub(super) fn try_into_call(
+            self,
+            error_func: impl Fn(Placeholder) -> Result<wst::Call, String>,
+        ) -> Result<wst::Call, String> {
             match self {
                 Call::Condition(condition) => Ok(wst::Call::Condition(condition.try_into()?)),
                 Call::String(string) => Ok(wst::Call::String(Text::from(string))),
                 Call::Number(number) => Ok(wst::Call::String(Text::from(number))),
                 Call::Ident(ident) => Ok(wst::Call::Ident(ident)),
                 Call::Function(function) => Ok(wst::Call::Function(function.try_into()?)),
-                Call::Placeholder(placeholder) => error_func(placeholder)
+                Call::Placeholder(placeholder) => error_func(placeholder),
             }
         }
     }
@@ -97,7 +102,9 @@ impl TryFrom<partial::Call> for Call {
     type Error = String;
 
     fn try_from(value: partial::Call) -> Result<Self, Self::Error> {
-        value.try_into_call(|placeholder| Err(format!("Cannot convert placeholder {:?}", placeholder)))
+        value.try_into_call(|placeholder| {
+            Err(format!("Cannot convert placeholder {:?}", placeholder))
+        })
     }
 }
 
@@ -111,10 +118,15 @@ impl TryFrom<partial::Function> for Function {
     type Error = String;
 
     fn try_from(value: partial::Function) -> Result<Self, Self::Error> {
-        let args: Vec<_> = value.args.into_iter()
+        let args: Vec<_> = value
+            .args
+            .into_iter()
             .flat_map(|partial_call| Call::try_from(partial_call))
             .collect();
-        Ok(Function { name: value.name, args })
+        Ok(Function {
+            name: value.name,
+            args,
+        })
     }
 }
 

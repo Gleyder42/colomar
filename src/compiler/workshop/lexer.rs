@@ -21,7 +21,7 @@ impl Display for Token {
             Token::String(text) => write!(f, "String {}", text),
             Token::Number(text) => write!(f, "Number {}", text),
             Token::Ctrl(ctrl) => write!(f, "{}", ctrl),
-            Token::Placeholder(placeholder) => write!(f, "{}", placeholder)
+            Token::Placeholder(placeholder) => write!(f, "{}", placeholder),
         }
     }
 }
@@ -37,7 +37,11 @@ fn string() -> impl Parser<char, Token, Error = Simple<char>> {
 
 fn placeholder() -> impl Parser<char, Token, Error = Simple<char>> {
     filter::<char, _, _>(|c| *c == '%')
-        .then(filter::<char, _, _>(|c| c.is_ascii_alphanumeric() || *c == '_').repeated().at_least(1))
+        .then(
+            filter::<char, _, _>(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .repeated()
+                .at_least(1),
+        )
         .then(filter::<char, _, _>(|c| *c == '%'))
         .map(|((first, mut mid), last)| {
             let mut combined = Vec::with_capacity(mid.len() + 2);
@@ -81,13 +85,7 @@ mod tests {
 
     #[test]
     fn test_placeholders() {
-        let placeholders = [
-            "%hello%",
-            "%world%",
-            "%t%",
-            "%10%",
-            "%a_b%",
-        ];
+        let placeholders = ["%hello%", "%world%", "%t%", "%10%", "%a_b%"];
 
         for code in placeholders {
             let actual = placeholder()

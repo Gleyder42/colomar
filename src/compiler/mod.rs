@@ -10,14 +10,14 @@ pub mod cir;
 // pub mod codegen;
 pub mod cst;
 pub mod database;
+pub mod error;
 pub mod language;
+pub mod loader;
+pub mod recognizer;
 pub mod trisult;
 pub mod wir;
 pub mod workshop;
 pub mod wst;
-pub mod error;
-pub mod recognizer;
-pub mod loader;
 
 pub type InnerSpan = usize;
 pub type SpanLocation = Range<InnerSpan>;

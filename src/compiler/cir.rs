@@ -298,7 +298,6 @@ pub enum RValue {
 }
 
 impl<T: Into<Type>> From<T> for RValue {
-
     fn from(value: T) -> Self {
         RValue::Type(value.into())
     }

@@ -331,8 +331,10 @@ mod tests {
     use super::*;
     use crate::compiler::analysis::interner::Interner;
     use crate::compiler::cst::{Call, DeclaredArgument, Rule};
+    use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
     use crate::compiler::language::parser::ParserError;
+    use crate::compiler::SpanInterner;
     use crate::compiler::{SpanSourceId, Spanned};
     use crate::{assert_iterator, Span};
     use anyhow::anyhow;
@@ -342,8 +344,6 @@ mod tests {
     use std::fmt::Debug;
     use std::fs;
     use std::path::PathBuf;
-    use crate::compiler::database::test::TestDatabase;
-    use crate::compiler::SpanInterner;
 
     #[derive(Debug)]
     struct ResKey {

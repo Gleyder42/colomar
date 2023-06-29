@@ -1,11 +1,18 @@
 use crate::compiler::analysis::decl::DeclDatabase;
 use crate::compiler::analysis::def::DefDatabase;
 use crate::compiler::analysis::interner::InternerDatabase;
-use crate::compiler::SpanInternerDatabase;
 use crate::compiler::loader::WorkshopScriptLoaderDatabase;
 use crate::compiler::recognizer::RecognizerDatabase;
+use crate::compiler::SpanInternerDatabase;
 
-#[salsa::database(DeclDatabase, DefDatabase, SpanInternerDatabase, InternerDatabase, WorkshopScriptLoaderDatabase, RecognizerDatabase)]
+#[salsa::database(
+    DeclDatabase,
+    DefDatabase,
+    SpanInternerDatabase,
+    InternerDatabase,
+    WorkshopScriptLoaderDatabase,
+    RecognizerDatabase
+)]
 #[derive(Default)]
 pub struct CompilerDatabase {
     storage: salsa::Storage<Self>,
@@ -30,8 +37,8 @@ macro_rules! impl_intern_key {
 #[cfg(test)]
 pub mod test {
     use crate::compiler::analysis::interner::Interner;
-    use crate::compiler::{SpanInterner, SpanSourceId};
     use crate::compiler::SpanInternerDatabase;
+    use crate::compiler::{SpanInterner, SpanSourceId};
 
     #[salsa::database(SpanInternerDatabase, TestDatabaseHelperDatabase)]
     #[derive(Default)]

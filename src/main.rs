@@ -4,14 +4,17 @@
 extern crate salsa;
 
 use crate::compiler::analysis::interner::Interner;
-use crate::compiler::cir::{AValue, DeclaredArgument, FunctionDecl, PropertyDecl, Root, RValue, StructDeclaration, Type};
+use crate::compiler::cir::{
+    AValue, DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration,
+};
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cir, FatSpan, Span, SpanSourceId};
-use ariadne::{Color, Fmt, Label, Report, ReportKind, Source, sources};
+use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
 use chumsky::Stream;
 use compiler::database::CompilerDatabase;
+use compiler::error::CompilerError;
 use compiler::trisult::Trisult;
 use either::Either;
 use std::collections::HashSet;
@@ -19,7 +22,6 @@ use std::fs;
 use std::io::Read;
 use std::ops::Range;
 use std::path::Path;
-use compiler::error::CompilerError;
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
@@ -290,11 +292,19 @@ fn main() {
                 }
                 CompilerError::NoCaller => {
                     todo!()
-                },
-                CompilerError::NotImplemented(_, _) => {  todo!()}
-                CompilerError::PlaceholderError(_) => {  todo!()}
-                CompilerError::WstLexerError => {  todo!()}
-                CompilerError::WstParserError => {  todo!() }
+                }
+                CompilerError::NotImplemented(_, _) => {
+                    todo!()
+                }
+                CompilerError::PlaceholderError(_) => {
+                    todo!()
+                }
+                CompilerError::WstLexerError => {
+                    todo!()
+                }
+                CompilerError::WstParserError => {
+                    todo!()
+                }
             }
         }
 
@@ -320,16 +330,21 @@ fn main() {
                             let fake_span = {
                                 let span = action.avalues.first().unwrap().span();
                                 let range = span.location.start..span.location.start + 1;
-                                Span { location: range, source: span.source }
+                                Span {
+                                    location: range,
+                                    source: span.source,
+                                }
                             };
 
-                            let caller = Caller { wst: None, cir: AValue::RValue(rule.event.into(), fake_span)};
+                            let caller = Caller {
+                                wst: None,
+                                cir: AValue::RValue(rule.event.into(), fake_span),
+                            };
                             let x = db.query_wir_call(Some(caller), action);
-
 
                             println!("{:#?}", x);
                         }
-                    },
+                    }
                     _ => {}
                 }
             }

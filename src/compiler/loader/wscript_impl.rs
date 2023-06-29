@@ -1,6 +1,5 @@
-use crate::compiler::{HashableMap, wst};
+use crate::compiler::HashableMap;
 use serde::Deserialize;
-use crate::compiler;
 
 #[derive(Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Element {

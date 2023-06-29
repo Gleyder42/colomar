@@ -1,9 +1,10 @@
-use chumsky::error::Simple;
-use either::Either;
-use crate::compiler::cir::{CalledType, CalledTypes, EventDeclarationId, RValue, StructDeclarationId, Type};
-use crate::compiler::{Ident, QueryTrisult, Span, Text, workshop};
+use crate::compiler::cir::{
+    CalledType, CalledTypes, EventDeclarationId, RValue, StructDeclarationId, Type,
+};
 use crate::compiler::trisult::Trisult;
+use crate::compiler::{Ident, QueryTrisult, Span, Text};
 use crate::query_error;
+use either::Either;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
@@ -29,11 +30,10 @@ pub enum CompilerError {
     // TODO Add any information
     WstLexerError,
     // TODO Add any information
-    WstParserError
+    WstParserError,
 }
 
 impl CompilerError {
-
     // TODO Create pattern for error codes
     // Possibly use non ids for error codes?
     pub fn error_code(&self) -> u16 {
@@ -50,13 +50,12 @@ impl CompilerError {
             CompilerError::NoCaller => 9,
             CompilerError::WstLexerError => 10,
             CompilerError::WstParserError => 11,
-            CompilerError::PlaceholderError(_) => 12
+            CompilerError::PlaceholderError(_) => 12,
         }
     }
 }
 
 impl QueryTrisult<()> {
-
     pub fn assume_or(expr: bool, reason: &'static str, span: Span) -> QueryTrisult<()> {
         if expr {
             QueryTrisult::Ok(())
@@ -64,7 +63,6 @@ impl QueryTrisult<()> {
             query_error!(CompilerError::NotImplemented(reason, span))
         }
     }
-
 }
 
 impl<T> From<CompilerError> for Result<T, CompilerError> {

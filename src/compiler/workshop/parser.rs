@@ -1,5 +1,5 @@
 use crate::compiler::workshop::lexer::Token;
-use crate::compiler::wst::{Call, Function, Ident, partial};
+use crate::compiler::wst::{partial, Ident};
 use chumsky::prelude::*;
 
 pub type ParserError = Simple<Token>;
@@ -25,7 +25,9 @@ pub fn call() -> impl Parser<Token, partial::Call, Error = ParserError> {
         ident()
             .then(args.or_not())
             .map(|(ident, args)| match (ident, args) {
-                (ident, Some(args)) => partial::Call::Function(partial::Function { name: ident, args }),
+                (ident, Some(args)) => {
+                    partial::Call::Function(partial::Function { name: ident, args })
+                }
                 (ident, None) => partial::Call::Ident(ident),
             })
     })
