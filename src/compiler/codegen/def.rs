@@ -1,6 +1,6 @@
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::cir::{AValue, PropertyDecl};
-use crate::compiler::codegen::owscript_impl;
+use crate::compiler::loader::wscript_impl;
 use crate::compiler::wir::{Call, Owscript};
 use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, HashableMap, Text};
@@ -11,7 +11,7 @@ use super::native;
 #[salsa::query_group(LimDefDatabase)]
 pub trait LimDefQuery: DefQuery {
     #[salsa::input]
-    fn input_owscript_impls(&self) -> Vec<owscript_impl::Element>;
+    fn input_owscript_impls(&self) -> Vec<wscript_script_impl::Element>;
 
     /// Impl [call::query_lim_call]
     #[salsa::invoke(call::query_lim_call)]
@@ -23,15 +23,15 @@ pub trait LimDefQuery: DefQuery {
 
     /// Impl [native::query_owscript_event_impl]
     #[salsa::invoke(native::query_owscript_event_impl)]
-    fn query_owscript_event_impl(&self, name: Text) -> QueryTrisult<owscript_impl::Event>;
+    fn query_owscript_event_impl(&self, name: Text) -> QueryTrisult<wscript_script_impl::Event>;
 
     /// Impl [native::query_owscript_enum_impl]
     #[salsa::invoke(native::query_owscript_enum_impl)]
-    fn query_owscript_enum_impl(&self, name: Text) -> QueryTrisult<owscript_impl::Enum>;
+    fn query_owscript_enum_impl(&self, name: Text) -> QueryTrisult<wscript_script_impl::Enum>;
 
     /// Impl [native::query_owscript_struct_impl]
     #[salsa::invoke(native::query_owscript_struct_impl)]
-    fn query_owscript_struct_impl(&self, name: Text) -> QueryTrisult<owscript_impl::Struct>;
+    fn query_owscript_struct_impl(&self, name: Text) -> QueryTrisult<wscript_script_impl::Struct>;
 
     /// Impl [native::query_owscript_event_context_variable_impl]
     #[salsa::invoke(native::query_owscript_event_context_variable_impl)]
@@ -55,13 +55,13 @@ pub trait LimDefQuery: DefQuery {
 
     /// Impl: [native::query_owscript_struct_impls]
     #[salsa::invoke(native::query_owscript_struct_impls)]
-    fn query_owscript_struct_impls(&self) -> HashableMap<Text, owscript_impl::Struct>;
+    fn query_owscript_struct_impls(&self) -> HashableMap<Text, wscript_script_impl::Struct>;
 
     /// Impl: [native::query_owscript_event_impls]
     #[salsa::invoke(native::query_owscript_event_impls)]
-    fn query_owscript_event_impls(&self) -> HashableMap<Text, owscript_impl::Event>;
+    fn query_owscript_event_impls(&self) -> HashableMap<Text, wscript_script_impl::Event>;
 
     /// Impl: [native::query_owscript_enum_impls]
     #[salsa::invoke(native::query_owscript_enum_impls)]
-    fn query_owscript_enum_impls(&self) -> HashableMap<Text, owscript_impl::Enum>;
+    fn query_owscript_enum_impls(&self) -> HashableMap<Text, wscript_script_impl::Enum>;
 }

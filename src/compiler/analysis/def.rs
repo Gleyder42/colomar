@@ -14,7 +14,7 @@ pub trait DefQuery: DeclQuery {
 
     /// [super::im::query_im]
     #[salsa::invoke(super::im::query_im)]
-    fn query_im(&self) -> QueryTrisult<cir::Im>;
+    fn query_im(&self) -> QueryTrisult<cir::Cir>;
 
     // Event
 

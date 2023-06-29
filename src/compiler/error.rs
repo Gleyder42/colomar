@@ -1,11 +1,13 @@
+use chumsky::error::Simple;
 use either::Either;
 use crate::compiler::cir::{CalledType, CalledTypes, EventDeclarationId, RValue, StructDeclarationId, Type};
-use crate::compiler::{Ident, Text};
+use crate::compiler::{Ident, QueryTrisult, Span, Text, workshop};
 use crate::compiler::trisult::Trisult;
 use crate::query_error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
+    NotImplemented(&'static str, Span),
     DuplicateIdent {
         first: Ident,
         second: Ident,
@@ -23,11 +25,20 @@ pub enum CompilerError {
     // TODO Add more information
     InvalidNativeDefinition(&'static str),
     NoCaller,
+    PlaceholderError(String),
+    // TODO Add any information
+    WstLexerError,
+    // TODO Add any information
+    WstParserError
 }
 
 impl CompilerError {
+
+    // TODO Create pattern for error codes
+    // Possibly use non ids for error codes?
     pub fn error_code(&self) -> u16 {
         match self {
+            CompilerError::NotImplemented(..) => 0,
             CompilerError::DuplicateIdent { .. } => 1,
             CompilerError::CannotFindDefinition(_) => 2,
             CompilerError::CannotFindIdent(_) => 3,
@@ -37,8 +48,23 @@ impl CompilerError {
             CompilerError::CannotFindNativeDefinition(_) => 7,
             CompilerError::InvalidNativeDefinition(_) => 8,
             CompilerError::NoCaller => 9,
+            CompilerError::WstLexerError => 10,
+            CompilerError::WstParserError => 11,
+            CompilerError::PlaceholderError(_) => 12
         }
     }
+}
+
+impl QueryTrisult<()> {
+
+    pub fn assume_or(expr: bool, reason: &'static str, span: Span) -> QueryTrisult<()> {
+        if expr {
+            QueryTrisult::Ok(())
+        } else {
+            query_error!(CompilerError::NotImplemented(reason, span))
+        }
+    }
+
 }
 
 impl<T> From<CompilerError> for Result<T, CompilerError> {

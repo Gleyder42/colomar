@@ -4,7 +4,7 @@
 extern crate salsa;
 
 use crate::compiler::analysis::interner::Interner;
-use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
+use crate::compiler::cir::{AValue, DeclaredArgument, FunctionDecl, PropertyDecl, Root, RValue, StructDeclaration, Type};
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cir, FatSpan, Span, SpanSourceId};
@@ -23,14 +23,14 @@ use compiler::error::CompilerError;
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
+use crate::compiler::recognizer::Caller;
 use crate::compiler::SpanInterner;
 
 pub mod compiler;
 pub mod test_assert;
 
 fn main() {
-    let filename = "milestone_one.colo";
-    let filepath = format!("dsl/example/{filename}");
+    let filepath = format!("dsl/example/test/src/main.co");
     let path = Path::new(&filepath);
     let mut file = fs::File::open(path).expect("Cannot read from file");
 
@@ -58,13 +58,13 @@ fn main() {
 
         db.set_input_content(ast);
 
-        let im: Trisult<cir::Im, CompilerError> = db.query_im();
+        let im: Trisult<cir::Cir, CompilerError> = db.query_im();
 
         let output = im.to_option();
 
         println!("{:#?}", output.1);
 
-        if let Some(im) = output.0 {
+        if let Some(im) = output.0.clone() {
             for root in im {
                 match root {
                     Root::Rule(rule) => {
@@ -290,14 +290,49 @@ fn main() {
                 }
                 CompilerError::NoCaller => {
                     todo!()
-                }
+                },
+                CompilerError::NotImplemented(_, _) => {  todo!()}
+                CompilerError::PlaceholderError(_) => {  todo!()}
+                CompilerError::WstLexerError => {  todo!()}
+                CompilerError::WstParserError => {  todo!() }
             }
         }
+
         println!(
             "Reduced errors from {} to {}. \nReduced size by {}",
             original_len,
             new_len,
             100.0 - (new_len as f32 / original_len as f32) * 100.0
         );
+
+        let impl_path = Path::new("dsl/example/test/native");
+        let elements = compiler::loader::read_impls(impl_path);
+
+        use crate::compiler::loader::WorkshopScriptLoader;
+        db.set_input_wscript_impls(elements);
+
+        if let Some(cir) = output.0 {
+            for root in cir {
+                match root {
+                    Root::Rule(rule) => {
+                        for action in rule.actions {
+                            use crate::compiler::recognizer::Recognizer;
+                            let fake_span = {
+                                let span = action.avalues.first().unwrap().span();
+                                let range = span.location.start..span.location.start + 1;
+                                Span { location: range, source: span.source }
+                            };
+
+                            let caller = Caller { wst: None, cir: AValue::RValue(rule.event.into(), fake_span)};
+                            let x = db.query_wir_call(Some(caller), action);
+
+
+                            println!("{:#?}", x);
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
     }
 }

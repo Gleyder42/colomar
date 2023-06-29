@@ -7,15 +7,17 @@ use std::ops::Range;
 
 pub mod analysis;
 pub mod cir;
-pub mod codegen;
+// pub mod codegen;
 pub mod cst;
 pub mod database;
 pub mod language;
 pub mod trisult;
 pub mod wir;
-mod workshop;
+pub mod workshop;
 pub mod wst;
 pub mod error;
+pub mod recognizer;
+pub mod loader;
 
 pub type InnerSpan = usize;
 pub type SpanLocation = Range<InnerSpan>;
@@ -23,11 +25,12 @@ pub type SpanSource = SmolStr;
 pub type Text = SmolStr;
 pub type HashableMap<K, V> = BTreeMap<K, V>;
 pub type SpannedBool = Option<Spanned<()>>;
+pub type QueryTrisult<T> = Trisult<T, CompilerError>;
 
 pub const CONDITIONS_LEN: usize = 6;
 pub const ACTIONS_LEN: usize = 8;
 pub const DECLARED_ARGUMENTS_LEN: usize = 4;
-// Give this a more generic name
+// TODO Give this a more generic name
 pub const PROPERTY_DECLS_LEN: usize = 4;
 pub const FUNCTIONS_DECLS_LEN: usize = 6;
 pub const ENUM_CONSTANTS_LEN: usize = 8;
@@ -54,7 +57,7 @@ pub struct Spanned<T> {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
-    // TODO Maybe rename this to Text?
+    // TODO Rename this field to text
     pub value: Text,
     pub span: Span,
 }
@@ -156,10 +159,9 @@ pub struct SpanSourceId(salsa::InternId);
 
 impl_intern_key!(SpanSourceId);
 
-// TODO Rename maybe to Get and Set Restriction
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum UseRestriction {
-    /// Can not be assigned directly, but can be accessed
+    /// Can not be assigned directly, but can be accessed.
     GetVar,
     /// Can be assigned, but not be accessed
     SetVar,
@@ -169,5 +171,8 @@ pub enum UseRestriction {
     Var,
 }
 
-// TODO Move this one mod up
-pub type QueryTrisult<T> = Trisult<T, CompilerError>;
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub enum Op {
+    Equals,
+    NotEquals,
+}

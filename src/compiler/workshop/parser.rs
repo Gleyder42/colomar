@@ -1,8 +1,8 @@
 use crate::compiler::workshop::lexer::Token;
-use crate::compiler::wst::{Call, Function, Ident};
+use crate::compiler::wst::{Call, Function, Ident, PartialCall, PartialFunction};
 use chumsky::prelude::*;
 
-type ParserError = Simple<Token>;
+pub type ParserError = Simple<Token>;
 
 fn ident() -> impl Parser<Token, Ident, Error = ParserError> {
     filter_map(|span, token| match token {
@@ -15,8 +15,8 @@ fn ident() -> impl Parser<Token, Ident, Error = ParserError> {
     })
 }
 
-fn call() -> impl Parser<Token, Call, Error = ParserError> {
-    recursive::<_, Call, _, _, _>(|call| {
+pub fn call() -> impl Parser<Token, PartialCall, Error = ParserError> {
+    recursive::<_, PartialCall, _, _, _>(|call| {
         let args = call
             .separated_by(just(Token::Ctrl(',')))
             .at_least(1)
@@ -25,8 +25,8 @@ fn call() -> impl Parser<Token, Call, Error = ParserError> {
         ident()
             .then(args.or_not())
             .map(|(ident, args)| match (ident, args) {
-                (ident, Some(args)) => Call::Function(Function { name: ident, args }),
-                (ident, None) => Call::Ident(ident),
+                (ident, Some(args)) => PartialCall::Function(PartialFunction { name: ident, args }),
+                (ident, None) => PartialCall::Ident(ident),
             })
     })
 }
@@ -43,13 +43,13 @@ mod tests {
         let tokens = lexer().then_ignore(end()).parse(code).unwrap();
         let actual_element = call().then_ignore(end()).parse(tokens).unwrap();
 
-        let expected_element = Call::Function(Function {
+        let expected_element = PartialCall::Function(PartialFunction {
             name: Ident(Text::new("Small Message")),
             args: vec![
-                Call::Ident(Ident(Text::new("Event Player"))),
-                Call::Function(Function {
+                PartialCall::Ident(Ident(Text::new("Event Player"))),
+                PartialCall::Function(PartialFunction {
                     name: Ident(Text::new("Is Reloading")),
-                    args: vec![Call::Ident(Ident(Text::new("Event Player")))],
+                    args: vec![PartialCall::Ident(Ident(Text::new("Event Player")))],
                 }),
             ],
         });

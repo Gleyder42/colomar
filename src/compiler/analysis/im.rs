@@ -2,7 +2,7 @@ use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
 
-pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Im> {
+pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
     db.input_content()
         .into_iter()
         .map(|root| match root {
@@ -15,5 +15,5 @@ pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Im> {
         // TODO Decide how to handle this
         // query_root_namespace() has to be called here to include the errors
         .and_ignore_value(db.query_root_namespace())
-        .map(cir::Im)
+        .map(cir::Cir)
 }

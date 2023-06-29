@@ -1,7 +1,6 @@
 mod call;
 pub mod def;
 mod native;
-mod owscript_impl;
 
 #[salsa::database()]
 #[derive(Default)]

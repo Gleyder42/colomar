@@ -1,6 +1,6 @@
 use crate::compiler::cir::{AValue, PropertyDecl, RValue, Type};
 use crate::compiler::codegen::def::LimDefQuery;
-use crate::compiler::codegen::owscript_impl;
+use crate::compiler::codegen::wscript_script_impl;
 use crate::compiler::error::CompilerError;
 use crate::compiler::wir::Owscript;
 use crate::compiler::{HashableMap, QueryTrisult, Text};
@@ -107,51 +107,4 @@ pub(super) fn query_owscript_event_context_variable_impl(
         .map(|script| Owscript::from(script))
 }
 
-macro_rules! impl_owscript_queries {
-    ($name:ident, $single_name:ident, $ele_name:ident, $owscript_impl:ty) => {
-        pub(super) fn $name(db: &dyn LimDefQuery) -> HashableMap<Text, $owscript_impl> {
-            db.input_owscript_impls()
-                .into_iter()
-                .filter_map(|element| {
-                    if let owscript_impl::Element::$ele_name(name, val) = element {
-                        Some((Text::from(name), val))
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        }
 
-        pub(super) fn $single_name(
-            db: &dyn LimDefQuery,
-            name: Text,
-        ) -> QueryTrisult<$owscript_impl> {
-            db.$name()
-                .get(&name)
-                .cloned()
-                .ok_or(CompilerError::CannotFindNativeDefinition(name))
-                .into()
-        }
-    };
-}
-
-impl_owscript_queries!(
-    query_owscript_struct_impls,
-    query_owscript_struct_impl,
-    Struct,
-    owscript_impl::Struct
-);
-
-impl_owscript_queries!(
-    query_owscript_event_impls,
-    query_owscript_event_impl,
-    Event,
-    owscript_impl::Event
-);
-
-impl_owscript_queries!(
-    query_owscript_enum_impls,
-    query_owscript_enum_impl,
-    Enum,
-    owscript_impl::Enum
-);

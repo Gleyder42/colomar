@@ -21,9 +21,9 @@ pub type EnumConstants = SmallVec<[EnumConstant; ENUM_CONSTANTS_LEN]>;
 pub type Actions = Vec<AValueChain>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Im(pub Vec<Root>);
+pub struct Cir(pub Vec<Root>);
 
-impl FromIterator<Root> for Im {
+impl FromIterator<Root> for Cir {
     fn from_iter<T: IntoIterator<Item = Root>>(iter: T) -> Self {
         let mut vec = Vec::new();
 
@@ -31,11 +31,11 @@ impl FromIterator<Root> for Im {
             vec.push(x);
         }
 
-        Im(vec)
+        Cir(vec)
     }
 }
 
-impl IntoIterator for Im {
+impl IntoIterator for Cir {
     type Item = Root;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
@@ -156,6 +156,12 @@ pub enum Type {
     Struct(StructDeclarationId),
     Event(EventDeclarationId),
     Unit,
+}
+
+impl From<EventDeclarationId> for Type {
+    fn from(value: EventDeclarationId) -> Self {
+        Type::Event(value)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -289,6 +295,13 @@ pub enum RValue {
     Function(FunctionDecl),
     Property(PropertyDecl),
     EnumConstant(EnumConstantId),
+}
+
+impl<T: Into<Type>> From<T> for RValue {
+
+    fn from(value: T) -> Self {
+        RValue::Type(value.into())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

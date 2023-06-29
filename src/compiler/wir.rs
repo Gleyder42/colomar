@@ -1,4 +1,4 @@
-use crate::compiler::{HashableMap, Text};
+use crate::compiler::{HashableMap, Op, Text};
 use crate::impl_intern_key;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -53,12 +53,6 @@ pub struct Rule {
     event: CallNativeEvent,
     conditions: Vec<Condition>,
     actions: Vec<Call>,
-}
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum Op {
-    Equals,
-    NotEquals,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]

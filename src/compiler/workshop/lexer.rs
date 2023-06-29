@@ -10,6 +10,7 @@ pub enum Token {
     Ident(Text),
     String(Text),
     Number(Text),
+    Placeholder(Text),
     Ctrl(char),
 }
 
@@ -20,6 +21,7 @@ impl Display for Token {
             Token::String(text) => write!(f, "String {}", text),
             Token::Number(text) => write!(f, "Number {}", text),
             Token::Ctrl(ctrl) => write!(f, "{}", ctrl),
+            Token::Placeholder(placeholder) => write!(f, "{}", placeholder)
         }
     }
 }
@@ -31,6 +33,19 @@ fn string() -> impl Parser<char, Token, Error = Simple<char>> {
         .collect::<String>()
         .map(Text::new)
         .map(Token::String)
+}
+
+fn placeholder() -> impl Parser<char, Token, Error = Simple<char>> {
+    filter::<char, _, _>(|c| *c == '%')
+        .then(filter::<char, _, _>(|c| c.is_ascii_alphanumeric()).repeated().at_least(1))
+        .then(filter::<char, _, _>(|c| *c == '%'))
+        .map(|((first, mut mid), last)| {
+            let mut combined = Vec::with_capacity(mid.len() + 2);
+            combined.push(first);
+            combined.append(&mut mid);
+            combined.push(last);
+            Token::Placeholder(combined.into_iter().collect())
+        })
 }
 
 fn ident() -> impl Parser<char, Token, Error = Simple<char>> {
@@ -53,7 +68,7 @@ fn ident() -> impl Parser<char, Token, Error = Simple<char>> {
 pub fn lexer() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     let ctrl = one_of("(),").map(Token::Ctrl);
 
-    let token = choice((ident(), ctrl)).recover_with(skip_then_retry_until([]));
+    let token = choice((ident(), placeholder(), ctrl)).recover_with(skip_then_retry_until([]));
 
     token.padded().repeated()
 }

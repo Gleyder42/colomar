@@ -6,21 +6,27 @@ native enum Team {
     Team1, Team2, All
 }
 
-native struct Player {
+native enum Slot {
+    Slot0, Slot1, All
+}
 
-    native getvar isReloading: bool
+open native struct Player {
 
-    native getvar hero: Hero
+    native val isReloading: bool
 
-    native fn sendSmallMessage(message: string)
+    native fn displaySmallMessage(message: string)
+
+    native fn heal(amount: num, player: Player)
 }
 
 native event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
     native val player: Player
 }
 
-rule "Test Rule" OngoingEachPlayer() {
-    cond player.isReloading
+native enum Hero {
+    Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
+}
 
-    player.sendSmallMessage("You are reloading")
+rule "Hello World" OngoingEachPlayer() {
+    player
 }

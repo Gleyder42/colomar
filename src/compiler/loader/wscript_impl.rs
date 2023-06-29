@@ -1,7 +1,9 @@
-use crate::compiler::HashableMap;
+use crate::compiler::{HashableMap, wst};
 use serde::Deserialize;
+use crate::compiler;
+use crate::compiler::wst::{PartialCall, Call};
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Element {
     Event(String, Event),
     Struct(String, Struct),
@@ -17,8 +19,7 @@ pub struct Event {
 
 #[derive(Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Struct {
-    #[serde(rename(serialize = "self"))]
-    pub selff: String,
+    pub me: String,
     pub properties: HashableMap<String, String>,
     pub functions: HashableMap<String, String>,
 }

@@ -1,7 +1,7 @@
-self = "Event Player"
+me = "Event Player"
 
 [properties]
 isReloading = "Is Reloading(%caller%)"
 
 [functions]
-sendSmallMessage = "Small Message(%caller%, %message%)"
+sendSmallMessage = "Small Message(%caller%, %message%)"  

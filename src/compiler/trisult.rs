@@ -16,6 +16,7 @@ pub enum Trisult<T, E> {
     Err(Vec<E>),
 }
 
+
 impl<T: Debug, E: Debug> Trisult<T, E> {
     pub fn debug_print(self) -> Trisult<T, E> {
         println!("Current Trisult: {:#?}", self);
@@ -29,6 +30,18 @@ impl<T: Debug, E: Debug> Trisult<T, E> {
 }
 
 impl<T, E> Trisult<T, E> {
+
+    pub fn map_errors<L>(self, func: impl Fn(E) -> L) -> Trisult<T, L> {
+        match self {
+            Trisult::Ok(value) => Trisult::Ok(value),
+            Trisult::Par(value, errors) => Trisult::Par(value, errors.into_iter().map(func).collect()),
+            Trisult::Err(errors) => Trisult::Err(errors.into_iter().map(func).collect())
+        }
+    }
+}
+
+impl<T, E> Trisult<T, E> {
+
     pub fn drop_errors(self, fallback: impl Fn() -> T) -> Trisult<T, E> {
         match self {
             Trisult::Ok(_) => self,
@@ -258,6 +271,14 @@ impl<E> Trisult<(), E> {
     pub fn empty() -> Trisult<(), E> {
         Trisult::Ok(())
     }
+
+    pub fn start<U>(self, func: impl FnOnce()->U) -> Trisult<U, E> {
+        self.map(|_| func())
+    }
+
+    pub fn flat_start<U>(self, func: impl FnOnce()->Trisult<U, E>) -> Trisult<U, E> {
+        self.flat_map(|_| func())
+    }
 }
 
 impl<T, E> From<Result<Trisult<T, E>, E>> for Trisult<T, E> {
@@ -266,6 +287,20 @@ impl<T, E> From<Result<Trisult<T, E>, E>> for Trisult<T, E> {
             Ok(query_result) => query_result,
             Err(error) => Trisult::Err(vec![error]),
         }
+    }
+}
+
+impl<T, E> TryFrom<(Option<T>, Vec<E>)> for Trisult<T, E> {
+    type Error = &'static str;
+
+    fn try_from(value: (Option<T>, Vec<E>)) -> Result<Self, Self::Error> {
+        let trisult = match value {
+            (Some(value), errors) if errors.is_empty() => Trisult::Ok(value),
+            (Some(value), errors) => Trisult::Par(value, errors),
+            (None, errors) if errors.is_empty() => return Err("If option is none, errors must have at least one value"),
+            (None, errors) => Trisult::Err(errors)
+        };
+        Ok(trisult)
     }
 }
 
