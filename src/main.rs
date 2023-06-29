@@ -25,7 +25,7 @@ use std::path::Path;
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::recognizer::Caller;
+use crate::compiler::codegen::Caller;
 use crate::compiler::SpanInterner;
 
 pub mod compiler;
@@ -326,7 +326,7 @@ fn main() {
                 match root {
                     Root::Rule(rule) => {
                         for action in rule.actions {
-                            use crate::compiler::recognizer::Recognizer;
+                            use crate::compiler::codegen::Codegen;
                             let fake_span = {
                                 let span = action.avalues.first().unwrap().span();
                                 let range = span.location.start..span.location.start + 1;
@@ -340,7 +340,7 @@ fn main() {
                                 wst: None,
                                 cir: AValue::RValue(rule.event.into(), fake_span),
                             };
-                            let x = db.query_wir_call(Some(caller), action);
+                            let x = db.query_wst_call(Some(caller), action);
 
                             println!("{:#?}", x);
                         }

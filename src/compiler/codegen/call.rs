@@ -1,50 +1,88 @@
-use crate::compiler::cir::{AValue, CValue, RValue};
-use crate::compiler::codegen::def::LimDefQuery;
+use crate::compiler::cir::Type;
 use crate::compiler::error::CompilerError;
-use crate::compiler::wir::{Call, LiteralOwscript};
-use crate::compiler::{cir, QueryTrisult};
+use crate::compiler::codegen::{Caller, Codegen};
+use crate::compiler::wst::partial::Placeholder;
+use crate::compiler::{cir, wst, QueryTrisult, Text};
 use crate::query_error;
+use std::collections::HashMap;
 
-pub(super) fn query_lim_call(
-    db: &dyn LimDefQuery,
+pub(super) fn query_wst_call(
+    db: &dyn Codegen,
+    caller: Option<Caller>,
     avalue_chain: cir::AValueChain,
-) -> QueryTrisult<Call> {
-    QueryTrisult::Ok(avalue_chain.avalues)
-        .fold_with::<QueryTrisult<LiteralOwscript>, Option<Call>, _>(
-            query_error!(CompilerError::NoCaller),
-            None,
-            |caller, _acc, avalue| {
-                let _call: QueryTrisult<Call> = match avalue {
-                    AValue::FunctionCall(_, _, _) => {
-                        todo!()
-                    }
-                    AValue::RValue(RValue::Property(property_decl), _) => {
-                        db.query_owscript_property_impl(property_decl)
-                            .and_require(caller)
-                            .map(|(script, caller)| script.saturate(caller));
+) -> QueryTrisult<wst::Call> {
+    QueryTrisult::Ok(avalue_chain.avalues).fold_flat_map(
+        caller,
+        |acc| acc.unwrap().wst.unwrap(),
+        |acc, current| {
+            db.query_wst_call_by_avalue(acc, current.clone())
+                .map(|call| {
+                    Some(Caller {
+                        wst: Some(call),
+                        cir: current,
+                    })
+                })
+        },
+    )
+}
 
-                        todo!()
-                    }
-                    AValue::RValue(RValue::Type(_), _) => {
-                        todo!()
-                    }
-                    AValue::RValue(RValue::Function(_), _) => {
-                        todo!()
-                    }
-                    AValue::RValue(RValue::EnumConstant(_), _) => {
-                        todo!()
-                    }
-                    AValue::CValue(CValue::String(string, _, _)) => {
-                        QueryTrisult::Ok(Call::String(string))
-                    }
-                    AValue::CValue(CValue::Number(number, _, _)) => {
-                        QueryTrisult::Ok(Call::Number(number))
-                    }
-                };
+pub(super) fn query_wst_call_by_avalue(
+    db: &dyn Codegen,
+    caller: Option<Caller>,
+    avalue: cir::AValue,
+) -> QueryTrisult<wst::Call> {
+    match avalue {
+        cir::AValue::RValue(cir::RValue::Property(property_decl), _) => QueryTrisult::assume_or(
+            property_decl.is_native.is_some() && caller.is_some(),
+            "Only native instance properties are implemented",
+            property_decl.name.span.clone(),
+        )
+        .flat_start(|| {
+            let caller = caller.unwrap();
+            let r#type = caller.cir.return_called_type(db).r#type;
+            let mut map = HashMap::new();
+            if let Some(caller) = caller.wst {
+                map.insert(Placeholder::from("%caller%"), caller);
+            }
 
-                todo!()
-            },
-        );
-
-    todo!()
+            match r#type {
+                Type::Enum(enum_id) => {
+                    let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_id);
+                    db.query_wscript_enum_constant_impl(
+                        enum_decl.name.value,
+                        property_decl.name.value,
+                    )
+                }
+                Type::Struct(struct_id) => {
+                    let struct_decl: cir::StructDeclaration =
+                        db.lookup_intern_struct_decl(struct_id);
+                    db.query_wscript_struct_property_impl(
+                        struct_decl.name.value,
+                        property_decl.name.value,
+                    )
+                    .flat_map(|partial_call| {
+                        partial_call
+                            .saturate(&mut map)
+                            .map_err(|reason| CompilerError::PlaceholderError(reason))
+                            .into()
+                    })
+                }
+                Type::Event(event_id) => {
+                    let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(event_id);
+                    db.query_wscript_event_context_property_impl(
+                        event_decl.name.value,
+                        property_decl.name.value,
+                    )
+                }
+                Type::Unit => query_error!(CompilerError::NotImplemented(
+                    "Unit as caller is currently not implemented",
+                    property_decl.name.span
+                )),
+            }
+        }),
+        avalue @ _ => query_error!(CompilerError::NotImplemented(
+            "Current avalue is not implemented",
+            avalue.span()
+        )),
+    }
 }

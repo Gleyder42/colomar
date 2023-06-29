@@ -13,7 +13,7 @@ pub mod database;
 pub mod error;
 pub mod language;
 pub mod loader;
-pub mod recognizer;
+pub mod codegen;
 pub mod trisult;
 pub mod wir;
 pub mod workshop;
