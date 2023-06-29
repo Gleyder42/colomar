@@ -42,7 +42,7 @@ pub(super) fn query_wst_call_by_avalue(
             let r#type = caller.cir.return_called_type(db).r#type;
             let mut map = HashMap::new();
             if let Some(caller) = caller.wst {
-                map.insert(Placeholder(Text::new("%caller%")), caller);
+                map.insert(Placeholder::from("%caller%"), caller);
             }
 
             match r#type {

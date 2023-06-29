@@ -1,12 +1,30 @@
 use crate::compiler::workshop::lexer::Token;
+use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::{partial, Ident};
+use crate::compiler::Text;
 use chumsky::prelude::*;
 
 pub type ParserError = Simple<Token>;
 
+enum Name {
+    Ident(Ident),
+    Placeholder(Placeholder),
+}
+
 fn ident() -> impl Parser<Token, Ident, Error = ParserError> {
     filter_map(|span, token| match token {
         Token::Ident(text) => Ok(Ident(text)),
+        _ => Err(ParserError::expected_input_found(
+            span,
+            Vec::new(),
+            Some(token),
+        )),
+    })
+}
+
+fn placeholder() -> impl Parser<Token, Placeholder, Error = ParserError> {
+    filter_map(|span, token| match token {
+        Token::Placeholder(text) => Ok(Placeholder(text)),
         _ => Err(ParserError::expected_input_found(
             span,
             Vec::new(),
@@ -22,14 +40,24 @@ pub fn call() -> impl Parser<Token, partial::Call, Error = ParserError> {
             .at_least(1)
             .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')));
 
-        ident()
-            .then(args.or_not())
-            .map(|(ident, args)| match (ident, args) {
-                (ident, Some(args)) => {
-                    partial::Call::Function(partial::Function { name: ident, args })
-                }
-                (ident, None) => partial::Call::Ident(ident),
-            })
+        choice((
+            ident().map(Name::Ident),
+            placeholder().map(Name::Placeholder),
+        ))
+        .then(args.or_not())
+        .try_map(|(ident, args), span| match (ident, args) {
+            (Name::Ident(ident), Some(args)) => Ok(partial::Call::Function(partial::Function {
+                name: ident,
+                args,
+            })),
+            (Name::Ident(ident), None) => Ok(partial::Call::Ident(ident)),
+            (Name::Placeholder(placeholder), None) => Ok(partial::Call::Placeholder(placeholder)),
+            (Name::Placeholder(placeholder), Some(_)) => Err(ParserError::expected_input_found(
+                span,
+                Vec::new(),
+                Some(Token::Placeholder(placeholder.0)),
+            )),
+        })
     })
 }
 
