@@ -19,7 +19,7 @@ open native struct Player {
     native fn heal(amount: num, player: Player)
 }
 
-native event OngoingEachPlayer(team: Team = Team.All, slot: Slot | Hero = Slot.All) {
+native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Slot.All) {
     native val player: Player
 }
 
@@ -27,6 +27,6 @@ native enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
 }
 
-rule "Hello World" OngoingEachPlayer() {
+rule "Hello World" OngoingEachPlayer(team = Team.All) {
     player.isReloading
 }

@@ -1,8 +1,6 @@
 name = "Ongoing - EachPlayer"
 
-[args]
-arg0 = "team"
-arg1 = "slot"
+args = ["team", "heroSlot"]
 
 [context]
 player = "Event Player"

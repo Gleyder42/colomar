@@ -305,6 +305,9 @@ fn main() {
                 CompilerError::WstParserError => {
                     todo!()
                 }
+                CompilerError::MissingArgument { .. } => {
+                    todo!()
+                }
             }
         }
 

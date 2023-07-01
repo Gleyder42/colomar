@@ -17,7 +17,7 @@ pub(super) fn query_call_chain(
     );
     let span = call_chain.span;
 
-    QueryTrisult::from_iter(call_chain.value).fold_flat_map::<AValueChain, _, _, _>(
+    QueryTrisult::from_iter(call_chain.value).fold_flat_map(
         (inital_nameholders.clone(), Vec::<cir::AValue>::new()),
         // func refers to the closure processing the call.
         // map_func refers to the closure unwrapping the value .
@@ -44,13 +44,13 @@ pub(super) fn query_call_chain(
                     .query_namespaced_function(nameholders, name)
                     .and_or_default(
                         args.into_iter()
-                            .map(|call_chain| {
-                                db.query_call_chain(inital_nameholders.clone(), call_chain)
+                            .map(|call_argument| {
+                                db.query_call_chain(inital_nameholders.clone(), call_argument.call_chain())
                             })
                             .collect::<QueryTrisult<Vec<AValueChain>>>(),
                     )
                     .flat_map(|(function_decl, called_avalue_args)| {
-                        db.query_called_args_by_chain(
+                        db.query_called_args(
                             called_avalue_args,
                             function_decl.arguments.clone(),
                         )

@@ -241,7 +241,7 @@ pub struct CalledArgument {
     /// It may be therefore not the 'correct' declared argument, rather the argument which was
     /// inputted by the user
     pub declared: DeclaredArgumentId,
-    pub value: AValue,
+    pub value: AValueChain,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

@@ -20,35 +20,21 @@ pub(super) fn query_declared_args(
         .collect::<QueryTrisult<_>>()
 }
 
-pub(super) fn query_called_args_by_chain(
-    db: &dyn DeclQuery,
-    called_avalue_chains: Vec<AValueChain>,
-    decl_arg_ids: DeclaredArgumentIds,
-) -> QueryTrisult<CalledArguments> {
-    let last_avalues: Vec<AValue> = called_avalue_chains
-        .into_iter()
-        // An AValue chain is never empty, therefore it is safe to unwrap here
-        .map(|avalue_chain| avalue_chain.returning_avalue())
-        .collect();
-
-    db.query_called_args(last_avalues, decl_arg_ids)
-}
-
 pub(super) fn query_called_args(
     db: &dyn DeclQuery,
-    called_arg_avalues: Vec<AValue>,
+    called_arg_avalues: Vec<AValueChain>,
     decl_arg_ids: DeclaredArgumentIds,
 ) -> QueryTrisult<CalledArguments> {
     decl_arg_ids
         .into_iter()
         .map::<cir::DeclaredArgument, _>(|decl_arg_id| db.lookup_intern_decl_arg(decl_arg_id))
         .zip(called_arg_avalues)
-        .map(|(decl_arg, avalue)| {
-            let called_type = avalue.return_called_type(db);
+        .map(|(decl_arg, avalue_chain)| {
+            let called_type = avalue_chain.returning_avalue().return_called_type(db);
             let valid_type = decl_arg.types.contains_type(&called_type.r#type);
 
             let called_argument = CalledArgument {
-                value: avalue,
+                value: avalue_chain,
                 declared: decl_arg.clone().intern(db),
             };
 

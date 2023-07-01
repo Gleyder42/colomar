@@ -1,6 +1,4 @@
-use crate::compiler::cir::{
-    CalledType, CalledTypes, EventDeclarationId, RValue, StructDeclarationId, Type,
-};
+use crate::compiler::cir::{CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, RValue, StructDeclarationId, Type};
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{Ident, QueryTrisult, Span, Text};
 use crate::query_error;
@@ -31,6 +29,10 @@ pub enum CompilerError {
     WstLexerError,
     // TODO Add any information
     WstParserError,
+    MissingArgument {
+        missing_arg: DeclaredArgumentId,
+        call_site: Span
+    }
 }
 
 impl CompilerError {
@@ -51,6 +53,7 @@ impl CompilerError {
             CompilerError::WstLexerError => 10,
             CompilerError::WstParserError => 11,
             CompilerError::PlaceholderError(_) => 12,
+            CompilerError::MissingArgument { .. } => 13,
         }
     }
 }

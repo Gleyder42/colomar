@@ -1,5 +1,6 @@
 extern crate core;
 
+use chumsky::chain::Chain;
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
 use crate::compiler::{Ident, Span, Spanned, SpannedBool, UseRestriction};
@@ -8,7 +9,7 @@ use smallvec::SmallVec;
 
 pub type ParserError = Simple<Token, Span>;
 
-fn ident() -> impl Parser<Token, Ident, Error = ParserError> {
+fn ident() -> impl Parser<Token, Ident, Error = ParserError> + Clone {
     filter_map(|span, token| match token {
         Token::Ident(ident) => Ok(Ident { value: ident, span }),
         _ => Err(ParserError::expected_input_found(
@@ -225,13 +226,21 @@ impl<'a> IdentChainParserResult<'a> {
 
 fn chain<'a>() -> IdentChainParserResult<'a> {
     let mut ident_chain = Recursive::<_, CallChain, _>::declare();
-    let args = ident_chain
-        .clone()
+
+    let args = ident()
+        .then_ignore(just(Token::Ctrl('=')))
+        .or_not()
+        .then(ident_chain.clone())
+        .map_with_span(|(named, call_chain), span| {
+            match named {
+                Some(name) => CallArgument::Named(name, call_chain, span),
+                None => CallArgument::Pos(call_chain)
+            }
+        })
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
-        .map_with_span(CallArguments::new)
-        .labelled("args");
+        .map_with_span(CallArguments::new);
 
     let literal = filter_map(|span, token| match token {
         Token::String(string) => Ok(Box::new(Call::String(string, span))),
@@ -557,7 +566,7 @@ mod tests {
                                 expected_args.into_iter()
                                     .zip(actual_args.into_iter())
                                     .for_each(|(expected, actual)| {
-                                        assert_call_chain(expected, actual);
+                                        assert_call_chain(expected, actual.call_chain());
                                     })
                             }
                             IdentTestData::Ident(expected) => {
@@ -655,7 +664,7 @@ mod tests {
                     .args
                     .into_iter()
                     .zip(actual.arguments.into_iter())
-                    .for_each(|(actual, expected)| assert_call_chain(actual, expected))
+                    .for_each(|(actual, expected)| assert_call_chain(actual, expected.call_chain()))
             },
         );
     }

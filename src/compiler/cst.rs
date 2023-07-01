@@ -222,7 +222,28 @@ pub struct Block {
 /// ## Example
 /// - (Team.All, Hero.Ana)
 /// - (player, 100)
-pub type CallArguments = Spanned<Vec<CallChain>>;
+pub type CallArguments = Spanned<Vec<CallArgument>>;
+
+/// A call argument is either identified by name or position.
+///
+/// ### By name
+///  - (named = "Hello World", amount = 10)
+///
+/// ### By position
+///  - (1, 2, 3)
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum CallArgument {
+    Named(Ident, CallChain, Span),
+    Pos(CallChain),
+}
+
+impl CallArgument {
+    pub fn call_chain(self) -> CallChain {
+        match self {
+            CallArgument::Named(_, call_chain, _) | CallArgument::Pos(call_chain) => call_chain
+        }
+    }
+}
 
 /// Multiple idents form a call chain.
 ///
@@ -256,11 +277,14 @@ impl From<Box<Call>> for CallChain {
 /// - hello
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Call {
+    // TODO Use doctests here to ensure valid examples
+
     /// An ident followed by call arguments.
     /// [CallArguments] might be recursive, so [Call] must be used behind a pointer.
     /// ## Example
     /// - heal(player, 100)
     /// - display(player, message)
+    /// - heal(player, message = 100)
     IdentArguments {
         name: Ident,
         args: CallArguments,

@@ -66,19 +66,11 @@ pub trait DeclQuery: Interner {
 
     // Arg
 
-    /// [arg::query_called_args_by_chain]
-    #[salsa::invoke(arg::query_called_args_by_chain)]
-    fn query_called_args_by_chain(
-        &self,
-        called_avalue_chains: Vec<AValueChain>,
-        decl_arg_ids: DeclaredArgumentIds,
-    ) -> QueryTrisult<CalledArguments>;
-
     /// [arg::query_called_args]
     #[salsa::invoke(arg::query_called_args)]
     fn query_called_args(
         &self,
-        called_arg_avalues: Vec<AValue>,
+        called_arg_avalue_chain: Vec<AValueChain>,
         decl_arg_ids: DeclaredArgumentIds,
     ) -> QueryTrisult<CalledArguments>;
 

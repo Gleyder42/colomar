@@ -11,7 +11,7 @@ pub enum Element {
 #[derive(Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Event {
     pub name: String,
-    pub args: HashableMap<String, String>,
+    pub args: Vec<String>,
     pub context: HashableMap<String, String>,
 }
 

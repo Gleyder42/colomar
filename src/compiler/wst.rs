@@ -82,6 +82,12 @@ pub mod partial {
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Ident(pub Text);
 
+impl From<String> for Ident {
+    fn from(value: String) -> Self {
+        Ident(Text::new(value))
+    }
+}
+
 impl From<Text> for Ident {
     fn from(value: Text) -> Self {
         Ident(value)
@@ -176,7 +182,8 @@ impl Condition {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Rule {
-    event: Event,
-    conditions: Vec<Condition>,
-    actions: Vec<Function>,
+    pub title: Text,
+    pub event: Event,
+    pub conditions: Vec<Condition>,
+    pub actions: Vec<Function>,
 }

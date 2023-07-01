@@ -75,11 +75,11 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisul
     let arguments = |event_decl_id: EventDeclarationId| {
         rule.arguments
             .into_iter()
-            .map(|call_chain| db.query_call_chain(smallvec![Nameholder::Root], call_chain))
+            .map(|call_argument| db.query_call_chain(smallvec![Nameholder::Root], call_argument.call_chain()))
             .collect::<QueryTrisult<Vec<_>>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
             .flat_map(|(arguments, event_def)| {
-                db.query_called_args_by_chain(arguments, event_def.arguments)
+                db.query_called_args(arguments, event_def.arguments)
             })
     };
 

@@ -24,6 +24,8 @@ pub trait WorkshopScriptLoader {
 
     fn query_wscript_event_impl(&self, name: Text) -> QueryTrisult<wscript_impl::Event>;
 
+    fn query_wscript_event_name_impl(&self, name: Text) -> QueryTrisult<String>;
+
     fn query_wscript_enum_impl(&self, name: Text) -> QueryTrisult<wscript_impl::Enum>;
 
     fn query_wscript_enum_constant_impl(
@@ -130,6 +132,10 @@ fn query_wscript_event_context_property_impl(
             .map_err(|err| CompilerError::PlaceholderError(err))
             .into()
     })
+}
+
+fn query_wscript_event_name_impl(db: &dyn WorkshopScriptLoader, name: Text) -> QueryTrisult<String> {
+    db.query_wscript_event_impl(name).map(|r#event| event.name)
 }
 
 fn query_wscript_impl(
