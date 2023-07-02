@@ -5,6 +5,7 @@ use crate::compiler::cir::{AValueChain, CValue};
 use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
 use smallvec::smallvec;
+use crate::compiler::cst::CallArgument;
 
 pub(super) fn query_call_chain(
     db: &dyn DeclQuery,
@@ -45,9 +46,14 @@ pub(super) fn query_call_chain(
                     .and_or_default(
                         args.into_iter()
                             .map(|call_argument| {
-                                db.query_call_chain(inital_nameholders.clone(), call_argument.call_chain())
+                                db.query_call_chain(inital_nameholders.clone(), call_argument.clone().call_chain()).map(|it| {
+                                    match call_argument {
+                                        CallArgument::Named(name, _, _) => (Some(name), it),
+                                        CallArgument::Pos(_) => (None, it)
+                                    }
+                                })
                             })
-                            .collect::<QueryTrisult<Vec<AValueChain>>>(),
+                            .collect::<QueryTrisult<Vec<_>>>(),
                     )
                     .flat_map(|(function_decl, called_avalue_args)| {
                         db.query_called_args(

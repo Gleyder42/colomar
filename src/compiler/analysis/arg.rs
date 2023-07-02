@@ -1,14 +1,14 @@
+use std::collections::HashMap;
+use chumsky::Parser;
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::cir::{
-    AValue, AValueChain, CalledArgument, CalledArguments, CalledType, CalledTypes,
-    DeclaredArgumentIds,
-};
+use crate::compiler::cir::{AValue, AValueChain, CalledArguments, CalledType, CalledTypes, DeclaredArgumentIds};
 use crate::compiler::error::CompilerError;
-use crate::compiler::{cir, cst, QueryTrisult};
+use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
 use either::Either;
-use smallvec::smallvec;
+use smallvec::{smallvec, SmallVec};
+use crate::query_error;
 
 pub(super) fn query_declared_args(
     db: &dyn DeclQuery,
@@ -22,33 +22,90 @@ pub(super) fn query_declared_args(
 
 pub(super) fn query_called_args(
     db: &dyn DeclQuery,
-    called_arg_avalues: Vec<AValueChain>,
+    called_arg_avalues: Vec<(Option<Ident>, AValueChain)>,
     decl_arg_ids: DeclaredArgumentIds,
 ) -> QueryTrisult<CalledArguments> {
-    decl_arg_ids
-        .into_iter()
-        .map::<cir::DeclaredArgument, _>(|decl_arg_id| db.lookup_intern_decl_arg(decl_arg_id))
-        .zip(called_arg_avalues)
-        .map(|(decl_arg, avalue_chain)| {
-            let called_type = avalue_chain.returning_avalue().return_called_type(db);
-            let valid_type = decl_arg.types.contains_type(&called_type.r#type);
-
-            let called_argument = CalledArgument {
-                value: avalue_chain,
-                declared: decl_arg.clone().intern(db),
-            };
-
-            if valid_type {
-                QueryTrisult::Ok(called_argument)
-            } else {
-                let error = CompilerError::WrongType {
-                    actual: called_type,
-                    expected: Either::Right(decl_arg.types),
-                };
-                QueryTrisult::Par(called_argument, vec![error])
-            }
+    let mut decl_args_map: HashMap<Text, (usize, cir::DeclaredArgumentId)> = decl_arg_ids
+        .iter()
+        .enumerate()
+        .map(|(index, id)| {
+            let decl_arg = db.lookup_intern_decl_arg(*id);
+            let arg_name = decl_arg.name.value.clone();
+            (arg_name, (index, *id))
         })
-        .collect::<QueryTrisult<_>>()
+        .collect();
+
+    let called_args: Vec<_> = called_arg_avalues
+        .into_iter()
+        .enumerate()
+        .collect();
+
+    let initial_accumulator: (Option<usize>, Vec<cir::CalledArgument>) = (None, Vec::new());
+
+
+    QueryTrisult::Ok(called_args)
+        .fold_flat_map(
+            initial_accumulator,
+            |(_, args)| args,
+            |(last_index, mut decl_args), (index, (name, arg))| {
+                use crate::compiler::Trisult::*;
+                let is_index_valid = |index| last_index.is_none() || last_index.unwrap() < index;
+
+                match name {
+                    // If the called arguments is named
+                    Some(name) => {
+                        match decl_args_map.remove(&name.value) {
+                            Some((index, decl_arg_id)) => {
+                               if is_index_valid(index) {
+                                   let called_arg = cir::CalledArgument { declared: decl_arg_id, value: arg };
+                                   decl_args.push(called_arg);
+                                   Ok((Some(index), decl_args))
+                               } else {
+                                   let error = CompilerError::CannotMixArguments(arg.span);
+                                   Par((Some(index), decl_args), vec![error])
+                               }
+                            }
+                            None => {
+                                let error = CompilerError::DuplicateNamedArgument(name);
+                                Par((Some(index), decl_args), vec![error])
+                            }
+                        }
+                    }
+                    // If the called argument is not named
+                    None => {
+                        if is_index_valid(index) {
+                            match decl_arg_ids.get(index) {
+                                Some(decl_arg_id) => {
+                                    let called = cir::CalledArgument { declared: *decl_arg_id, value: arg };
+                                    decl_args.push(called);
+                                    Ok((Some(index), decl_args))
+                                }
+                                None => {
+                                    let error = CompilerError::ArgumentOutOfRange(index, arg.span);
+                                    Par((Some(index), decl_args), vec![error])
+                                }
+                            }
+                        } else {
+                            let error = CompilerError::CannotMixArguments(arg.span);
+                            Par((Some(index), decl_args), vec![error])
+                        }
+                    }
+                }
+            })
+        .flat_map(|called_args| {
+            called_args.into_iter()
+                .map(|called_arg| {
+                    let decl_arg: cir::DeclaredArgument = db.lookup_intern_decl_arg(called_arg.declared);
+                    let called_type = called_arg.value.returning_avalue().return_called_type(db);
+
+                    if decl_arg.types.contains_type(&called_type.r#type) {
+                        QueryTrisult::Ok(called_arg)
+                    } else {
+                        QueryTrisult::Par(called_arg, vec![CompilerError::WrongType { expected: Either::Right(decl_arg.types), actual: called_type }])
+                    }
+                }).collect::<QueryTrisult<Vec<_>>>()
+        })
+        .map(|called_args| called_args.into())
 }
 
 pub(super) fn query_declared_arg(

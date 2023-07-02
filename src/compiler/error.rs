@@ -32,7 +32,11 @@ pub enum CompilerError {
     MissingArgument {
         missing_arg: DeclaredArgumentId,
         call_site: Span
-    }
+    },
+    CannotFindNamedArgument(Ident),
+    ArgumentOutOfRange(usize, Span),
+    DuplicateNamedArgument(Ident),
+    CannotMixArguments(Span)
 }
 
 impl CompilerError {
@@ -54,6 +58,10 @@ impl CompilerError {
             CompilerError::WstParserError => 11,
             CompilerError::PlaceholderError(_) => 12,
             CompilerError::MissingArgument { .. } => 13,
+            CompilerError::CannotFindNamedArgument(_) => 14,
+            CompilerError::ArgumentOutOfRange(_, _) => 15,
+            CompilerError::CannotMixArguments(_) => 16,
+            CompilerError::DuplicateNamedArgument(_) => 17
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::namespace::Nameholder;
 use crate::compiler::cir::{AValueChain, EventDeclarationId, Predicate, RValue, Type};
-use crate::compiler::cst::{Action, Actions, Conditions};
+use crate::compiler::cst::{Action, Actions, CallArgument, Conditions};
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{cir, cst, QueryTrisult};
@@ -75,7 +75,13 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisul
     let arguments = |event_decl_id: EventDeclarationId| {
         rule.arguments
             .into_iter()
-            .map(|call_argument| db.query_call_chain(smallvec![Nameholder::Root], call_argument.call_chain()))
+            .map(|call_argument| db.query_call_chain(smallvec![Nameholder::Root], call_argument.clone().call_chain()).map(|it| {
+                match call_argument {
+                    CallArgument::Named(name, _, _) => (Some(name), it),
+                    CallArgument::Pos(_) => (None, it)
+                }
+            })
+            )
             .collect::<QueryTrisult<Vec<_>>>()
             .and_require(db.query_event_def_by_id(event_decl_id))
             .flat_map(|(arguments, event_def)| {

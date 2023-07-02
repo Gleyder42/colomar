@@ -27,6 +27,6 @@ native enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
 }
 
-rule "Hello World" OngoingEachPlayer(team = Team.All) {
+rule "Hello World" OngoingEachPlayer(Hero.Ana) {
     player.isReloading
 }

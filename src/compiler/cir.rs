@@ -212,7 +212,7 @@ impl From<CalledType> for CalledTypes {
 
 impl CalledTypes {
     // TODO This should not be O(n)
-    // Either make it a map or sort the vec before
+    // TODO Either make it a map or sort the vec before
     pub fn contains_type(&self, r#type: &Type) -> bool {
         self.types.iter().any(|it| it.r#type == *r#type)
     }

@@ -19,4 +19,6 @@ fn hello(a = 1, 2, 3)
 fn hello(7, a = 5)
 fn hello(c = 5, 1)
 fn hello(c = 1, 2, a = 3)
+
+fn hello(1, 2, 3, 4)
 ```

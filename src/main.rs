@@ -308,6 +308,7 @@ fn main() {
                 CompilerError::MissingArgument { .. } => {
                     todo!()
                 }
+                _ => {}
             }
         }
 
