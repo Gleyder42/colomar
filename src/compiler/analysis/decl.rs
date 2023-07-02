@@ -7,7 +7,7 @@ use crate::compiler::cir::{
 };
 use crate::compiler::cst::Actions;
 use crate::compiler::error::CompilerError;
-use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
+use crate::compiler::{cir, cst, Ident, QueryTrisult, Spanned, Text};
 
 use cir::{AValue, DeclaredArgumentId};
 use cst::Ast;
@@ -70,7 +70,7 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(arg::query_called_args)]
     fn query_called_args(
         &self,
-        called_arg_avalue_chain: Vec<(Option<Ident>, AValueChain)>,
+        called_arg_avalue_chain: Spanned<Vec<(Option<Ident>, AValueChain)>>,
         decl_arg_ids: DeclaredArgumentIds,
     ) -> QueryTrisult<CalledArguments>;
 

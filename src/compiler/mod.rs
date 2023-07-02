@@ -8,12 +8,12 @@ use std::ops::Range;
 pub mod analysis;
 pub mod cir;
 // pub mod codegen;
+pub mod codegen;
 pub mod cst;
 pub mod database;
 pub mod error;
 pub mod language;
 pub mod loader;
-pub mod codegen;
 pub mod trisult;
 pub mod wir;
 pub mod workshop;
@@ -93,6 +93,15 @@ impl<T> Spanned<T> {
 
     pub fn ignore_value(option: Option<T>, span: Span) -> SpannedBool {
         option.map(|_| Spanned::new((), span))
+    }
+}
+
+impl<T: Default> Spanned<T> {
+    pub fn default_inner(span: Span) -> Spanned<T> {
+        Spanned {
+            value: T::default(),
+            span,
+        }
     }
 }
 

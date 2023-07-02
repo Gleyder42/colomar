@@ -14,6 +14,6 @@ pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
         .collect::<QueryTrisult<_>>()
         // TODO Decide how to handle this
         // query_root_namespace() has to be called here to include the errors
-        .and_ignore_value(db.query_root_namespace())
+        .and_only_errors(db.query_root_namespace())
         .map(cir::Cir)
 }

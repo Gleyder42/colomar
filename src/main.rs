@@ -284,31 +284,18 @@ fn main() {
                         .print(Source::from(""))
                         .unwrap();
                 }
-                CompilerError::CannotFindNativeDefinition(_) => {
-                    todo!()
-                }
-                CompilerError::InvalidNativeDefinition(_) => {
-                    todo!()
-                }
-                CompilerError::NoCaller => {
-                    todo!()
-                }
-                CompilerError::NotImplemented(_, _) => {
-                    todo!()
-                }
-                CompilerError::PlaceholderError(_) => {
-                    todo!()
-                }
-                CompilerError::WstLexerError => {
-                    todo!()
-                }
-                CompilerError::WstParserError => {
-                    todo!()
-                }
-                CompilerError::MissingArgument { .. } => {
-                    todo!()
-                }
-                _ => {}
+                CompilerError::CannotFindNativeDefinition(_) => {}
+                CompilerError::InvalidNativeDefinition(_) => {}
+                CompilerError::NoCaller => {}
+                CompilerError::NotImplemented(_, _) => {}
+                CompilerError::PlaceholderError(_) => {}
+                CompilerError::WstLexerError => {}
+                CompilerError::WstParserError => {}
+                CompilerError::MissingArgument { .. } => {}
+                CompilerError::CannotFindNamedArgument(_) => {}
+                CompilerError::ArgumentOutOfRange(_, _) => {}
+                CompilerError::DuplicateNamedArgument(_) => {}
+                CompilerError::CannotMixArguments(_) => {}
             }
         }
 

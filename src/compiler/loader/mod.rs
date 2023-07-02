@@ -134,7 +134,10 @@ fn query_wscript_event_context_property_impl(
     })
 }
 
-fn query_wscript_event_name_impl(db: &dyn WorkshopScriptLoader, name: Text) -> QueryTrisult<String> {
+fn query_wscript_event_name_impl(
+    db: &dyn WorkshopScriptLoader,
+    name: Text,
+) -> QueryTrisult<String> {
     db.query_wscript_event_impl(name).map(|r#event| event.name)
 }
 

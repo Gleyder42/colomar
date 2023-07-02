@@ -240,7 +240,7 @@ pub enum CallArgument {
 impl CallArgument {
     pub fn call_chain(self) -> CallChain {
         match self {
-            CallArgument::Named(_, call_chain, _) | CallArgument::Pos(call_chain) => call_chain
+            CallArgument::Named(_, call_chain, _) | CallArgument::Pos(call_chain) => call_chain,
         }
     }
 }
@@ -278,7 +278,6 @@ impl From<Box<Call>> for CallChain {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Call {
     // TODO Use doctests here to ensure valid examples
-
     /// An ident followed by call arguments.
     /// [CallArguments] might be recursive, so [Call] must be used behind a pointer.
     /// ## Example

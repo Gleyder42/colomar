@@ -1,6 +1,6 @@
 use crate::compiler::cir::Type;
-use crate::compiler::error::CompilerError;
 use crate::compiler::codegen::{Caller, Codegen};
+use crate::compiler::error::CompilerError;
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::{cir, wst, QueryTrisult, Text};
 use crate::query_error;

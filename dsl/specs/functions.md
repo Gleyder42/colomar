@@ -1,9 +1,10 @@
 # Functions
 
 ```
-fn test(a: num) { }
+fn test(a: num = 10, b: num) { 
+}
 
-test()
+test(10)
 
 fn hello(a: num = 10, b: num = 20, c = 30) -> num {
 }

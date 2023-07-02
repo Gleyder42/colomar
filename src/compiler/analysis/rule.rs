@@ -73,20 +73,25 @@ pub(super) fn query_rule_cond(
 
 pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisult<cir::Rule> {
     let arguments = |event_decl_id: EventDeclarationId| {
+        let arguments_span = rule.arguments.span;
+
         rule.arguments
+            .value
             .into_iter()
-            .map(|call_argument| db.query_call_chain(smallvec![Nameholder::Root], call_argument.clone().call_chain()).map(|it| {
-                match call_argument {
+            .map(|call_argument| {
+                db.query_call_chain(
+                    smallvec![Nameholder::Root],
+                    call_argument.clone().call_chain(),
+                )
+                .map(|it| match call_argument {
                     CallArgument::Named(name, _, _) => (Some(name), it),
-                    CallArgument::Pos(_) => (None, it)
-                }
+                    CallArgument::Pos(_) => (None, it),
+                })
             })
-            )
             .collect::<QueryTrisult<Vec<_>>>()
+            .spanned(arguments_span)
             .and_require(db.query_event_def_by_id(event_decl_id))
-            .flat_map(|(arguments, event_def)| {
-                db.query_called_args(arguments, event_def.arguments)
-            })
+            .flat_map(|(arguments, event_def)| db.query_called_args(arguments, event_def.arguments))
     };
 
     db.query_namespaced_event(smallvec![Nameholder::Root], rule.event)

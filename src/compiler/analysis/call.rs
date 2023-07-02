@@ -2,10 +2,10 @@ use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::{Nameholder, Nameholders};
 use crate::compiler::cir::{AValueChain, CValue};
-use crate::compiler::QueryTrisult;
-use crate::compiler::{cir, cst};
-use smallvec::smallvec;
 use crate::compiler::cst::CallArgument;
+use crate::compiler::{cir, cst};
+use crate::compiler::{QueryTrisult, Spanned};
+use smallvec::smallvec;
 
 pub(super) fn query_call_chain(
     db: &dyn DeclQuery,
@@ -41,38 +41,48 @@ pub(super) fn query_call_chain(
                             cir::AValue::RValue(rvalue, ident.span),
                         )
                     }),
-                cst::Call::IdentArguments { name, args, span } => db
-                    .query_namespaced_function(nameholders, name)
-                    .and_or_default(
-                        args.into_iter()
-                            .map(|call_argument| {
-                                db.query_call_chain(inital_nameholders.clone(), call_argument.clone().call_chain()).map(|it| {
-                                    match call_argument {
-                                        CallArgument::Named(name, _, _) => (Some(name), it),
-                                        CallArgument::Pos(_) => (None, it)
-                                    }
+                cst::Call::IdentArguments { name, args, span } => {
+                    let args_span = args.span;
+
+                    db.query_namespaced_function(nameholders, name)
+                        .and_or(
+                            args.value
+                                .into_iter()
+                                .map(|call_argument| {
+                                    db.query_call_chain(
+                                        inital_nameholders.clone(),
+                                        call_argument.clone().call_chain(),
+                                    )
+                                    .map(|it| {
+                                        match call_argument {
+                                            CallArgument::Named(name, _, _) => (Some(name), it),
+                                            CallArgument::Pos(_) => (None, it),
+                                        }
+                                    })
                                 })
-                            })
-                            .collect::<QueryTrisult<Vec<_>>>(),
-                    )
-                    .flat_map(|(function_decl, called_avalue_args)| {
-                        db.query_called_args(
-                            called_avalue_args,
-                            function_decl.arguments.clone(),
+                                .collect::<QueryTrisult<Vec<_>>>()
+                                .spanned(args_span.clone()),
+                            Spanned::default_inner(args_span),
                         )
-                        .intern_inner(db)
-                        .map(|args| (function_decl, args))
-                    })
-                    .map(|(function_decl, function_args)| {
-                        (
-                            smallvec![function_decl.return_type.clone().into()],
-                            cir::AValue::FunctionCall(
-                                function_decl.intern(db),
-                                function_args,
-                                span,
-                            ),
-                        )
-                    }),
+                        .flat_map(|(function_decl, called_avalue_args)| {
+                            db.query_called_args(
+                                called_avalue_args,
+                                function_decl.arguments.clone(),
+                            )
+                            .intern_inner(db)
+                            .map(|args| (function_decl, args))
+                        })
+                        .map(|(function_decl, function_args)| {
+                            (
+                                smallvec![function_decl.return_type.clone().into()],
+                                cir::AValue::FunctionCall(
+                                    function_decl.intern(db),
+                                    function_args,
+                                    span,
+                                ),
+                            )
+                        })
+                }
                 cst::Call::String(ident, span) => db.query_string_type().map(|string_struct_id| {
                     (
                         smallvec![Nameholder::Empty],

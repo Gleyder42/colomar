@@ -1,4 +1,7 @@
-use crate::compiler::cir::{CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, RValue, StructDeclarationId, Type};
+use crate::compiler::cir::{
+    CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, RValue, StructDeclarationId,
+    Type,
+};
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{Ident, QueryTrisult, Span, Text};
 use crate::query_error;
@@ -31,12 +34,12 @@ pub enum CompilerError {
     WstParserError,
     MissingArgument {
         missing_arg: DeclaredArgumentId,
-        call_site: Span
+        call_site: Span,
     },
     CannotFindNamedArgument(Ident),
     ArgumentOutOfRange(usize, Span),
     DuplicateNamedArgument(Ident),
-    CannotMixArguments(Span)
+    CannotMixArguments(Span),
 }
 
 impl CompilerError {
@@ -61,7 +64,7 @@ impl CompilerError {
             CompilerError::CannotFindNamedArgument(_) => 14,
             CompilerError::ArgumentOutOfRange(_, _) => 15,
             CompilerError::CannotMixArguments(_) => 16,
-            CompilerError::DuplicateNamedArgument(_) => 17
+            CompilerError::DuplicateNamedArgument(_) => 17,
         }
     }
 }

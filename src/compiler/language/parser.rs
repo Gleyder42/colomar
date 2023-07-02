@@ -1,9 +1,9 @@
 extern crate core;
 
-use chumsky::chain::Chain;
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
 use crate::compiler::{Ident, Span, Spanned, SpannedBool, UseRestriction};
+use chumsky::chain::Chain;
 use chumsky::prelude::*;
 use smallvec::SmallVec;
 
@@ -231,11 +231,9 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
         .then_ignore(just(Token::Ctrl('=')))
         .or_not()
         .then(ident_chain.clone())
-        .map_with_span(|(named, call_chain), span| {
-            match named {
-                Some(name) => CallArgument::Named(name, call_chain, span),
-                None => CallArgument::Pos(call_chain)
-            }
+        .map_with_span(|(named, call_chain), span| match named {
+            Some(name) => CallArgument::Named(name, call_chain, span),
+            None => CallArgument::Pos(call_chain),
         })
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()

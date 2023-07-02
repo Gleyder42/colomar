@@ -1,14 +1,13 @@
 mod call;
 mod rule;
 
+use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::interner::Interner as AnalysisInterner;
 use crate::compiler::loader::WorkshopScriptLoader;
 use crate::compiler::{cir, wst, QueryTrisult};
-use crate::compiler::analysis::def::DefQuery;
 
 #[salsa::query_group(CodegenDatabase)]
 pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
-
     /// Impl: [rule::query_wst_rule]
     #[salsa::invoke(rule::query_wst_rule)]
     fn query_wst_rule(&self, rule: cir::Rule) -> QueryTrisult<wst::Rule>;
