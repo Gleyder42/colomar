@@ -13,6 +13,7 @@ native enum Slot {
 open native struct Player {
 
     native val isReloading: bool
+    native val isJumping: bool
 
     native fn displaySmallMessage(message: string)
 

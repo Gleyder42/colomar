@@ -247,6 +247,7 @@ pub struct CalledArgument {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DeclaredArgument {
     pub name: Ident,
+    pub position: usize,
     pub types: CalledTypes,
     pub default_value: Option<AValueChain>,
 }

@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use crate::compiler::{Span, Spanned};
 use smallvec::{Array, SmallVec};
 use std::fmt::Debug;
@@ -29,7 +30,21 @@ impl<T: Debug, E: Debug> Trisult<T, E> {
     }
 }
 
+impl<T, E: Debug> Trisult<T, E> {
+    pub fn unwrap_ok(self) -> T {
+        match self {
+            Trisult::Ok(ok) => ok,
+            Trisult::Par(_, _) => panic!("Trying to unwrap Ok, but was Par"),
+            Trisult::Err(err) => panic!("Trying to unwrap Ok, but was Err {:?}", err),
+        }
+    }
+}
+
 impl<T, E> Trisult<T, E> {
+    pub fn inner_into_some(self) -> Trisult<Option<T>, E> {
+        self.map(|value| Some(value))
+    }
+
     pub fn spanned(self, span: Span) -> Trisult<Spanned<T>, E> {
         self.map(|value| Spanned::new(value, span))
     }
@@ -47,14 +62,6 @@ impl<T, E> Trisult<T, E> {
             ok @ Trisult::Ok(_) => ok,
             Trisult::Par(_, errors) => Trisult::Err(errors),
             err @ Trisult::Err(_) => err,
-        }
-    }
-
-    pub fn unwrap_ok(self) -> T {
-        match self {
-            Trisult::Ok(ok) => ok,
-            Trisult::Par(_, _) => panic!("Trying to unwrap Ok, but was Par"),
-            Trisult::Err(_) => panic!("Trying to unwrap Ok, but was Err"),
         }
     }
 
@@ -127,8 +134,8 @@ impl<T, E> Trisult<T, E> {
     /// * If this result is [Trisult::Err] the combined result will also be [Trisult::Err]
     /// * If the other result is [Trisult::Err] the recovery function defines the combined result
     fn and<O, F>(self, recovery: F, other: Trisult<O, E>) -> Trisult<(T, O), E>
-    where
-        F: FnOnce(T, Vec<E>) -> Trisult<(T, O), E>,
+        where
+            F: FnOnce(T, Vec<E>) -> Trisult<(T, O), E>,
     {
         use Trisult::*;
 
@@ -217,7 +224,7 @@ impl<T, E> Trisult<T, E> {
     }
 }
 
-impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
+impl<T, I: IntoIterator<Item=T>, E> Trisult<I, E> {
     /// Folds all elements of the current [Trisult] while having a context.
     /// The context is not part of the accumulator.
     ///
@@ -236,8 +243,8 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
     /// assert_eq!(trisult.to_option().0.unwrap(), 27);
     /// ```
     pub fn fold_with<C, A, F>(self, initial_ctx: C, initial: A, fold_fn: F) -> Trisult<A, E>
-    where
-        F: Fn(C, A, T) -> Trisult<(C, A), E>,
+        where
+            F: Fn(C, A, T) -> Trisult<(C, A), E>,
     {
         self.fold_flat_map(
             (initial_ctx, initial),
@@ -246,16 +253,16 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
         )
     }
     pub fn fold<A, F>(self, initial: A, func: F) -> Trisult<A, E>
-    where
-        F: Fn(A, T) -> Trisult<A, E>,
+        where
+            F: Fn(A, T) -> Trisult<A, E>,
     {
         self.fold_flat_map(initial, |it| it, func)
     }
 
     pub fn fold_flat_map<U, A, F, M>(self, initial: A, map_func: M, mut func: F) -> Trisult<U, E>
-    where
-        F: FnMut(A, T) -> Trisult<A, E>,
-        M: FnOnce(A) -> U,
+        where
+            F: FnMut(A, T) -> Trisult<A, E>,
+            M: FnOnce(A) -> U,
     {
         self.flat_map(|iter| {
             let mut errors = Vec::new();
@@ -285,9 +292,9 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
     }
 
     pub fn map_inner<F, U, Iu>(self, func: F) -> Trisult<Iu, E>
-    where
-        F: Fn(T) -> U,
-        Iu: IntoIterator<Item = U> + FromIterator<U>,
+        where
+            F: Fn(T) -> U,
+            Iu: IntoIterator<Item=U> + FromIterator<U>,
     {
         self.map(|iter| iter.into_iter().map(func).collect::<Iu>())
     }
@@ -295,8 +302,8 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
 
 impl<T: Clone, E> Trisult<T, E> {
     pub fn map_and_require<O, F>(self, func: F) -> Trisult<(T, O), E>
-    where
-        F: FnOnce(T) -> Trisult<O, E>,
+        where
+            F: FnOnce(T) -> Trisult<O, E>,
     {
         self.flat_map(|t| func(t.clone()).map(|o| (t, o)))
     }
@@ -314,6 +321,19 @@ impl<E> Trisult<(), E> {
 
     pub fn flat_start<U>(self, func: impl FnOnce() -> Trisult<U, E>) -> Trisult<U, E> {
         self.flat_map(|_| func())
+    }
+}
+
+pub trait IntoTrisult<T, E> {
+    fn trisult_ok_or(self, error: E) -> Trisult<T, E>;
+}
+
+impl<T, E> IntoTrisult<T, E> for Option<T> {
+    fn trisult_ok_or(self, error: E) -> Trisult<T, E> {
+        match self {
+            Some(value) => Trisult::Ok(value),
+            None => Trisult::Err(vec![error])
+        }
     }
 }
 
@@ -352,7 +372,7 @@ impl<T, E> From<Result<T, E>> for Trisult<T, E> {
 }
 
 impl<T, E> FromIterator<Result<T, E>> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item = Result<T, E>>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item=Result<T, E>>>(iter: I) -> Self {
         let mut results = Vec::new();
         let mut errors = Vec::new();
 
@@ -367,8 +387,8 @@ impl<T, E> FromIterator<Result<T, E>> for Trisult<Vec<T>, E> {
     }
 }
 
-impl<T, A: Array<Item = T>, E> FromIterator<Trisult<T, E>> for Trisult<SmallVec<A>, E> {
-    fn from_iter<I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> Self {
+impl<T, A: Array<Item=T>, E> FromIterator<Trisult<T, E>> for Trisult<SmallVec<A>, E> {
+    fn from_iter<I: IntoIterator<Item=Trisult<T, E>>>(iter: I) -> Self {
         let (results, errors) = from_iter_trisults(iter);
 
         from_small_vec_results(results, errors)
@@ -376,7 +396,7 @@ impl<T, A: Array<Item = T>, E> FromIterator<Trisult<T, E>> for Trisult<SmallVec<
 }
 
 impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item=Trisult<T, E>>>(iter: I) -> Self {
         let (results, errors) = from_iter_trisults(iter);
 
         from_vec_results(results, errors)
@@ -384,13 +404,13 @@ impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
 }
 
 impl<T, E> FromIterator<T> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
         let results: Vec<T> = iter.into_iter().collect();
         from_vec_results(results, Vec::new())
     }
 }
 
-fn from_iter_trisults<T, E, I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> (Vec<T>, Vec<E>) {
+fn from_iter_trisults<T, E, I: IntoIterator<Item=Trisult<T, E>>>(iter: I) -> (Vec<T>, Vec<E>) {
     let mut results = Vec::new();
     let mut errors = Vec::new();
     for result in iter {
@@ -433,8 +453,8 @@ fn from_small_vec_results<T, A, E>(
     results: impl Into<SmallVec<A>>,
     errors: Vec<E>,
 ) -> Trisult<SmallVec<A>, E>
-where
-    A: Array<Item = T>,
+    where
+        A: Array<Item=T>,
 {
     match errors.is_empty() {
         true => Trisult::Ok(results.into()),

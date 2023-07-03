@@ -20,13 +20,17 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
         avalue_chain: cir::AValueChain,
     ) -> QueryTrisult<wst::Call>;
 
+    /// Impl: [call::query_const_eval]
+    #[salsa::invoke(call::query_const_eval)]
+    fn query_const_eval(&self, call: wst::Call) -> QueryTrisult<wst::Ident>;
+
     /// Impl: [call::query_wst_call_by_avalue]
     #[salsa::invoke(call::query_wst_call_by_avalue)]
     fn query_wst_call_by_avalue(
         &self,
         caller: Option<Caller>,
         avalue: cir::AValue,
-    ) -> QueryTrisult<wst::Call>;
+    ) -> QueryTrisult<Option<wst::Call>>;
 }
 
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]

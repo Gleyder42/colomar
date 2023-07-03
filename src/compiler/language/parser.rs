@@ -36,14 +36,21 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
                 .ignore_then(chain().ident_chain())
                 .or_not(),
         )
-        .map_with_span(|((name, types), default_value), span| DeclaredArgument {
+        .map_with_span(|((name, types), default_value), span| (
             name,
             types,
             default_value,
             span,
-        })
+        ))
         .separated_by(just(Token::Ctrl(',')))
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
+        .map(|it| it.into_iter().enumerate().map(|(position, (name, types, default_value, span))| DeclaredArgument {
+            position,
+            name,
+            types,
+            default_value,
+            span,
+        }).collect::<Vec<_>>())
         .map_with_span(Spanned::new)
 }
 

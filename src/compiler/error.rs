@@ -40,6 +40,7 @@ pub enum CompilerError {
     ArgumentOutOfRange(usize, Span),
     DuplicateNamedArgument(Ident),
     CannotMixArguments(Span),
+    CannotEvalAsConst
 }
 
 impl CompilerError {
@@ -65,6 +66,7 @@ impl CompilerError {
             CompilerError::ArgumentOutOfRange(_, _) => 15,
             CompilerError::CannotMixArguments(_) => 16,
             CompilerError::DuplicateNamedArgument(_) => 17,
+            CompilerError::CannotEvalAsConst => 18,
         }
     }
 }

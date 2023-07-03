@@ -18,7 +18,7 @@ pub(super) fn query_wst_call(
             db.query_wst_call_by_avalue(acc, current.clone())
                 .map(|call| {
                     Some(Caller {
-                        wst: Some(call),
+                        wst: call,
                         cir: current,
                     })
                 })
@@ -26,11 +26,21 @@ pub(super) fn query_wst_call(
     )
 }
 
+pub(super) fn query_const_eval(db: &dyn Codegen, call: wst::Call) -> QueryTrisult<wst::Ident> {
+    match call {
+        wst::Call::Condition(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::String(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::Number(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::Ident(ident) => QueryTrisult::Ok(ident),
+        wst::Call::Function(_) => query_error!(CompilerError::CannotEvalAsConst),
+    }
+}
+
 pub(super) fn query_wst_call_by_avalue(
     db: &dyn Codegen,
     caller: Option<Caller>,
     avalue: cir::AValue,
-) -> QueryTrisult<wst::Call> {
+) -> QueryTrisult<Option<wst::Call>> {
     match avalue {
         cir::AValue::RValue(cir::RValue::Property(property_decl), _) => QueryTrisult::assume_or(
             property_decl.is_native.is_some() && caller.is_some(),
@@ -51,7 +61,7 @@ pub(super) fn query_wst_call_by_avalue(
                     db.query_wscript_enum_constant_impl(
                         enum_decl.name.value,
                         property_decl.name.value,
-                    )
+                    ).inner_into_some()
                 }
                 Type::Struct(struct_id) => {
                     let struct_decl: cir::StructDeclaration =
@@ -65,14 +75,14 @@ pub(super) fn query_wst_call_by_avalue(
                             .saturate(&mut map)
                             .map_err(|reason| CompilerError::PlaceholderError(reason))
                             .into()
-                    })
+                    }).inner_into_some()
                 }
                 Type::Event(event_id) => {
                     let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(event_id);
                     db.query_wscript_event_context_property_impl(
                         event_decl.name.value,
                         property_decl.name.value,
-                    )
+                    ).inner_into_some()
                 }
                 Type::Unit => query_error!(CompilerError::NotImplemented(
                     "Unit as caller is currently not implemented",
@@ -80,6 +90,16 @@ pub(super) fn query_wst_call_by_avalue(
                 )),
             }
         }),
+        cir::AValue::RValue(cir::RValue::EnumConstant(enum_constant_id), ..) => {
+            let enum_constant: cir::EnumConstant = db.lookup_intern_enum_constant(enum_constant_id);
+            let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_constant.r#enum);
+
+            db.query_wscript_enum_constant_impl(enum_decl.name.value, enum_constant.name.value)
+                .inner_into_some()
+        }
+        cir::AValue::RValue(cir::RValue::Type(Type::Enum(_)), ..) => {
+            QueryTrisult::Ok(None)
+        },
         avalue @ _ => query_error!(CompilerError::NotImplemented(
             "Current avalue is not implemented",
             avalue.span()

@@ -196,6 +196,7 @@ pub struct Enum {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct DeclaredArgument {
+    pub position: usize,
     pub name: Ident,
     pub types: Types,
     pub default_value: Option<CallChain>,

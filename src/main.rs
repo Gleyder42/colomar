@@ -296,6 +296,7 @@ fn main() {
                 CompilerError::ArgumentOutOfRange(_, _) => {}
                 CompilerError::DuplicateNamedArgument(_) => {}
                 CompilerError::CannotMixArguments(_) => {}
+                CompilerError::CannotEvalAsConst => {}
             }
         }
 
@@ -310,31 +311,15 @@ fn main() {
         let elements = compiler::loader::read_impls(impl_path);
 
         use crate::compiler::loader::WorkshopScriptLoader;
+        use crate::compiler::codegen::Codegen;
         db.set_input_wscript_impls(elements);
 
         if let Some(cir) = output.0 {
             for root in cir {
                 match root {
                     Root::Rule(rule) => {
-                        for action in rule.actions {
-                            use crate::compiler::codegen::Codegen;
-                            let fake_span = {
-                                let span = action.avalues.first().unwrap().span();
-                                let range = span.location.start..span.location.start + 1;
-                                Span {
-                                    location: range,
-                                    source: span.source,
-                                }
-                            };
-
-                            let caller = Caller {
-                                wst: None,
-                                cir: AValue::RValue(rule.event.into(), fake_span),
-                            };
-                            let x = db.query_wst_call(Some(caller), action);
-
-                            println!("{:#?}", x);
-                        }
+                        let x = db.query_wst_rule(rule);
+                        println!("{:#?}", x);
                     }
                     _ => {}
                 }

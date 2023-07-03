@@ -1,3 +1,4 @@
+use crate::compiler;
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::{wst, Op, Text};
 
@@ -81,6 +82,12 @@ pub mod partial {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Ident(pub Text);
+
+impl From<compiler::Ident> for Ident {
+    fn from(value: compiler::Ident) -> Self {
+        Ident(value.value)
+    }
+}
 
 impl From<String> for Ident {
     fn from(value: String) -> Self {

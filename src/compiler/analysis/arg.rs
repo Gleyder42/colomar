@@ -130,7 +130,6 @@ pub(super) fn query_called_args(
             let errors: Vec<_> = all_decl_args
                 .difference(&supplied_decl_args)
                 .filter_map(|missing_decl_arg_id| {
-                    dbg!(missing_decl_arg_id);
                     let decl_arg: cir::DeclaredArgument =
                         db.lookup_intern_decl_arg(*missing_decl_arg_id);
                     if decl_arg.default_value.is_none() {
@@ -170,6 +169,7 @@ pub(super) fn query_declared_arg(
         .collect::<QueryTrisult<Vec<CalledType>>>()
         .and_maybe(default_value_option)
         .map(|(types, default_value)| cir::DeclaredArgument {
+            position: decl_arg.position,
             name: decl_arg.name,
             types: CalledTypes {
                 types,
