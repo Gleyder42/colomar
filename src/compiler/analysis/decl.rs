@@ -9,7 +9,7 @@ use crate::compiler::cst::Actions;
 use crate::compiler::error::CompilerError;
 use crate::compiler::{cir, cst, Ident, QueryTrisult, Spanned, Text};
 
-use cir::{AValue, DeclaredArgumentId};
+use cir::{DeclaredArgumentId};
 use cst::Ast;
 use std::collections::HashMap;
 use std::rc::Rc;

@@ -36,7 +36,7 @@ macro_rules! impl_intern_key {
 
 #[cfg(test)]
 pub mod test {
-    use crate::compiler::analysis::interner::Interner;
+    
     use crate::compiler::SpanInternerDatabase;
     use crate::compiler::{SpanInterner, SpanSourceId};
 

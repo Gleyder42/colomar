@@ -1,7 +1,7 @@
 use crate::compiler::workshop::lexer::Token;
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::{partial, Ident};
-use crate::compiler::Text;
+
 use chumsky::prelude::*;
 
 pub type ParserError = Simple<Token>;

@@ -2,16 +2,16 @@ use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::Nameholder;
 use crate::compiler::cir::{
-    AValue, AValueChain, CalledArguments, CalledType, CalledTypes, DeclaredArgumentIds,
+    AValueChain, CalledArguments, CalledType, CalledTypes, DeclaredArgumentIds,
 };
 use crate::compiler::error::CompilerError;
-use crate::compiler::trisult::Trisult;
-use crate::compiler::Span;
+
+
 use crate::compiler::{cir, cst, Ident, QueryTrisult, Spanned, Text};
-use crate::query_error;
+
 use chumsky::Parser;
 use either::Either;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{smallvec};
 use std::collections::{HashMap, HashSet};
 
 pub(super) fn query_declared_args(

@@ -5,7 +5,7 @@ extern crate salsa;
 
 use crate::compiler::analysis::interner::Interner;
 use crate::compiler::cir::{
-    AValue, DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration,
+    DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration,
 };
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
@@ -25,7 +25,7 @@ use std::path::Path;
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::codegen::Caller;
+
 use crate::compiler::SpanInterner;
 
 pub mod compiler;

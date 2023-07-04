@@ -1,9 +1,9 @@
-use crate::compiler::cir::{AValue, AValueChain, RValue};
+
 use crate::compiler::codegen::Codegen;
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::{IntoTrisult, Trisult};
 use crate::compiler::{cir, wst, QueryTrisult};
-use crate::query_error;
+
 use chumsky::Parser;
 use std::collections::{HashMap, HashSet, VecDeque};
 

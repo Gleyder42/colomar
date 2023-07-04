@@ -1,6 +1,6 @@
 use crate::compiler;
 use crate::compiler::wst::partial::Placeholder;
-use crate::compiler::{wst, Op, Text};
+use crate::compiler::{Op, Text};
 
 pub mod partial {
     use crate::compiler::{wst, Op, Text};

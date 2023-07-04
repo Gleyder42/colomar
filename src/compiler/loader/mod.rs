@@ -159,7 +159,7 @@ fn query_wscript_impl(
                 .try_into();
             let tokens = tokens
                 .unwrap()
-                .map_errors(|error| CompilerError::WstLexerError);
+                .map_errors(|_error| CompilerError::WstLexerError);
 
             tokens.flat_map(|tokens| {
                 let trisult: Result<Trisult<_, _>, _> = workshop::parser::call()
@@ -169,7 +169,7 @@ fn query_wscript_impl(
 
                 trisult
                     .unwrap()
-                    .map_errors(|error| CompilerError::WstParserError)
+                    .map_errors(|_error| CompilerError::WstParserError)
             })
         })
 }

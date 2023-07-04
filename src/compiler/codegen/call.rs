@@ -2,7 +2,7 @@ use crate::compiler::cir::Type;
 use crate::compiler::codegen::{Caller, Codegen};
 use crate::compiler::error::CompilerError;
 use crate::compiler::wst::partial::Placeholder;
-use crate::compiler::{cir, wst, QueryTrisult, Text};
+use crate::compiler::{cir, wst, QueryTrisult};
 use crate::query_error;
 use std::collections::HashMap;
 
@@ -26,7 +26,7 @@ pub(super) fn query_wst_call(
     )
 }
 
-pub(super) fn query_const_eval(db: &dyn Codegen, call: wst::Call) -> QueryTrisult<wst::Ident> {
+pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisult<wst::Ident> {
     match call {
         wst::Call::Condition(_) => query_error!(CompilerError::CannotEvalAsConst),
         wst::Call::String(_) => query_error!(CompilerError::CannotEvalAsConst),
