@@ -45,7 +45,7 @@ pub(super) fn query_wst_call_by_avalue(
         cir::AValue::RValue(cir::RValue::Property(property_decl), _) => QueryTrisult::assume_or(
             property_decl.is_native.is_some() && caller.is_some(),
             "Only native instance properties are implemented",
-            property_decl.name.span.clone(),
+            property_decl.name.span,
         )
         .flat_start(|| {
             let caller = caller.unwrap();

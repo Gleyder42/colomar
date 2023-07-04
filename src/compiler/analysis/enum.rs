@@ -54,7 +54,7 @@ fn no_duplicates(constants: EnumConstants) -> QueryTrisult<EnumConstants> {
         if let Err(error) = result {
             let first = Ident {
                 value: error.entry.key().clone(),
-                span: error.entry.get().name.span.clone(),
+                span: error.entry.get().name.span,
             };
 
             duplicates.push(CompilerError::DuplicateIdent {

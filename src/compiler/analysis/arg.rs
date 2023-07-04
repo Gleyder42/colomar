@@ -133,7 +133,7 @@ pub(super) fn query_called_args(
                     if decl_arg.default_value.is_none() {
                         Some(CompilerError::MissingArgument {
                             missing_arg: *missing_decl_arg_id,
-                            call_site: called_span.clone(),
+                            call_site: called_span,
                         })
                     } else {
                         None
@@ -161,7 +161,7 @@ pub(super) fn query_declared_arg(
             db.query_namespaced_type(smallvec![Nameholder::Root], ident.clone())
                 .map(|r#type| CalledType {
                     r#type,
-                    span: ident.span.clone(),
+                    span: ident.span,
                 })
         })
         .collect::<QueryTrisult<Vec<CalledType>>>()

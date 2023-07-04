@@ -27,7 +27,7 @@ pub(super) fn query_rule_actions(
             Action::Property(ast_property) => db
                 .query_property(Some(event_type), ast_property)
                 .map(|property_decl| {
-                    let span = property_decl.name.span.clone();
+                    let span = property_decl.name.span;
                     let chain: AValueChain =
                         cir::AValue::RValue(RValue::Property(property_decl), span).into();
                     chain

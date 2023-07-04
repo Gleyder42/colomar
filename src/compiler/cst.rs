@@ -257,10 +257,10 @@ pub type CallChain = Spanned<Vec<Box<Call>>>;
 impl From<Box<Call>> for CallChain {
     fn from(value: Box<Call>) -> Self {
         let span = match *value {
-            Call::Ident(ref ident) => ident.span.clone(),
-            Call::String(_, ref span) => span.clone(),
-            Call::Number(_, ref span) => span.clone(),
-            Call::IdentArguments { ref span, .. } => span.clone(),
+            Call::Ident(ref ident) => ident.span,
+            Call::String(_, ref span) => *span,
+            Call::Number(_, ref span) => *span,
+            Call::IdentArguments { ref span, .. } => *span,
         };
         Spanned {
             value: vec![value],

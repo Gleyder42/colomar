@@ -200,7 +200,7 @@ fn main() {
                         .unwrap();
                 }
                 CompilerError::NotA(type_name, actual_rvalue, occurrence) => {
-                    let occurrence_span = FatSpan::from_span(&db, occurrence.span.clone());
+                    let occurrence_span = FatSpan::from_span(&db, occurrence.span);
 
                     Report::build(
                         ERROR_KIND,
@@ -222,7 +222,7 @@ fn main() {
                     .unwrap();
                 }
                 CompilerError::WrongType { actual, expected } => {
-                    let actual_span = FatSpan::from_span(&db, actual.span.clone());
+                    let actual_span = FatSpan::from_span(&db, actual.span);
                     let report_builder = Report::build(
                         ERROR_KIND,
                         actual_span.source.clone(),
@@ -248,7 +248,7 @@ fn main() {
                         ),
                         Either::Right(called_type) => {
                             let called_type_span =
-                                FatSpan::from_span(&db, called_type.span.clone());
+                                FatSpan::from_span(&db, called_type.span);
 
                             report_builder.with_label(
                                 Label::new(called_type_span.clone())

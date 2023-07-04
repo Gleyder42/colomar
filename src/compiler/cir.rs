@@ -201,7 +201,7 @@ pub struct CalledTypes {
 
 impl From<CalledType> for CalledTypes {
     fn from(value: CalledType) -> Self {
-        let span = value.span.clone();
+        let span = value.span;
 
         CalledTypes {
             types: vec![value],
@@ -340,8 +340,8 @@ impl From<AValue> for AValueChain {
 impl AValue {
     pub fn span(&self) -> Span {
         match self {
-            AValue::FunctionCall(_, _, span) => span.clone(),
-            AValue::RValue(_, span) => span.clone(),
+            AValue::FunctionCall(_, _, span) => *span,
+            AValue::RValue(_, span) => *span,
             AValue::CValue(cvalue) => cvalue.span(),
         }
     }
@@ -357,7 +357,7 @@ pub enum CValue {
 impl CValue {
     pub fn span(&self) -> Span {
         match self {
-            CValue::String(_, _, span) | CValue::Number(_, _, span) => span.clone(),
+            CValue::String(_, _, span) | CValue::Number(_, _, span) => *span,
         }
     }
 

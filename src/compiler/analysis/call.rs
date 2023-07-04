@@ -61,7 +61,7 @@ pub(super) fn query_call_chain(
                                     })
                                 })
                                 .collect::<QueryTrisult<Vec<_>>>()
-                                .spanned(args_span.clone()),
+                                .spanned(args_span),
                             Spanned::default_inner(args_span),
                         )
                         .flat_map(|(function_decl, called_avalue_args)| {

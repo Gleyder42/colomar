@@ -20,7 +20,7 @@ pub mod workshop;
 pub mod wst;
 
 pub type InnerSpan = usize;
-pub type SpanLocation = Range<InnerSpan>;
+pub type SpanLocation = CheapRange;
 pub type SpanSource = SmolStr;
 pub type Text = SmolStr;
 pub type HashableMap<K, V> = BTreeMap<K, V>;
@@ -37,7 +37,19 @@ pub const ENUM_CONSTANTS_LEN: usize = 8;
 
 pub const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+pub struct CheapRange {
+    pub start: InnerSpan,
+    pub end: InnerSpan
+}
+
+impl From<Range<InnerSpan>> for CheapRange {
+    fn from(value: Range<InnerSpan>) -> Self {
+        CheapRange { start: value.start, end: value.end }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Span {
     pub source: SpanSourceId,
     pub location: SpanLocation,
@@ -137,7 +149,7 @@ impl chumsky::Span for Span {
     fn new(context: Self::Context, range: Range<Self::Offset>) -> Self {
         Self {
             source: context,
-            location: range,
+            location: range.into(),
         }
     }
 

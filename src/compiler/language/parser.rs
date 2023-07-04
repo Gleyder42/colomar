@@ -350,7 +350,7 @@ mod tests {
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
     use crate::compiler::language::parser::ParserError;
-    use crate::compiler::SpanInterner;
+    use crate::compiler::{SpanInterner, SpanLocation};
     use crate::compiler::{SpanSourceId, Spanned};
     use crate::{assert_iterator, Span};
     use anyhow::anyhow;
@@ -482,7 +482,7 @@ mod tests {
         parser: &impl Parser<Token, T, Error = ParserError>,
     ) -> anyhow::Result<T> {
         let tokens: Vec<_> = lex_code(span_source_id, code)?;
-        let eoi = Span::new(span_source_id, tokens.len()..tokens.len() + 1);
+        let eoi = Span::new(span_source_id, SpanLocation::from(tokens.len()..tokens.len() + 1));
         let stream = Stream::from_iter(eoi, tokens.into_iter());
 
         parser

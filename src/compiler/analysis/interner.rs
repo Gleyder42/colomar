@@ -143,7 +143,7 @@ impl AValue {
         match self {
             AValue::RValue(rvalue, span) => CalledType {
                 r#type: rvalue.r#type(db),
-                span: span.clone(),
+                span: *span,
             },
             AValue::CValue(cvalue) => CalledType {
                 r#type: cvalue.r#type(),
@@ -153,7 +153,7 @@ impl AValue {
                 let function_decl: FunctionDecl = db.lookup_intern_function_decl(*function_decl_id);
                 CalledType {
                     r#type: function_decl.return_type,
-                    span: span.clone(),
+                    span: *span,
                 }
             }
         }
