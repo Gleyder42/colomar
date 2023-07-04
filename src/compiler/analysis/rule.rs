@@ -72,7 +72,7 @@ pub(super) fn query_rule_cond(
 }
 
 pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisult<cir::Rule> {
-    let arguments = |event_decl_id: EventDeclarationId| {
+    let arguments = |event_decl_id: &EventDeclarationId| {
         let arguments_span = rule.arguments.span;
 
         rule.arguments
@@ -90,20 +90,20 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisul
             })
             .collect::<QueryTrisult<Vec<_>>>()
             .spanned(arguments_span)
-            .and_require(db.query_event_def_by_id(event_decl_id))
+            .and_require(db.query_event_def_by_id(*event_decl_id))
             .flat_map(|(arguments, event_def)| db.query_called_args(arguments, event_def.arguments))
     };
 
     db.query_namespaced_event(smallvec![Nameholder::Root], rule.event)
         .map_and_require(arguments)
         .map_and_require(|(event_decl_id, _)| {
-            db.query_rule_cond(event_decl_id, rule.conditions)
+            db.query_rule_cond(*event_decl_id, rule.conditions)
                 .map_inner(|avalue| Predicate {
                     return_value: avalue,
                 })
         })
         .map_and_require(|((event_decl_id, _), _)| {
-            db.query_rule_actions(event_decl_id, rule.actions)
+            db.query_rule_actions(*event_decl_id, rule.actions)
         })
         .map(
             |(((event_decl_id, arguments), conditions), actions)| cir::Rule {

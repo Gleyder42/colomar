@@ -128,6 +128,13 @@ impl<T, E> Trisult<T, E> {
         self.and(|_value, errors| Trisult::Err(errors), other)
     }
 
+    pub fn map_and_require<O, F>(self, func: F) -> Trisult<(T, O), E>
+    where
+        F: FnOnce(&T) -> Trisult<O, E>,
+    {
+        self.flat_map(|t| func(&t).map(|o| (t, o)))
+    }
+
     /// Combines this result's value [T] with another result's value [O].
     ///
     /// # Notes
@@ -297,15 +304,6 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
         Iu: IntoIterator<Item = U> + FromIterator<U>,
     {
         self.map(|iter| iter.into_iter().map(func).collect::<Iu>())
-    }
-}
-
-impl<T: Clone, E> Trisult<T, E> {
-    pub fn map_and_require<O, F>(self, func: F) -> Trisult<(T, O), E>
-    where
-        F: FnOnce(T) -> Trisult<O, E>,
-    {
-        self.flat_map(|t| func(t.clone()).map(|o| (t, o)))
     }
 }
 
