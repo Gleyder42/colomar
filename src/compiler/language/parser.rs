@@ -345,7 +345,7 @@ pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     use crate::compiler::cst::{Call, DeclaredArgument, Rule};
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
@@ -482,7 +482,10 @@ mod tests {
         parser: &impl Parser<Token, T, Error = ParserError>,
     ) -> anyhow::Result<T> {
         let tokens: Vec<_> = lex_code(span_source_id, code)?;
-        let eoi = Span::new(span_source_id, SpanLocation::from(tokens.len()..tokens.len() + 1));
+        let eoi = Span::new(
+            span_source_id,
+            SpanLocation::from(tokens.len()..tokens.len() + 1),
+        );
         let stream = Stream::from_iter(eoi, tokens.into_iter());
 
         parser

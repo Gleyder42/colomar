@@ -4,9 +4,7 @@
 extern crate salsa;
 
 use crate::compiler::analysis::interner::Interner;
-use crate::compiler::cir::{
-    DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration,
-};
+use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cir, FatSpan, Span, SpanSourceId};
@@ -208,11 +206,7 @@ fn main() {
                         occurrence_span.location.start,
                     )
                     .with_code(error_code)
-                    .with_message(format!(
-                        "{} is not a {}",
-                        actual_rvalue.value,
-                        type_name
-                    ))
+                    .with_message(format!("{} is not a {}", actual_rvalue.value, type_name))
                     .with_label(
                         Label::new(occurrence_span.clone())
                             .with_message(format!("Is of type {}", actual_rvalue.value)),
@@ -247,8 +241,7 @@ fn main() {
                             )),
                         ),
                         Either::Right(called_type) => {
-                            let called_type_span =
-                                FatSpan::from_span(&db, called_type.span);
+                            let called_type_span = FatSpan::from_span(&db, called_type.span);
 
                             report_builder.with_label(
                                 Label::new(called_type_span.clone())

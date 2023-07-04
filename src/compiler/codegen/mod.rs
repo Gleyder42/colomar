@@ -4,7 +4,7 @@ mod rule;
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::interner::Interner as AnalysisInterner;
 use crate::compiler::loader::WorkshopScriptLoader;
-use crate::compiler::{cir, wst, QueryTrisult};
+use crate::compiler::{cir, wst, Ident, QueryTrisult};
 
 #[salsa::query_group(CodegenDatabase)]
 pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
@@ -31,10 +31,25 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
         caller: Option<Caller>,
         avalue: cir::AValue,
     ) -> QueryTrisult<Option<wst::Call>>;
+
+    /// Impl: [call::query_wst_call_from_args]
+    #[salsa::invoke(call::query_wst_call_from_args)]
+    fn query_wst_call_from_args(
+        &self,
+        decl_args: cir::DeclaredArgumentIds,
+        called_args: cir::CalledArguments,
+    ) -> Vec<Arg>;
 }
 
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]
 pub struct Caller {
-    pub wst: Option<wst::Call>,
-    pub cir: cir::AValue,
+    wst: Option<wst::Call>,
+    cir: cir::AValue,
+}
+
+#[derive(Debug, Hash, Clone, PartialEq, Eq)]
+pub struct Arg {
+    index: usize,
+    name: Ident,
+    value: cir::AValueChain,
 }

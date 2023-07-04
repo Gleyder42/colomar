@@ -40,12 +40,15 @@ pub const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct CheapRange {
     pub start: InnerSpan,
-    pub end: InnerSpan
+    pub end: InnerSpan,
 }
 
 impl From<Range<InnerSpan>> for CheapRange {
     fn from(value: Range<InnerSpan>) -> Self {
-        CheapRange { start: value.start, end: value.end }
+        CheapRange {
+            start: value.start,
+            end: value.end,
+        }
     }
 }
 

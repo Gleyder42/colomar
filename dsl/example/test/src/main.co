@@ -29,5 +29,7 @@ native enum Hero {
 }
 
 rule "Hello World" OngoingEachPlayer() {
-    player.isReloading
+    cond player.isReloading
+
+    player.displaySmallMessage("Hello World")
 }

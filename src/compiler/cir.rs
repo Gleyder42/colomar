@@ -1,4 +1,4 @@
-use crate::compiler::UseRestriction;
+use crate::compiler::{CheapRange, UseRestriction};
 use crate::compiler::{
     Ident, Span, Spanned, SpannedBool, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
     DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
@@ -165,9 +165,7 @@ impl From<EventDeclarationId> for Type {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Predicate {
-    pub return_value: AValueChain,
-}
+pub struct Predicate(pub AValueChain);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledType {
@@ -314,6 +312,14 @@ impl AValueChain {
     pub fn new(avalues: Vec<AValue>, span: Span) -> Self {
         debug_assert!(!avalues.is_empty(), "Tried to create an empty AValueChain");
         AValueChain { avalues, span }
+    }
+
+    /// The ghost span starts and ends just before the first avalue inside the span.
+    /// It is used when the [AValueChain] has an implicit caller.
+    pub fn ghost_span(&self) -> Span {
+        let start = self.span.location.start;
+        let end = self.span.location.start + 1;
+        Span::new(self.span.source, CheapRange::from(start..end))
     }
 
     pub fn returning_avalue(&self) -> AValue {

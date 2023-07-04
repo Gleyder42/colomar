@@ -1,15 +1,15 @@
 use crate::compiler::cir::{
-    CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId,
-    Type,
+    CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId, Type,
 };
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{Ident, QueryTrisult, Span, Text};
 use crate::query_error;
 use either::Either;
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
-    NotImplemented(&'static str, Span),
+    NotImplemented(Cow<'static, str>, Span),
     DuplicateIdent {
         first: Ident,
         second: Ident,
@@ -76,7 +76,7 @@ impl QueryTrisult<()> {
         if expr {
             QueryTrisult::Ok(())
         } else {
-            query_error!(CompilerError::NotImplemented(reason, span))
+            query_error!(CompilerError::NotImplemented(reason.into(), span))
         }
     }
 }

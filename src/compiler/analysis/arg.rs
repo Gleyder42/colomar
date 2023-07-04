@@ -5,11 +5,10 @@ use crate::compiler::cir::{
 };
 use crate::compiler::error::CompilerError;
 
-
 use crate::compiler::{cir, cst, Ident, QueryTrisult, Spanned, Text};
 
 use either::Either;
-use smallvec::{smallvec};
+use smallvec::smallvec;
 use std::collections::{HashMap, HashSet};
 
 pub(super) fn query_declared_args(

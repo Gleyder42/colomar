@@ -74,30 +74,24 @@ pub mod partial {
 
     #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
     pub struct Condition {
-        pub left: Function,
+        pub left: Box<Call>,
         pub op: Op,
-        pub right: Function,
+        pub right: Box<Call>,
     }
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Ident(pub Text);
 
-impl From<compiler::Ident> for Ident {
-    fn from(value: compiler::Ident) -> Self {
-        Ident(value.value)
-    }
-}
-
-impl From<String> for Ident {
-    fn from(value: String) -> Self {
+impl<T: AsRef<str>> From<T> for Ident {
+    fn from(value: T) -> Self {
         Ident(Text::new(value))
     }
 }
 
-impl From<Text> for Ident {
-    fn from(value: Text) -> Self {
-        Ident(value)
+impl From<compiler::Ident> for Ident {
+    fn from(value: compiler::Ident) -> Self {
+        Ident(value.value)
     }
 }
 
@@ -115,6 +109,16 @@ pub enum Call {
     Number(Text),
     Ident(Ident),
     Function(Function),
+}
+
+impl Call {
+    pub fn unwrap_function(self) -> Function {
+        if let Call::Function(function) = self {
+            function
+        } else {
+            panic!("Cannot unwrap {:?} as function", self)
+        }
+    }
 }
 
 impl From<Condition> for Call {
@@ -169,9 +173,9 @@ impl Function {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Condition {
-    left: Function,
-    op: Op,
-    right: Function,
+    pub left: Box<Call>,
+    pub op: Op,
+    pub right: Box<Call>,
 }
 
 impl Condition {
@@ -180,9 +184,9 @@ impl Condition {
         error_func: impl Fn(Placeholder) -> Result<Call, String> + Clone,
     ) -> Result<Self, String> {
         Ok(Condition {
-            left: Function::try_from_with(value.left, error_func.clone())?,
+            left: Box::new(Call::try_from_with(*value.left, error_func.clone())?),
             op: value.op,
-            right: Function::try_from_with(value.right, error_func)?,
+            right: Box::new(Call::try_from_with(*value.right, error_func)?),
         })
     }
 }
