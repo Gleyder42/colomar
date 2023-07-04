@@ -310,8 +310,8 @@ fn main() {
         let impl_path = Path::new("dsl/example/test/native");
         let elements = compiler::loader::read_impls(impl_path);
 
-        use crate::compiler::loader::WorkshopScriptLoader;
         use crate::compiler::codegen::Codegen;
+        use crate::compiler::loader::WorkshopScriptLoader;
         db.set_input_wscript_impls(elements);
 
         if let Some(cir) = output.0 {

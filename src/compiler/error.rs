@@ -40,7 +40,7 @@ pub enum CompilerError {
     ArgumentOutOfRange(usize, Span),
     DuplicateNamedArgument(Ident),
     CannotMixArguments(Span),
-    CannotEvalAsConst
+    CannotEvalAsConst,
 }
 
 impl CompilerError {

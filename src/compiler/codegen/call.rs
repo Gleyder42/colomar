@@ -61,7 +61,8 @@ pub(super) fn query_wst_call_by_avalue(
                     db.query_wscript_enum_constant_impl(
                         enum_decl.name.value,
                         property_decl.name.value,
-                    ).inner_into_some()
+                    )
+                    .inner_into_some()
                 }
                 Type::Struct(struct_id) => {
                     let struct_decl: cir::StructDeclaration =
@@ -75,14 +76,16 @@ pub(super) fn query_wst_call_by_avalue(
                             .saturate(&mut map)
                             .map_err(|reason| CompilerError::PlaceholderError(reason))
                             .into()
-                    }).inner_into_some()
+                    })
+                    .inner_into_some()
                 }
                 Type::Event(event_id) => {
                     let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(event_id);
                     db.query_wscript_event_context_property_impl(
                         event_decl.name.value,
                         property_decl.name.value,
-                    ).inner_into_some()
+                    )
+                    .inner_into_some()
                 }
                 Type::Unit => query_error!(CompilerError::NotImplemented(
                     "Unit as caller is currently not implemented",
@@ -97,9 +100,7 @@ pub(super) fn query_wst_call_by_avalue(
             db.query_wscript_enum_constant_impl(enum_decl.name.value, enum_constant.name.value)
                 .inner_into_some()
         }
-        cir::AValue::RValue(cir::RValue::Type(Type::Enum(_)), ..) => {
-            QueryTrisult::Ok(None)
-        },
+        cir::AValue::RValue(cir::RValue::Type(Type::Enum(_)), ..) => QueryTrisult::Ok(None),
         avalue @ _ => query_error!(CompilerError::NotImplemented(
             "Current avalue is not implemented",
             avalue.span()
