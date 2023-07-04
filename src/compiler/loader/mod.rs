@@ -98,7 +98,7 @@ fn query_wscript_enum_constant_impl(
     .flat_map(|partial_call| {
         partial_call
             .complete()
-            .map_err(|err| CompilerError::PlaceholderError(err))
+            .map_err(CompilerError::PlaceholderError)
             .into()
     })
 }
@@ -129,7 +129,7 @@ fn query_wscript_event_context_property_impl(
     .flat_map(|partial_call| {
         partial_call
             .complete()
-            .map_err(|err| CompilerError::PlaceholderError(err))
+            .map_err(CompilerError::PlaceholderError)
             .into()
     })
 }

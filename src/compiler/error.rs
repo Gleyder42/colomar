@@ -1,5 +1,5 @@
 use crate::compiler::cir::{
-    CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, RValue, StructDeclarationId,
+    CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId,
     Type,
 };
 use crate::compiler::trisult::Trisult;
@@ -16,7 +16,7 @@ pub enum CompilerError {
     },
     CannotFindDefinition(Either<StructDeclarationId, EventDeclarationId>),
     CannotFindIdent(Ident),
-    NotA(&'static str, RValue, Ident),
+    NotA(&'static str, Ident, Ident),
     // TODO Dont use either here, make an own type
     WrongType {
         actual: CalledType,

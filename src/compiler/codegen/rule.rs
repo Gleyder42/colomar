@@ -4,7 +4,6 @@ use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::{IntoTrisult, Trisult};
 use crate::compiler::{cir, wst, QueryTrisult};
 
-use chumsky::Parser;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<wst::Rule> {

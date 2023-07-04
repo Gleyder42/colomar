@@ -63,7 +63,7 @@ pub(super) fn query_rule_cond(
                     } else {
                         query_error!(CompilerError::WrongType {
                             actual: called_type,
-                            expected: Either::Left(bool_id.clone())
+                            expected: Either::Left(bool_id)
                         })
                     }
                 })

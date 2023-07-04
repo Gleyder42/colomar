@@ -11,7 +11,6 @@ use crate::{impl_intern_key, query_error};
 
 use salsa::InternId;
 use smallvec::{smallvec, SmallVec};
-use std::borrow::ToOwned;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -58,15 +57,15 @@ pub(super) fn query_event_namespace(
 }
 
 pub(super) fn query_bool_name(_db: &dyn DeclQuery) -> Text {
-    Text::new("bool".to_owned())
+    Text::new("bool")
 }
 
 pub(super) fn query_string_name(_db: &dyn DeclQuery) -> Text {
-    Text::new("string".to_owned())
+    Text::new("string")
 }
 
 pub(super) fn query_number_name(_db: &dyn DeclQuery) -> Text {
-    Text::new("num".to_owned())
+    Text::new("num")
 }
 
 pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Text, Type>> {
@@ -182,8 +181,7 @@ pub(super) fn query_namespace(
             match nameholder {
                 Nameholder::Root => db
                     .query_root_namespace()
-                    .drop_errors(|| empty_namespace(db))
-                    .into(),
+                    .drop_errors(|| empty_namespace(db)),
                 Nameholder::Enum(enum_placeholder) => match enum_placeholder {
                     // TODO Current match should return the enum constant id and not the namespace id
                     EnumNameholder::ByEnum(enum_decl) => db.query_enum_namespace(enum_decl),
@@ -219,7 +217,7 @@ pub(super) fn query_namespaced_type(
         .flat_map(|rvalue| match rvalue {
             RValue::Type(r#type) => Trisult::Ok(r#type),
             rvalue @ (RValue::EnumConstant(_) | RValue::Property(_) | RValue::Function(_)) => {
-                CompilerError::NotA("Type", rvalue, ident).into()
+                CompilerError::NotA("Type", rvalue.name(db), ident).into()
             }
         })
 }
@@ -233,7 +231,7 @@ pub(super) fn query_namespaced_function(
         .flat_map(|rvalue| match rvalue {
             RValue::Function(function) => Trisult::Ok(function),
             rvalue @ (RValue::Type(_) | RValue::Property(_) | RValue::EnumConstant(_)) => {
-                query_error!(CompilerError::NotA("Function", rvalue, ident))
+                query_error!(CompilerError::NotA("Function", rvalue.name(db), ident))
             }
         })
 }
@@ -249,7 +247,7 @@ pub(super) fn query_namespaced_event(
             r#type @ (Type::Enum(_) | Type::Struct(_) | Type::Unit) => {
                 Trisult::Err(vec![CompilerError::NotA(
                     "Event",
-                    RValue::Type(r#type),
+                    RValue::Type(r#type).name(db),
                     ident,
                 )])
             }

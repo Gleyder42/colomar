@@ -74,7 +74,7 @@ pub(super) fn query_wst_call_by_avalue(
                     .flat_map(|partial_call| {
                         partial_call
                             .saturate(&mut map)
-                            .map_err(|reason| CompilerError::PlaceholderError(reason))
+                            .map_err(CompilerError::PlaceholderError)
                             .into()
                     })
                     .inner_into_some()
@@ -101,7 +101,7 @@ pub(super) fn query_wst_call_by_avalue(
                 .inner_into_some()
         }
         cir::AValue::RValue(cir::RValue::Type(Type::Enum(_)), ..) => QueryTrisult::Ok(None),
-        avalue @ _ => query_error!(CompilerError::NotImplemented(
+        avalue => query_error!(CompilerError::NotImplemented(
             "Current avalue is not implemented",
             avalue.span()
         )),

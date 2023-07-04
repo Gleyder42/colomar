@@ -109,13 +109,13 @@ impl RValue {
     pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> Type {
         match self {
             // What is the type of type?
-            RValue::Type(r#type) => r#type.clone(),
+            RValue::Type(r#type) => *r#type,
             RValue::EnumConstant(enum_constant_id) => {
                 let enum_constant: EnumConstant = db.lookup_intern_enum_constant(*enum_constant_id);
                 Type::Enum(enum_constant.r#enum)
             }
-            RValue::Property(property_decl) => property_decl.r#type.clone(),
-            RValue::Function(function_decl) => function_decl.return_type.clone(),
+            RValue::Property(property_decl) => property_decl.r#type,
+            RValue::Function(function_decl) => function_decl.return_type,
         }
     }
 

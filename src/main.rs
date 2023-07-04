@@ -210,12 +210,12 @@ fn main() {
                     .with_code(error_code)
                     .with_message(format!(
                         "{} is not a {}",
-                        actual_rvalue.name(&db).value,
+                        actual_rvalue.value,
                         type_name
                     ))
                     .with_label(
                         Label::new(occurrence_span.clone())
-                            .with_message(format!("Is of type {}", actual_rvalue.name(&db).value)),
+                            .with_message(format!("Is of type {}", actual_rvalue.value)),
                     )
                     .finish()
                     .eprint(sources(vec![(occurrence_span.source.clone(), &source)]))

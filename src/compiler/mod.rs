@@ -122,11 +122,11 @@ impl ariadne::Span for FatSpan {
     }
 
     fn start(&self) -> usize {
-        self.location.start.clone()
+        self.location.start
     }
 
     fn end(&self) -> usize {
-        self.location.end.clone()
+        self.location.end
     }
 }
 
@@ -142,15 +142,15 @@ impl chumsky::Span for Span {
     }
 
     fn context(&self) -> Self::Context {
-        self.source.clone()
+        self.source
     }
 
     fn start(&self) -> Self::Offset {
-        self.location.start.clone()
+        self.location.start
     }
 
     fn end(&self) -> Self::Offset {
-        self.location.end.clone()
+        self.location.end
     }
 }
 

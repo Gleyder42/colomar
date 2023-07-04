@@ -1,5 +1,4 @@
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::Nameholder;
 use crate::compiler::cir::{
     AValueChain, CalledArguments, CalledType, CalledTypes, DeclaredArgumentIds,
@@ -9,7 +8,6 @@ use crate::compiler::error::CompilerError;
 
 use crate::compiler::{cir, cst, Ident, QueryTrisult, Spanned, Text};
 
-use chumsky::Parser;
 use either::Either;
 use smallvec::{smallvec};
 use std::collections::{HashMap, HashSet};
@@ -34,7 +32,7 @@ pub(super) fn query_called_args(
         .enumerate()
         .map(|(index, id)| {
             let decl_arg = db.lookup_intern_decl_arg(*id);
-            let arg_name = decl_arg.name.value.clone();
+            let arg_name = decl_arg.name.value;
             (arg_name, (index, *id))
         })
         .collect();

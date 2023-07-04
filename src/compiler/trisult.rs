@@ -465,6 +465,6 @@ where
 #[macro_export]
 macro_rules! query_error {
     ($($x:expr),+ $(,)?) => {
-        crate::compiler::trisult::Trisult::Err(vec![$($x),+])
+        $crate::compiler::trisult::Trisult::Err(vec![$($x),+])
     };
 }
