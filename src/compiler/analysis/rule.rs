@@ -98,7 +98,7 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisul
         .map_and_require(arguments)
         .map_and_require(|(event_decl_id, _)| {
             db.query_rule_cond(*event_decl_id, rule.conditions)
-                .map_inner(|avalue| Predicate(avalue))
+                .map_inner(Predicate)
         })
         .map_and_require(|((event_decl_id, _), _)| {
             db.query_rule_actions(*event_decl_id, rule.actions)

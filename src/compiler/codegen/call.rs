@@ -2,10 +2,9 @@ use crate::compiler::cir::{CValue, Type};
 use crate::compiler::codegen::{Arg, Caller, Codegen};
 use crate::compiler::error::CompilerError;
 use crate::compiler::wst::partial::Placeholder;
-use crate::compiler::wst::Ident;
+
 use crate::compiler::{cir, wst, QueryTrisult};
 use crate::query_error;
-use chumsky::Parser;
 use std::collections::{HashMap, HashSet};
 
 pub(super) fn query_wst_call(
@@ -103,7 +102,7 @@ pub(super) fn query_wst_call_by_avalue(
                 .inner_into_some()
         }
         cir::AValue::RValue(cir::RValue::Type(Type::Enum(_)), ..) => QueryTrisult::Ok(None),
-        cir::AValue::FunctionCall(func_decl_id, call_arg_ids, span) => {
+        cir::AValue::FunctionCall(func_decl_id, call_arg_ids, _span) => {
             let func_decl: cir::FunctionDecl = db.lookup_intern_function_decl(func_decl_id);
             let called_args = call_arg_ids
                 .into_iter()

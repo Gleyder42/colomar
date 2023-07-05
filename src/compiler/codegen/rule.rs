@@ -1,10 +1,10 @@
-use crate::compiler::codegen::{Arg, Caller, Codegen};
+use crate::compiler::codegen::{Caller, Codegen};
 use crate::compiler::error::CompilerError;
-use crate::compiler::trisult::{IntoTrisult, Trisult};
+use crate::compiler::trisult::{IntoTrisult};
 use crate::compiler::{cir, wst, Op, QueryTrisult};
 
 use crate::compiler::cir::AValueChain;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<wst::Rule> {
     let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(rule.event);
