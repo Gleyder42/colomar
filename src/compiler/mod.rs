@@ -3,6 +3,7 @@ use crate::impl_intern_key;
 use error::CompilerError;
 use smol_str::SmolStr;
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter};
 use std::ops::Range;
 
 pub mod analysis;
@@ -14,6 +15,7 @@ pub mod database;
 pub mod error;
 pub mod language;
 pub mod loader;
+pub mod printer;
 pub mod trisult;
 pub mod wir;
 pub mod workshop;
@@ -199,4 +201,13 @@ pub enum UseRestriction {
 pub enum Op {
     Equals,
     NotEquals,
+}
+
+impl Display for Op {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Op::Equals => write!(f, "=="),
+            Op::NotEquals => write!(f, "!="),
+        }
+    }
 }

@@ -110,16 +110,34 @@ pub(super) fn query_wst_call_by_avalue(
                 .map(|it| db.lookup_intern_called_argument(it))
                 .collect();
 
+            let wscript_function: QueryTrisult<wst::partial::Call> = db
+                .query_wscript_struct_function_impl(
+                    func_decl.instance.unwrap().name(db),
+                    func_decl.name.value,
+                );
+
             db.query_wst_call_from_args(func_decl.arguments, called_args)
                 .into_iter()
-                .map(|arg| db.query_wst_call(caller.clone(), arg.value))
+                .map(|arg| {
+                    db.query_wst_call(caller.clone(), arg.value)
+                        .map(|call| (arg.name, call))
+                })
                 .collect::<QueryTrisult<Vec<_>>>()
-                .map(|args| {
-                    wst::Function {
-                        args,
-                        name: func_decl.name.into(),
+                .and_require(wscript_function)
+                .flat_map(|(args, wscript_function)| {
+                    let mut map = HashMap::new();
+                    if let Some(caller) = caller.unwrap().wst {
+                        map.insert(Placeholder::from("%caller%"), caller);
                     }
-                    .into()
+
+                    for (name, call) in args {
+                        map.insert(Placeholder::from(format!("%{}%", name.value)), call);
+                    }
+
+                    wscript_function
+                        .saturate(&mut map)
+                        .map_err(CompilerError::PlaceholderError)
+                        .into()
                 })
                 .inner_into_some()
         }

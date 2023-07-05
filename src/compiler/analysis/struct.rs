@@ -32,11 +32,12 @@ pub(super) fn query_struct_decl(
 
 pub(super) fn query_struct_functions(
     db: &dyn DeclQuery,
+    struct_decl_id: StructDeclarationId,
     functions: cst::FunctionDecls,
 ) -> QueryTrisult<FunctionDeclIds> {
     functions
         .into_iter()
-        .map(|function_decl| db.query_function_decl(function_decl))
+        .map(|function_decl| db.query_function_decl(Some(struct_decl_id.into()), function_decl))
         .collect::<QueryTrisult<SmallVec<[FunctionDecl; FUNCTIONS_DECLS_LEN]>>>()
         .intern_inner(db)
 }
@@ -60,7 +61,7 @@ pub(super) fn query_struct_def(
     struct_decl_id: StructDeclarationId,
     struct_def: cst::StructDefinition,
 ) -> QueryTrisult<cir::StructDefinition> {
-    db.query_struct_functions(struct_def.functions)
+    db.query_struct_functions(struct_decl_id, struct_def.functions)
         .and_or_default(db.query_struct_properties(struct_decl_id, struct_def.properties))
         .map(|(functions, properties)| cir::StructDefinition {
             functions,

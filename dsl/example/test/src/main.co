@@ -13,9 +13,8 @@ native enum Slot {
 open native struct Player {
 
     native val isReloading: bool
-    native val isJumping: bool
 
-    native fn displaySmallMessage(message: string)
+    native fn sendSmallMessage(message: string)
 
     native fn heal(amount: num, player: Player)
 }
@@ -31,5 +30,5 @@ native enum Hero {
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading
 
-    player.displaySmallMessage("Hello World")
+    player.sendSmallMessage("Hello World")
 }

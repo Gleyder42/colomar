@@ -197,6 +197,12 @@ impl<T, E> Trisult<T, E> {
         }
     }
 
+    pub fn if_ok(self, func: impl FnOnce(T)) {
+        if let Trisult::Ok(value) = self {
+            func(value)
+        }
+    }
+
     pub fn validate(self, validator: impl FnOnce(&T) -> Vec<E>) -> Trisult<T, E> {
         self.flat_map(|t| {
             let errors = validator(&t);

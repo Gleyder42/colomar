@@ -145,7 +145,7 @@ pub(super) fn query_struct_namespace(
                     },
                 )
                 .fold_with(
-                    db.query_struct_functions(struct_def.functions),
+                    db.query_struct_functions(struct_decl_id, struct_def.functions),
                     |mut namespace, function_id| {
                         let function: FunctionDecl = db.lookup_intern_function_decl(function_id);
                         let result =

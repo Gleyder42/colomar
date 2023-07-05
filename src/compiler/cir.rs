@@ -65,6 +65,7 @@ impl Root {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionDecl {
+    pub instance: Option<Type>,
     pub is_native: SpannedBool,
     pub name: Ident,
     pub arguments: DeclaredArgumentIds,
@@ -156,6 +157,12 @@ pub enum Type {
     Struct(StructDeclarationId),
     Event(EventDeclarationId),
     Unit,
+}
+
+impl From<StructDeclarationId> for Type {
+    fn from(value: StructDeclarationId) -> Self {
+        Type::Struct(value)
+    }
 }
 
 impl From<EventDeclarationId> for Type {

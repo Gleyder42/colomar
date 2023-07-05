@@ -53,6 +53,8 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
 
     let conditions = rule.conditions.into_iter().map(|it| it.0).collect();
 
+    let wscript_event_name = db.query_wscript_event_name_impl(event_decl.name.value);
+
     args.and_require(query_event_wst_call(rule.actions).map_inner(|it| it.unwrap_function()))
         .and_require(
             query_event_wst_call(conditions).map_inner(|it| wst::Condition {
@@ -61,14 +63,17 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
                 right: Box::new(wst::Call::Ident("True".into())),
             }),
         )
-        .map(|((mut args, actions), conditions)| wst::Rule {
-            title: rule.title,
-            event: wst::Event {
-                name: event_decl.name.into(),
-                team: db.query_const_eval(args.pop_front().unwrap()).unwrap_ok(),
-                hero_slot: db.query_const_eval(args.pop_front().unwrap()).unwrap_ok(),
+        .and_require(wscript_event_name)
+        .map(
+            |(((mut args, actions), conditions), event_name)| wst::Rule {
+                title: rule.title,
+                event: wst::Event {
+                    name: event_name.into(),
+                    team: db.query_const_eval(args.pop_front().unwrap()).unwrap_ok(),
+                    hero_slot: db.query_const_eval(args.pop_front().unwrap()).unwrap_ok(),
+                },
+                actions,
+                conditions,
             },
-            actions,
-            conditions,
-        })
+        )
 }

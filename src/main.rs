@@ -7,10 +7,11 @@ use crate::compiler::analysis::interner::Interner;
 use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
-use crate::compiler::{cir, FatSpan, Span, SpanSourceId};
+use crate::compiler::{cir, FatSpan, QueryTrisult, Span, SpanSourceId};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
 use chumsky::Stream;
+use clipboard_win::set_clipboard_string;
 use compiler::database::CompilerDatabase;
 use compiler::error::CompilerError;
 use compiler::trisult::Trisult;
@@ -305,14 +306,27 @@ fn main() {
 
         use crate::compiler::codegen::Codegen;
         use crate::compiler::loader::WorkshopScriptLoader;
+        use crate::compiler::printer::PrinterQuery;
         db.set_input_wscript_impls(elements);
 
         if let Some(cir) = output.0 {
             for root in cir {
                 match root {
                     Root::Rule(rule) => {
-                        let x = db.query_wst_rule(rule);
-                        println!("{:#?}", x);
+                        let x: QueryTrisult<String> = db
+                            .query_wst_rule(rule)
+                            .map(|it| db.query_wst_rule_to_string(it));
+
+                        match x {
+                            QueryTrisult::Ok(value) => {
+                                println!("{}", value);
+
+                                set_clipboard_string(&value).unwrap();
+                            }
+                            QueryTrisult::Par(_, errors) | QueryTrisult::Err(errors) => {
+                                println!("{:?}", errors);
+                            }
+                        }
                     }
                     _ => {}
                 }

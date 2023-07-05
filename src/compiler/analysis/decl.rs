@@ -138,6 +138,7 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(function::query_function_decl)]
     fn query_function_decl(
         &self,
+        instance: Option<Type>,
         function: cst::FunctionDeclaration,
     ) -> QueryTrisult<cir::FunctionDecl>;
 
@@ -247,6 +248,7 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(sstruct::query_struct_functions)]
     fn query_struct_functions(
         &self,
+        struct_decl_id: StructDeclarationId,
         functions: cst::FunctionDecls,
     ) -> QueryTrisult<FunctionDeclIds>;
 

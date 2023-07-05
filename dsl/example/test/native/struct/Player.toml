@@ -4,4 +4,4 @@ me = "Event Player"
 isReloading = "Is Reloading(%caller%)"
 
 [functions]
-sendSmallMessage = "Small Message(%caller%, %message%)"  
+sendSmallMessage = "Small Message(%caller%, %message%)"

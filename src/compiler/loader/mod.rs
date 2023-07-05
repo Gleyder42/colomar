@@ -37,6 +37,12 @@ pub trait WorkshopScriptLoader {
     fn query_wscript_struct_property_impl(
         &self,
         struct_name: Text,
+        property_name: Text,
+    ) -> QueryTrisult<wst::partial::Call>;
+
+    fn query_wscript_struct_function_impl(
+        &self,
+        struct_name: Text,
         function_name: Text,
     ) -> QueryTrisult<wst::partial::Call>;
 
@@ -103,7 +109,7 @@ fn query_wscript_enum_constant_impl(
     })
 }
 
-fn query_wscript_struct_property_impl(
+fn query_wscript_struct_function_impl(
     db: &dyn WorkshopScriptLoader,
     struct_name: Text,
     function_name: Text,
@@ -111,9 +117,23 @@ fn query_wscript_struct_property_impl(
     query_wscript_impl(
         || {
             db.query_wscript_struct_impl(struct_name)
-                .map(|it| it.properties)
+                .map(|it| it.functions)
         },
         function_name,
+    )
+}
+
+fn query_wscript_struct_property_impl(
+    db: &dyn WorkshopScriptLoader,
+    struct_name: Text,
+    property_name: Text,
+) -> QueryTrisult<wst::partial::Call> {
+    query_wscript_impl(
+        || {
+            db.query_wscript_struct_impl(struct_name)
+                .map(|it| it.properties)
+        },
+        property_name,
     )
 }
 

@@ -1,6 +1,8 @@
 use crate::compiler;
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::{Op, Text};
+use std::fmt::{Display, Formatter};
+use toml::to_string;
 
 pub mod partial {
     use crate::compiler::{wst, Op, Text};
@@ -83,6 +85,12 @@ pub mod partial {
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Ident(pub Text);
 
+impl Display for Ident {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl<T: AsRef<str>> From<T> for Ident {
     fn from(value: T) -> Self {
         Ident(Text::new(value))
@@ -109,6 +117,19 @@ pub enum Call {
     Number(Text),
     Ident(Ident),
     Function(Function),
+}
+
+impl Display for Call {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let string = match self {
+            Call::Condition(it) => it.to_string(),
+            Call::String(it) => format!("\"{}\"", it.to_string()),
+            Call::Number(it) => it.to_string(),
+            Call::Ident(it) => it.to_string(),
+            Call::Function(it) => it.to_string(),
+        };
+        write!(f, "{}", string)
+    }
 }
 
 impl Call {
@@ -154,6 +175,19 @@ pub struct Function {
     pub args: Vec<Call>,
 }
 
+impl Display for Function {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let args = self
+            .args
+            .iter()
+            .map(|it| it.to_string())
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        write!(f, "{name}({args})", name = self.name)
+    }
+}
+
 impl Function {
     fn try_from_with(
         value: partial::Function,
@@ -176,6 +210,18 @@ pub struct Condition {
     pub left: Box<Call>,
     pub op: Op,
     pub right: Box<Call>,
+}
+
+impl Display for Condition {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{left} {op} {right}",
+            left = self.left,
+            op = self.op,
+            right = self.right
+        )
+    }
 }
 
 impl Condition {

@@ -1,0 +1,19 @@
+rule("{rule}")
+{{
+	event
+	{{
+		{event};
+		{team};
+		{hero_slot};
+	}}
+
+	conditions
+	{{
+		{conditions}
+	}}
+
+	actions
+	{{
+		{actions}
+	}}
+}}
