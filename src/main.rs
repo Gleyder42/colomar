@@ -16,6 +16,7 @@ use compiler::database::CompilerDatabase;
 use compiler::error::CompilerError;
 use compiler::trisult::Trisult;
 use either::Either;
+use hash_hasher::HashedMap;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
@@ -24,6 +25,7 @@ use std::path::Path;
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
+use crate::compiler::database::interner::SpanDatabase;
 
 use crate::compiler::SpanInterner;
 
@@ -40,9 +42,12 @@ fn main() {
         .expect("Cannot read file content");
 
     let mut db = CompilerDatabase::default();
-    let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
+    let span_interner = SpanDatabase::default();
+    let span_source_id: SpanSourceId =
+        span_interner.intern_span_source(path.to_string_lossy().into());
 
-    let (tokens, lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
+    let (tokens, lexer_errors) =
+        lexer(&span_interner, span_source_id).parse_recovery(source.as_str());
     println!("{:#?}", lexer_errors);
 
     let (ast, parser_errors) = if let Some(tokens) = tokens {
@@ -129,6 +134,8 @@ fn main() {
             }
         }
 
+        let mut span_map = HashedMap::default();
+
         println!("{:#?}", output.1);
         // Due the nature of demand-driven compilation, the queries return duplicate errors,
         // if an erroneous query is queried multiple times.
@@ -147,8 +154,9 @@ fn main() {
 
             match analysis_error {
                 CompilerError::DuplicateIdent { first, second } => {
-                    let first_span = FatSpan::from_span(&db, first.span);
-                    let second_span = FatSpan::from_span(&db, second.span);
+                    let first_span = FatSpan::from_span(&span_interner, &mut span_map, first.span);
+                    let second_span =
+                        FatSpan::from_span(&span_interner, &mut span_map, second.span);
 
                     Report::<FatSpan>::build(
                         ERROR_KIND,
@@ -181,7 +189,7 @@ fn main() {
                     todo!()
                 }
                 CompilerError::CannotFindIdent(ident) => {
-                    let span = FatSpan::from_span(&db, ident.span);
+                    let span = FatSpan::from_span(&span_interner, &mut span_map, ident.span);
 
                     Report::build(ERROR_KIND, span.source.clone(), span.location.start)
                         .with_code(error_code)
@@ -199,7 +207,8 @@ fn main() {
                         .unwrap();
                 }
                 CompilerError::NotA(type_name, actual_rvalue, occurrence) => {
-                    let occurrence_span = FatSpan::from_span(&db, occurrence.span);
+                    let occurrence_span =
+                        FatSpan::from_span(&span_interner, &mut span_map, occurrence.span);
 
                     Report::build(
                         ERROR_KIND,
@@ -217,7 +226,8 @@ fn main() {
                     .unwrap();
                 }
                 CompilerError::WrongType { actual, expected } => {
-                    let actual_span = FatSpan::from_span(&db, actual.span);
+                    let actual_span =
+                        FatSpan::from_span(&span_interner, &mut span_map, actual.span);
                     let report_builder = Report::build(
                         ERROR_KIND,
                         actual_span.source.clone(),
@@ -242,7 +252,8 @@ fn main() {
                             )),
                         ),
                         Either::Right(called_type) => {
-                            let called_type_span = FatSpan::from_span(&db, called_type.span);
+                            let called_type_span =
+                                FatSpan::from_span(&span_interner, &mut span_map, called_type.span);
 
                             report_builder.with_label(
                                 Label::new(called_type_span.clone())

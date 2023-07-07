@@ -17,6 +17,7 @@ toml = "0.7.4"
 regex = "1.8.4"
 lazy_static = "1.4.0"
 clipboard-win = "4.5.0"
+hash_hasher = "2.0.3"
 
 [dev-dependencies]
 serde_yaml = "0.9.21"

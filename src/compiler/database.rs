@@ -4,12 +4,10 @@ use crate::compiler::analysis::interner::InternerDatabase;
 use crate::compiler::codegen::CodegenDatabase;
 use crate::compiler::loader::WorkshopScriptLoaderDatabase;
 use crate::compiler::printer::PrinterDatabase;
-use crate::compiler::SpanInternerDatabase;
 
 #[salsa::database(
     DeclDatabase,
     DefDatabase,
-    SpanInternerDatabase,
     InternerDatabase,
     WorkshopScriptLoaderDatabase,
     CodegenDatabase,
@@ -18,6 +16,18 @@ use crate::compiler::SpanInternerDatabase;
 #[derive(Default)]
 pub struct CompilerDatabase {
     storage: salsa::Storage<Self>,
+}
+
+pub mod interner {
+    use crate::compiler::SpanInternerDatabase;
+
+    #[salsa::database(SpanInternerDatabase)]
+    #[derive(Default)]
+    pub struct SpanDatabase {
+        storage: salsa::Storage<Self>,
+    }
+
+    impl salsa::Database for SpanDatabase {}
 }
 
 impl salsa::Database for CompilerDatabase {}

@@ -2,14 +2,14 @@ use crate::compiler::cir::{
     CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId, Type,
 };
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{Ident, QueryTrisult, Span, Text};
+use crate::compiler::{HierarchicalSpan, Ident, QueryTrisult, Span, Text};
 use crate::query_error;
 use either::Either;
 use std::borrow::Cow;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
-    NotImplemented(Cow<'static, str>, Span),
+    NotImplemented(Cow<'static, str>, HierarchicalSpan),
     DuplicateIdent {
         first: Ident,
         second: Ident,
@@ -34,12 +34,12 @@ pub enum CompilerError {
     WstParserError,
     MissingArgument {
         missing_arg: DeclaredArgumentId,
-        call_site: Span,
+        call_site: HierarchicalSpan,
     },
     CannotFindNamedArgument(Ident),
-    ArgumentOutOfRange(usize, Span),
+    ArgumentOutOfRange(usize, HierarchicalSpan),
     DuplicateNamedArgument(Ident),
-    CannotMixArguments(Span),
+    CannotMixArguments(HierarchicalSpan),
     CannotEvalAsConst,
 }
 

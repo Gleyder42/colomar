@@ -2,16 +2,34 @@ extern crate core;
 
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{Ident, Span, Spanned, SpannedBool, UseRestriction};
+use crate::compiler::{
+    HierarchicalSpan, Ident, Span, SpanInterner, SpanSourceId, Spanned, SpannedBool, Text,
+    UseRestriction,
+};
 
+use crate::compiler::span::{HierarchicalLocation, Segment};
 use chumsky::prelude::*;
 use smallvec::SmallVec;
 
 pub type ParserError = Simple<Token, Span>;
 
-fn ident() -> impl Parser<Token, Ident, Error = ParserError> + Clone {
-    filter_map(|span, token| match token {
-        Token::Ident(ident) => Ok(Ident { value: ident, span }),
+fn ident(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, Ident, Error = ParserError> + Clone + '_ {
+    static IDENT_SPACER: Segment = Segment::spacer("ident");
+
+    filter_map(move |span: Span, token| match token {
+        Token::Ident(ident) => Ok(Ident {
+            value: ident.clone(),
+            span: HierarchicalSpan::new(
+                interner,
+                span.source,
+                parent.clone(),
+                &IDENT_SPACER,
+                Segment::new(ident),
+            ),
+        }),
         _ => Err(ParserError::expected_input_found(
             span,
             Vec::new(),
@@ -20,20 +38,83 @@ fn ident() -> impl Parser<Token, Ident, Error = ParserError> + Clone {
     })
 }
 
-fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error = ParserError> {
-    ident()
+fn swap_params<A, B, C>(input: impl Fn(A, B) -> C) -> impl Fn(B, A) -> C {
+    move |b, a| input(a, b)
+}
+
+fn map_with_location<T, U, In>(
+    mut parent: HierarchicalLocation,
+    segment: Segment,
+    in_func: In,
+) -> impl Fn(T, Span) -> U
+where
+    In: Fn(T, Span, HierarchicalLocation) -> U,
+{
+    parent.push(segment);
+    let parent_cloner = move || parent.clone();
+
+    move |value: T, span: Span| in_func(value, span, parent_cloner())
+}
+
+fn create_ignored_value<T>(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+    segment: Segment,
+) -> impl Fn(Option<T>, Span) -> SpannedBool + '_ {
+    let parent_cloner = move || parent.clone();
+    let segment_cloner = move || segment.clone();
+
+    move |value, span| {
+        Spanned::ignore_value(
+            value,
+            HierarchicalSpan::overarching_from(span, interner, parent_cloner(), segment_cloner()),
+        )
+    }
+}
+
+fn create_spanned<T>(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+    segment: Segment,
+) -> impl Fn(T, Span) -> Spanned<T> + Clone + '_ {
+    let parent_cloner = move || parent.clone();
+    let segment_cloner = move || segment.clone();
+
+    move |value, span| Spanned {
+        value,
+        span: HierarchicalSpan::overarching_from(span, interner, parent_cloner(), segment_cloner()),
+    }
+}
+
+fn declared_arguments(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error = ParserError> + '_ {
+    static SPACER: Segment = Segment::spacer("decl_arg");
+    static TYPE_SPACER: Segment = Segment::spacer("type");
+    static DEFAULT_ARG_SPACER: Segment = Segment::spacer("default_arg");
+    let parent = parent.append_spacer(&SPACER);
+
+    ident(interner, parent.clone())
         .then_ignore(just(Token::Ctrl(':')))
         .then(
-            ident()
+            ident(interner, parent.clone().append_spacer(&DEFAULT_ARG_SPACER))
                 .separated_by(just(Token::Ctrl('|')))
-                .map_with_span(|types, span| Types {
-                    values: types.into(),
-                    span,
-                }),
+                .map_with_span(map_with_location(
+                    parent.clone(),
+                    Segment::new("name"),
+                    |types: Vec<Ident>, span, loc| Types {
+                        values: types.into(),
+                        span: HierarchicalSpan::from_location(interner, span, loc),
+                    },
+                )),
         )
         .then(
             just(Token::Ctrl('='))
-                .ignore_then(chain().ident_chain())
+                .ignore_then(
+                    chain(interner, parent.clone().append_spacer(&DEFAULT_ARG_SPACER))
+                        .ident_chain(),
+                )
                 .or_not(),
         )
         .map_with_span(|((name, types), default_value), span| (name, types, default_value, span))
@@ -53,31 +134,47 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
                 )
                 .collect::<Vec<_>>()
         })
-        .map_with_span(Spanned::new)
+        .map_with_span(create_spanned(
+            interner,
+            parent.clone(),
+            Segment::new("all"),
+        ))
 }
 
-fn native_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
+fn native_or_not(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, SpannedBool, Error = ParserError> + '_ {
     just(Token::Native)
         .or_not()
-        .map_with_span(Spanned::ignore_value)
+        .map_with_span(create_ignored_value(
+            interner,
+            parent,
+            Segment::new("native"),
+        ))
 }
 
-fn event() -> impl Parser<Token, Event, Error = ParserError> {
-    just(Token::Native)
-        .or_not()
-        .map_with_span(Spanned::ignore_value)
+fn event(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, Event, Error = ParserError> + '_ {
+    static SPACER: Segment = Segment::spacer("event");
+    static BY_SPACER: Segment = Segment::spacer("by");
+    let parent = parent.append_spacer(&SPACER);
+
+    native_or_not(interner, parent.clone())
         .then_ignore(just(Token::Event))
-        .then(ident())
+        .then(ident(interner, parent.clone()))
         .map_with_span(|(is_native, name), span| EventDeclaration {
             is_native,
             name,
             span,
         })
-        .then(declared_arguments())
+        .then(declared_arguments(interner, parent.clone()))
         .then(
             just(Token::By)
-                .ignore_then(ident())
-                .then(chain().args())
+                .ignore_then(ident(interner, parent.clone().append_spacer(&BY_SPACER)))
+                .then(chain(interner, parent.clone().append_spacer(&BY_SPACER)).args())
                 .or_not(),
         )
         .validate(|((a, b), c), span, emit| {
@@ -89,7 +186,7 @@ fn event() -> impl Parser<Token, Event, Error = ParserError> {
             }
             ((a, b), c)
         })
-        .then(block())
+        .then(block(interner, parent.clone()))
         .map_with_span(|(((declaration, arguments), by), block), span| Event {
             declaration,
             definition: EventDefinition {
@@ -102,15 +199,22 @@ fn event() -> impl Parser<Token, Event, Error = ParserError> {
         })
 }
 
-fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
-    let constants = ident()
+fn r#enum(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, Enum, Error = ParserError> + '_ {
+    static SPACER: Segment = Segment::spacer("enum");
+    static CONSTANTS_SPACER: Segment = Segment::spacer("constants");
+    let parent = parent.append_spacer(&SPACER);
+
+    let constants = ident(interner, parent.clone().append_spacer(&CONSTANTS_SPACER))
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
         .padded_by(newline_repeated());
 
-    native_or_not()
+    native_or_not(interner, parent.clone())
         .then_ignore(just(Token::Enum))
-        .then(ident())
+        .then(ident(interner, parent.clone()))
         .map_with_span(|(is_native, name), span| EnumDeclaration {
             is_native,
             name,
@@ -124,12 +228,25 @@ fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
         })
 }
 
-fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
-    native_or_not()
-        .then(choice((just(Token::GetVar), just(Token::Val))).map_with_span(Spanned::new))
-        .then(ident())
+fn property(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, PropertyDeclaration, Error = ParserError> + '_ {
+    static SPACER: Segment = Segment::spacer("property");
+    static TYPE_SPACER: Segment = Segment::spacer("return_type");
+    let parent = parent.append_spacer(&SPACER);
+
+    native_or_not(interner, parent.clone())
+        .then(
+            choice((just(Token::GetVar), just(Token::Val))).map_with_span(create_spanned(
+                interner,
+                parent.clone(),
+                Segment::new("use_restriction"),
+            )),
+        )
+        .then(ident(interner, parent.clone()))
         .then_ignore(just(Token::Ctrl(':')))
-        .then(ident())
+        .then(ident(interner, parent.clone().append_spacer(&TYPE_SPACER)))
         .map(|(((is_native, property_type), name), r#type)| {
             let use_restriction = match property_type {
                 // Write a test which tries to put other tokens here
@@ -155,11 +272,25 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
         })
 }
 
-fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
-    let member_function = native_or_not()
+fn r#struct(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, Struct, Error = ParserError> + '_ {
+    static SPACER: Segment = Segment::spacer("struct");
+    static MEMBER_SPACER: Segment = Segment::spacer("member");
+    static PROPERTY_SPACER: Segment = Segment::spacer("property");
+    let parent = parent.append_spacer(&SPACER);
+
+    let member_function = native_or_not(interner, parent.clone())
         .then_ignore(just(Token::Fn))
-        .then(ident())
-        .then(declared_arguments())
+        .then(ident(
+            interner,
+            parent.clone().append_spacer(&MEMBER_SPACER),
+        ))
+        .then(declared_arguments(
+            interner,
+            parent.clone().append_spacer(&MEMBER_SPACER),
+        ))
         .map(|((is_native, name), arguments)| FunctionDeclaration {
             name,
             is_native,
@@ -171,14 +302,18 @@ fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
         Function(FunctionDeclaration),
     }
 
-    let open_keyword = just(Token::Open)
+    let open_or_not = just(Token::Open)
         .or_not()
-        .map_with_span(Spanned::ignore_value);
+        .map_with_span(create_ignored_value(
+            interner,
+            parent.clone(),
+            Segment::new("open"),
+        ));
 
-    open_keyword
-        .then(native_or_not())
+    open_or_not
+        .then(native_or_not(interner, parent.clone()))
         .then_ignore(just(Token::Struct))
-        .then(ident())
+        .then(ident(interner, parent.clone()))
         .map_with_span(|((is_open, is_native), name), span| StructDeclaration {
             is_open,
             is_native,
@@ -186,7 +321,7 @@ fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
             span,
         })
         .then(
-            property()
+            property(interner, parent.clone().append_spacer(&PROPERTY_SPACER))
                 .map(StructMember::Property)
                 .or(member_function.map(StructMember::Function))
                 .padded_by(just(Token::NewLine).repeated())
@@ -233,10 +368,17 @@ impl<'a> IdentChainParserResult<'a> {
     }
 }
 
-fn chain<'a>() -> IdentChainParserResult<'a> {
+fn chain<'a>(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> IdentChainParserResult<'a> {
+    static CHAIN_SPACER: Segment = Segment::spacer("chain");
+    static ARG_SPACER: Segment = Segment::spacer("args");
+
     let mut ident_chain = Recursive::<_, CallChain, _>::declare();
 
-    let args = ident()
+    let args_parent = parent.clone().append_spacer(&ARG_SPACER);
+    let args = ident(interner, args_parent.clone())
         .then_ignore(just(Token::Ctrl('=')))
         .or_not()
         .then(ident_chain.clone())
@@ -247,7 +389,11 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
-        .map_with_span(CallArguments::new);
+        .map_with_span(create_spanned(
+            interner,
+            args_parent.clone(),
+            Segment::new("all"),
+        ));
 
     let literal = filter_map(|span, token| match token {
         Token::String(string) => Ok(Box::new(Call::String(string, span))),
@@ -255,8 +401,9 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
         _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
     });
 
+    let chain_parent = parent.clone().append_spacer(&CHAIN_SPACER);
     ident_chain.define(
-        ident()
+        ident(interner, chain_parent.clone())
             .then(args.clone().or_not())
             .map_with_span(|(ident, arguments), span| {
                 let call = match arguments {
@@ -272,7 +419,11 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
             .or(literal)
             .separated_by(just(Token::Ctrl('.')))
             .at_least(1)
-            .map_with_span(CallChain::new),
+            .map_with_span(create_spanned(
+                interner,
+                chain_parent.clone(),
+                Segment::new("all"),
+            )),
     );
 
     IdentChainParserResult {
@@ -281,15 +432,27 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
     }
 }
 
-fn block() -> impl Parser<Token, Block, Error = ParserError> {
+fn block(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, Block, Error = ParserError> + '_ {
+    static SPACER: Segment = Segment::spacer("block");
+    static COND_SPACER: Segment = Segment::spacer("cond");
+    static ACTION_SPACER: Segment = Segment::spacer("action");
+    static PROPERTY_SPACER: Segment = Segment::spacer("property");
+    let parent = parent.append_spacer(&SPACER);
+
     let cond = just(Token::Cond)
-        .ignore_then(chain().ident_chain())
+        .ignore_then(chain(interner, parent.clone().append_spacer(&COND_SPACER)).ident_chain())
         .map(|it| it as Condition);
 
-    let action = chain()
+    let action = chain(interner, parent.clone().append_spacer(&ACTION_SPACER))
         .ident_chain()
         .map(Action::CallChain)
-        .or(property().map(Action::Property));
+        .or(
+            property(interner, parent.clone().append_spacer(&PROPERTY_SPACER))
+                .map(Action::Property),
+        );
 
     cond.then_ignore(at_least_newlines())
         .repeated()
@@ -309,17 +472,32 @@ fn at_least_newlines() -> impl Parser<Token, (), Error = ParserError> {
     just(Token::NewLine).repeated().at_least(1).map(|_| ())
 }
 
-fn rule() -> impl Parser<Token, Rule, Error = ParserError> {
-    let rule_name = filter_map(|span, token| match token {
-        Token::String(string) => Ok(Spanned::new(string, span)),
-        _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
-    });
+fn rule(
+    interner: &dyn SpanInterner,
+    parent: HierarchicalLocation,
+) -> impl Parser<Token, Rule, Error = ParserError> + '_ {
+    static SPACER: Segment = Segment::spacer("rule");
+    static RULE_SPACER: Segment = Segment::spacer("rule");
+    let parent = parent.append_spacer(&SPACER);
+
+    let rule_name = {
+        let filter_rule_map = |token: Token, span: Span, loc: HierarchicalLocation| match token {
+            Token::String(string) => Ok(Spanned::new(
+                string,
+                HierarchicalSpan::from_location(interner, span, loc),
+            )),
+            _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
+        };
+        let map = map_with_location(parent.clone(), Segment::new("name"), filter_rule_map);
+        let swapped = swap_params(map);
+        filter_map(swapped)
+    };
 
     just(Token::Rule)
         .ignore_then(rule_name)
-        .then(ident())
-        .then(chain().args())
-        .then(block())
+        .then(ident(interner, parent.clone()))
+        .then(chain(interner, parent.clone()).args())
+        .then(block(interner, parent.clone()))
         .map_with_span(|(((rule_name, ident), arguments), block), _span| Rule {
             conditions: block.conditions,
             actions: block.actions,
@@ -329,11 +507,13 @@ fn rule() -> impl Parser<Token, Rule, Error = ParserError> {
         })
 }
 
-pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
-    let rule_parser = rule().map(Root::Rule);
-    let event_parser = event().map(Root::Event);
-    let enum_parser = r#enum().map(Root::Enum);
-    let struct_parser = r#struct().map(Root::Struct);
+pub fn parser(interner: &dyn SpanInterner) -> impl Parser<Token, Ast, Error = ParserError> + '_ {
+    let root = HierarchicalLocation::new();
+
+    let rule_parser = rule(interner, root.clone()).map(Root::Rule);
+    let event_parser = event(interner, root.clone()).map(Root::Event);
+    let enum_parser = r#enum(interner, root.clone()).map(Root::Enum);
+    let struct_parser = r#struct(interner, root.clone()).map(Root::Struct);
 
     choice((rule_parser, event_parser, enum_parser, struct_parser))
         .padded_by(newline_repeated())

@@ -1,9 +1,10 @@
-use crate::compiler::{CheapRange, UseRestriction};
+use crate::compiler::{CheapRange, HierarchicalSpan, UseRestriction};
 use crate::compiler::{
     Ident, Span, Spanned, SpannedBool, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
     DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use crate::impl_intern_key;
+use chumsky::Span as ChumskySpan;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -148,7 +149,7 @@ pub struct EnumConstant {
 pub struct Enum {
     pub declaration: EnumDeclarationId,
     pub definition: EnumDefinition,
-    pub span: Span,
+    pub span: HierarchicalSpan,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -177,7 +178,7 @@ pub struct Predicate(pub AValueChain);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledType {
     pub r#type: Type,
-    pub span: Span,
+    pub span: HierarchicalSpan,
 }
 
 impl Display for CalledType {
@@ -201,7 +202,7 @@ impl Display for Type {
 pub struct CalledTypes {
     // TODO Use small_vec here
     pub types: Vec<CalledType>,
-    pub span: Span,
+    pub span: HierarchicalSpan,
 }
 
 impl From<CalledType> for CalledTypes {
@@ -269,7 +270,7 @@ impl_intern_key!(EventDeclarationId);
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct EventDeclaration {
     pub name: Ident,
-    pub span: Span,
+    pub span: HierarchicalSpan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -312,21 +313,22 @@ impl<T: Into<Type>> From<T> for RValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AValueChain {
     pub avalues: Vec<AValue>,
-    pub span: Span,
+    pub span: HierarchicalSpan,
 }
 
 impl AValueChain {
-    pub fn new(avalues: Vec<AValue>, span: Span) -> Self {
+    pub fn new(avalues: Vec<AValue>, span: HierarchicalSpan) -> Self {
         debug_assert!(!avalues.is_empty(), "Tried to create an empty AValueChain");
         AValueChain { avalues, span }
     }
 
     /// The ghost span starts and ends just before the first avalue inside the span.
     /// It is used when the [AValueChain] has an implicit caller.
-    pub fn ghost_span(&self) -> Span {
-        let start = self.span.location.start;
-        let end = self.span.location.start + 1;
-        Span::new(self.span.source, CheapRange::from(start..end))
+    pub fn ghost_span(&self) -> HierarchicalSpan {
+        let start = self.span.start();
+        let start = start;
+        let end = start + 1;
+        HierarchicalSpan::new(self.span.source, CheapRange::from(start..end))
     }
 
     pub fn returning_avalue(&self) -> AValue {
@@ -338,8 +340,8 @@ impl AValueChain {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
     // TODO Should this be FunctionDeclId or FunctionDecl?
-    FunctionCall(FunctionDeclId, CalledArgumentIds, Span),
-    RValue(RValue, Span),
+    FunctionCall(FunctionDeclId, CalledArgumentIds, HierarchicalSpan),
+    RValue(RValue, HierarchicalSpan),
     CValue(CValue),
 }
 
@@ -351,7 +353,7 @@ impl From<AValue> for AValueChain {
 }
 
 impl AValue {
-    pub fn span(&self) -> Span {
+    pub fn span(&self) -> HierarchicalSpan {
         match self {
             AValue::FunctionCall(_, _, span) => *span,
             AValue::RValue(_, span) => *span,
@@ -363,12 +365,12 @@ impl AValue {
 /// Represent a value which is known at compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CValue {
-    String(Text, StructDeclarationId, Span),
-    Number(Text, StructDeclarationId, Span),
+    String(Text, StructDeclarationId, HierarchicalSpan),
+    Number(Text, StructDeclarationId, HierarchicalSpan),
 }
 
 impl CValue {
-    pub fn span(&self) -> Span {
+    pub fn span(&self) -> HierarchicalSpan {
         match self {
             CValue::String(_, _, span) | CValue::Number(_, _, span) => *span,
         }
