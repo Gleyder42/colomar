@@ -95,6 +95,7 @@ dependencies = [
  "either",
  "lazy_static",
  "regex",
+ "rustc-hash",
  "salsa",
  "serde",
  "serde_yaml",

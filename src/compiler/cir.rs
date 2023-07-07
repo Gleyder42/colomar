@@ -1,6 +1,6 @@
 use crate::compiler::{CheapRange, UseRestriction};
 use crate::compiler::{
-    Ident, Span, Spanned, SpannedBool, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
+    Ident, PosSpan, Spanned, SpannedBool, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
     DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use crate::impl_intern_key;
@@ -148,7 +148,7 @@ pub struct EnumConstant {
 pub struct Enum {
     pub declaration: EnumDeclarationId,
     pub definition: EnumDefinition,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -177,7 +177,7 @@ pub struct Predicate(pub AValueChain);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledType {
     pub r#type: Type,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 impl Display for CalledType {
@@ -201,7 +201,7 @@ impl Display for Type {
 pub struct CalledTypes {
     // TODO Use small_vec here
     pub types: Vec<CalledType>,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 impl From<CalledType> for CalledTypes {
@@ -269,7 +269,7 @@ impl_intern_key!(EventDeclarationId);
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct EventDeclaration {
     pub name: Ident,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -312,21 +312,21 @@ impl<T: Into<Type>> From<T> for RValue {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AValueChain {
     pub avalues: Vec<AValue>,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 impl AValueChain {
-    pub fn new(avalues: Vec<AValue>, span: Span) -> Self {
+    pub fn new(avalues: Vec<AValue>, span: PosSpan) -> Self {
         debug_assert!(!avalues.is_empty(), "Tried to create an empty AValueChain");
         AValueChain { avalues, span }
     }
 
     /// The ghost span starts and ends just before the first avalue inside the span.
     /// It is used when the [AValueChain] has an implicit caller.
-    pub fn ghost_span(&self) -> Span {
+    pub fn ghost_span(&self) -> PosSpan {
         let start = self.span.location.start;
         let end = self.span.location.start + 1;
-        Span::new(self.span.source, CheapRange::from(start..end))
+        PosSpan::new(self.span.source, CheapRange::from(start..end))
     }
 
     pub fn returning_avalue(&self) -> AValue {
@@ -338,8 +338,8 @@ impl AValueChain {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
     // TODO Should this be FunctionDeclId or FunctionDecl?
-    FunctionCall(FunctionDeclId, CalledArgumentIds, Span),
-    RValue(RValue, Span),
+    FunctionCall(FunctionDeclId, CalledArgumentIds, PosSpan),
+    RValue(RValue, PosSpan),
     CValue(CValue),
 }
 
@@ -351,7 +351,7 @@ impl From<AValue> for AValueChain {
 }
 
 impl AValue {
-    pub fn span(&self) -> Span {
+    pub fn span(&self) -> PosSpan {
         match self {
             AValue::FunctionCall(_, _, span) => *span,
             AValue::RValue(_, span) => *span,
@@ -363,12 +363,12 @@ impl AValue {
 /// Represent a value which is known at compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CValue {
-    String(Text, StructDeclarationId, Span),
-    Number(Text, StructDeclarationId, Span),
+    String(Text, StructDeclarationId, PosSpan),
+    Number(Text, StructDeclarationId, PosSpan),
 }
 
 impl CValue {
-    pub fn span(&self) -> Span {
+    pub fn span(&self) -> PosSpan {
         match self {
             CValue::String(_, _, span) | CValue::Number(_, _, span) => *span,
         }

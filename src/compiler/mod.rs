@@ -15,6 +15,7 @@ pub mod database;
 pub mod error;
 pub mod language;
 pub mod loader;
+pub mod offset;
 pub mod printer;
 pub mod trisult;
 pub mod wir;
@@ -55,7 +56,7 @@ impl From<Range<InnerSpan>> for CheapRange {
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct Span {
+pub struct PosSpan {
     pub source: SpanSourceId,
     pub location: SpanLocation,
 }
@@ -69,14 +70,14 @@ pub struct FatSpan {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Spanned<T> {
     pub value: T,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
     // TODO Rename this field to text
     pub value: Text,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[salsa::query_group(SpanInternerDatabase)]
@@ -85,9 +86,9 @@ pub trait SpanInterner {
     fn intern_span_source(&self, span_source: SpanSource) -> SpanSourceId;
 }
 
-impl Span {
+impl PosSpan {
     fn new(source: SpanSourceId, span: SpanLocation) -> Self {
-        Span {
+        PosSpan {
             source,
             location: span,
         }
@@ -95,7 +96,7 @@ impl Span {
 }
 
 impl FatSpan {
-    pub fn from_span(db: &(impl SpanInterner + ?Sized), span: Span) -> FatSpan {
+    pub fn from_span(db: &(impl SpanInterner + ?Sized), span: PosSpan) -> FatSpan {
         FatSpan {
             location: span.location,
             source: db.lookup_intern_span_source(span.source),
@@ -104,17 +105,17 @@ impl FatSpan {
 }
 
 impl<T> Spanned<T> {
-    pub fn new(value: T, span: Span) -> Self {
+    pub fn new(value: T, span: PosSpan) -> Self {
         Spanned { value, span }
     }
 
-    pub fn ignore_value(option: Option<T>, span: Span) -> SpannedBool {
+    pub fn ignore_value(option: Option<T>, span: PosSpan) -> SpannedBool {
         option.map(|_| Spanned::new((), span))
     }
 }
 
 impl<T: Default> Spanned<T> {
-    pub fn default_inner(span: Span) -> Spanned<T> {
+    pub fn default_inner(span: PosSpan) -> Spanned<T> {
         Spanned {
             value: T::default(),
             span,
@@ -147,7 +148,7 @@ impl ariadne::Span for FatSpan {
     }
 }
 
-impl chumsky::Span for Span {
+impl chumsky::Span for PosSpan {
     type Context = SpanSourceId;
     type Offset = InnerSpan;
 

@@ -1,6 +1,6 @@
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{
-    Ident, Span, Spanned, SpannedBool, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN,
+    Ident, PosSpan, Spanned, SpannedBool, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN,
     DECLARED_ARGUMENTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
@@ -69,7 +69,7 @@ pub enum Action {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Types {
     pub values: SmallVec<[Ident; 2]>,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 impl IntoIterator for Types {
@@ -85,7 +85,7 @@ impl IntoIterator for Types {
 pub struct EventDeclaration {
     pub is_native: SpannedBool,
     pub name: Ident,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -112,7 +112,7 @@ impl TryFrom<Definition> for EventDefinition {
 pub struct Event {
     pub declaration: EventDeclaration,
     pub definition: EventDefinition,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -135,7 +135,7 @@ pub struct StructDeclaration {
     pub is_open: SpannedBool,
     pub is_native: SpannedBool,
     pub name: Ident,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -160,14 +160,14 @@ impl TryFrom<Definition> for StructDefinition {
 pub struct Struct {
     pub declaration: StructDeclaration,
     pub definition: StructDefinition,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EnumDeclaration {
     pub is_native: SpannedBool,
     pub name: Ident,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -191,7 +191,7 @@ impl TryFrom<Definition> for EnumDefinition {
 pub struct Enum {
     pub declaration: EnumDeclaration,
     pub definition: EnumDefinition,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -200,7 +200,7 @@ pub struct DeclaredArgument {
     pub name: Ident,
     pub types: Types,
     pub default_value: Option<CallChain>,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -216,7 +216,7 @@ pub struct Rule {
 pub struct Block {
     pub actions: Actions,
     pub conditions: Conditions,
-    pub span: Span,
+    pub span: PosSpan,
 }
 
 /// Multiple [CallChain]s form arguments.
@@ -234,7 +234,7 @@ pub type CallArguments = Spanned<Vec<CallArgument>>;
 ///  - (1, 2, 3)
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum CallArgument {
-    Named(Ident, CallChain, Span),
+    Named(Ident, CallChain, PosSpan),
     Pos(CallChain),
 }
 
@@ -288,7 +288,7 @@ pub enum Call {
     IdentArguments {
         name: Ident,
         args: CallArguments,
-        span: Span,
+        span: PosSpan,
     },
     /// An ident.
     /// ## Example
@@ -299,13 +299,13 @@ pub enum Call {
     /// ## Example
     /// - "Hello World"
     /// - "Greetings"
-    String(Text, Span),
+    String(Text, PosSpan),
     /// A number literal
     /// ## Example
     /// - 12
     /// - 1.5
     /// - 0
-    Number(Text, Span),
+    Number(Text, PosSpan),
 }
 
 impl From<Ident> for Box<Call> {

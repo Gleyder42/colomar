@@ -1,6 +1,6 @@
 extern crate core;
 
-use crate::compiler::{CheapRange, Span, SpanSourceId, Text};
+use crate::compiler::{CheapRange, PosSpan, SpanSourceId, Text};
 use chumsky::prelude::*;
 use chumsky::text::Character;
 use std::fmt::{Debug, Display, Formatter};
@@ -53,7 +53,7 @@ impl Display for Token {
 
 pub fn lexer(
     span_source_id: SpanSourceId,
-) -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
+) -> impl Parser<char, Vec<(Token, PosSpan)>, Error = Simple<char>> {
     let num = text::int(10)
         .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
         .collect::<String>()
@@ -95,7 +95,7 @@ pub fn lexer(
 
     token
         .padded_by(whitespace)
-        .map_with_span(move |tok, span| (tok, Span::new(span_source_id, CheapRange::from(span))))
+        .map_with_span(move |tok, span| (tok, PosSpan::new(span_source_id, CheapRange::from(span))))
         .repeated()
         .then_ignore(end())
 }

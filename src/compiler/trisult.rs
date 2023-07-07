@@ -1,4 +1,4 @@
-use crate::compiler::{Span, Spanned};
+use crate::compiler::{PosSpan, Spanned};
 use smallvec::{Array, SmallVec};
 
 use std::fmt::Debug;
@@ -45,7 +45,7 @@ impl<T, E> Trisult<T, E> {
         self.map(|value| Some(value))
     }
 
-    pub fn spanned(self, span: Span) -> Trisult<Spanned<T>, E> {
+    pub fn spanned(self, span: PosSpan) -> Trisult<Spanned<T>, E> {
         self.map(|value| Spanned::new(value, span))
     }
 

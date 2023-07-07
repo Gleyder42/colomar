@@ -2,12 +2,12 @@ extern crate core;
 
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{Ident, Span, Spanned, SpannedBool, UseRestriction};
+use crate::compiler::{Ident, PosSpan, Spanned, SpannedBool, UseRestriction};
 
 use chumsky::prelude::*;
 use smallvec::SmallVec;
 
-pub type ParserError = Simple<Token, Span>;
+pub type ParserError = Simple<Token, PosSpan>;
 
 fn ident() -> impl Parser<Token, Ident, Error = ParserError> + Clone {
     filter_map(|span, token| match token {
@@ -352,7 +352,7 @@ mod tests {
     use crate::compiler::language::parser::ParserError;
     use crate::compiler::{SpanInterner, SpanLocation};
     use crate::compiler::{SpanSourceId, Spanned};
-    use crate::{assert_iterator, Span};
+    use crate::{assert_iterator, PosSpan};
     use anyhow::anyhow;
     use chumsky::prelude::end;
     use chumsky::{Parser, Stream};
@@ -482,7 +482,7 @@ mod tests {
         parser: &impl Parser<Token, T, Error = ParserError>,
     ) -> anyhow::Result<T> {
         let tokens: Vec<_> = lex_code(span_source_id, code)?;
-        let eoi = Span::new(
+        let eoi = PosSpan::new(
             span_source_id,
             SpanLocation::from(tokens.len()..tokens.len() + 1),
         );
@@ -494,7 +494,7 @@ mod tests {
             .map_err(|_| anyhow!("Cannot parse '{code}'"))
     }
 
-    fn lex_code(span_source_id: SpanSourceId, code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
+    fn lex_code(span_source_id: SpanSourceId, code: &str) -> anyhow::Result<Vec<(Token, PosSpan)>> {
         lexer(span_source_id).parse(code).map_err(|errors| {
             let error_message = errors
                 .into_iter()
