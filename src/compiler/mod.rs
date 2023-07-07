@@ -1,3 +1,4 @@
+use crate::compiler::offset::HierarchicalOffset;
 use crate::compiler::trisult::Trisult;
 use crate::impl_intern_key;
 use error::CompilerError;
@@ -23,7 +24,6 @@ pub mod workshop;
 pub mod wst;
 
 pub type InnerSpan = usize;
-pub type SpanLocation = CheapRange;
 pub type SpanSource = SmolStr;
 pub type Text = SmolStr;
 pub type HashableMap<K, V> = BTreeMap<K, V>;
@@ -41,14 +41,14 @@ pub const ENUM_CONSTANTS_LEN: usize = 8;
 pub const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-pub struct CheapRange {
+pub struct PosOffset {
     pub start: InnerSpan,
     pub end: InnerSpan,
 }
 
-impl From<Range<InnerSpan>> for CheapRange {
+impl From<Range<InnerSpan>> for PosOffset {
     fn from(value: Range<InnerSpan>) -> Self {
-        CheapRange {
+        PosOffset {
             start: value.start,
             end: value.end,
         }
@@ -58,13 +58,13 @@ impl From<Range<InnerSpan>> for CheapRange {
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct PosSpan {
     pub source: SpanSourceId,
-    pub location: SpanLocation,
+    pub offset: PosOffset,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct FatSpan {
     pub source: SpanSource,
-    pub location: SpanLocation,
+    pub offset: PosOffset,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -87,10 +87,10 @@ pub trait SpanInterner {
 }
 
 impl PosSpan {
-    fn new(source: SpanSourceId, span: SpanLocation) -> Self {
+    fn new(source: SpanSourceId, span: PosOffset) -> Self {
         PosSpan {
             source,
-            location: span,
+            offset: span,
         }
     }
 }
@@ -98,7 +98,7 @@ impl PosSpan {
 impl FatSpan {
     pub fn from_span(db: &(impl SpanInterner + ?Sized), span: PosSpan) -> FatSpan {
         FatSpan {
-            location: span.location,
+            offset: span.offset,
             source: db.lookup_intern_span_source(span.source),
         }
     }
@@ -140,11 +140,11 @@ impl ariadne::Span for FatSpan {
     }
 
     fn start(&self) -> usize {
-        self.location.start
+        self.offset.start
     }
 
     fn end(&self) -> usize {
-        self.location.end
+        self.offset.end
     }
 }
 
@@ -155,7 +155,7 @@ impl chumsky::Span for PosSpan {
     fn new(context: Self::Context, range: Range<Self::Offset>) -> Self {
         Self {
             source: context,
-            location: range.into(),
+            offset: range.into(),
         }
     }
 
@@ -164,11 +164,11 @@ impl chumsky::Span for PosSpan {
     }
 
     fn start(&self) -> Self::Offset {
-        self.location.start
+        self.offset.start
     }
 
     fn end(&self) -> Self::Offset {
-        self.location.end
+        self.offset.end
     }
 }
 

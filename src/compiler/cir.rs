@@ -1,8 +1,8 @@
-use crate::compiler::{CheapRange, UseRestriction};
 use crate::compiler::{
     Ident, PosSpan, Spanned, SpannedBool, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
     DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
+use crate::compiler::{PosOffset, UseRestriction};
 use crate::impl_intern_key;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
@@ -324,9 +324,9 @@ impl AValueChain {
     /// The ghost span starts and ends just before the first avalue inside the span.
     /// It is used when the [AValueChain] has an implicit caller.
     pub fn ghost_span(&self) -> PosSpan {
-        let start = self.span.location.start;
-        let end = self.span.location.start + 1;
-        PosSpan::new(self.span.source, CheapRange::from(start..end))
+        let start = self.span.offset.start;
+        let end = self.span.offset.start + 1;
+        PosSpan::new(self.span.source, PosOffset::from(start..end))
     }
 
     pub fn returning_avalue(&self) -> AValue {

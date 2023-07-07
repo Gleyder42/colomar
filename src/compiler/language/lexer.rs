@@ -1,6 +1,6 @@
 extern crate core;
 
-use crate::compiler::{CheapRange, PosSpan, SpanSourceId, Text};
+use crate::compiler::{PosOffset, PosSpan, SpanSourceId, Text};
 use chumsky::prelude::*;
 use chumsky::text::Character;
 use std::fmt::{Debug, Display, Formatter};
@@ -95,7 +95,7 @@ pub fn lexer(
 
     token
         .padded_by(whitespace)
-        .map_with_span(move |tok, span| (tok, PosSpan::new(span_source_id, CheapRange::from(span))))
+        .map_with_span(move |tok, span| (tok, PosSpan::new(span_source_id, PosOffset::from(span))))
         .repeated()
         .then_ignore(end())
 }

@@ -155,7 +155,7 @@ fn main() {
                     Report::<FatSpan>::build(
                         ERROR_KIND,
                         first_span.source.clone(),
-                        first_span.location.start,
+                        first_span.offset.start,
                     )
                     .with_code(error_code)
                     .with_message(format!(
@@ -185,7 +185,7 @@ fn main() {
                 CompilerError::CannotFindIdent(ident) => {
                     let span = FatSpan::from_span(&span_db, ident.span);
 
-                    Report::build(ERROR_KIND, span.source.clone(), span.location.start)
+                    Report::build(ERROR_KIND, span.source.clone(), span.offset.start)
                         .with_code(error_code)
                         .with_message(format!(
                             "Cannot find {} in the current scope",
@@ -206,7 +206,7 @@ fn main() {
                     Report::build(
                         ERROR_KIND,
                         occurrence_span.source.clone(),
-                        occurrence_span.location.start,
+                        occurrence_span.offset.start,
                     )
                     .with_code(error_code)
                     .with_message(format!("{} is not a {}", actual_rvalue.value, type_name))
@@ -223,7 +223,7 @@ fn main() {
                     let report_builder = Report::build(
                         ERROR_KIND,
                         actual_span.source.clone(),
-                        actual_span.location.start,
+                        actual_span.offset.start,
                     )
                     .with_code(error_code)
                     .with_message("Wrong types")
