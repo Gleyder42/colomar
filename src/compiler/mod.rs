@@ -1,9 +1,11 @@
-use crate::compiler::offset::HierarchicalOffset;
+use crate::compiler::offset::HierOffset;
 use crate::compiler::trisult::Trisult;
 use crate::impl_intern_key;
 use error::CompilerError;
+use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
-use std::collections::BTreeMap;
+use std::cell::{Cell, RefCell};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 
@@ -56,6 +58,33 @@ impl From<Range<InnerSpan>> for PosOffset {
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct HierSpan {
+    pub source: SpanSourceId,
+    pub offset: HierOffsetId,
+}
+
+impl HierSpan {
+    fn from_pos_span(
+        offset: HierOffset,
+        interner: &dyn SpanInterner,
+        pos_span: PosSpan,
+    ) -> HierSpan {
+        let offset_id = interner.intern_hier_offset(offset);
+        let hier_span = HierSpan {
+            source: pos_span.source,
+            offset: offset_id,
+        };
+        interner.span_table().insert(hier_span, pos_span);
+        hier_span
+    }
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct HierOffsetId(salsa::InternId);
+
+impl_intern_key!(HierOffsetId);
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct PosSpan {
     pub source: SpanSourceId,
     pub offset: PosOffset,
@@ -70,20 +99,58 @@ pub struct FatSpan {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Spanned<T> {
     pub value: T,
-    pub span: PosSpan,
+    pub span: HierSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
     // TODO Rename this field to text
     pub value: Text,
-    pub span: PosSpan,
+    pub span: HierSpan,
 }
 
 #[salsa::query_group(SpanInternerDatabase)]
-pub trait SpanInterner {
+pub trait SpanInterner: SpanInternerContext {
     #[salsa::interned]
     fn intern_span_source(&self, span_source: SpanSource) -> SpanSourceId;
+
+    #[salsa::interned]
+    fn intern_hier_offset(&self, offset: HierOffset) -> HierOffsetId;
+
+    fn combine_spans(&self, parent: HierSpan, child: HierSpan) -> HierSpan;
+}
+
+fn combine_spans(db: &dyn SpanInterner, parent: HierSpan, child: HierSpan) -> HierSpan {
+    let parent_offset: HierOffset = db.lookup_intern_hier_offset(parent.offset);
+    let mut child_offset: HierOffset = db.lookup_intern_hier_offset(child.offset);
+
+    let combined_offset = child_offset.append_parent(parent_offset);
+    let combined_offset_id = db.intern_hier_offset(combined_offset);
+    HierSpan {
+        source: parent.source,
+        offset: combined_offset_id,
+    }
+}
+
+pub trait SpanInternerContext {
+    fn span_table(&self) -> &SpanTable;
+
+    fn as_hier_span(&self, offset: HierOffset, span: PosSpan) -> HierSpan;
+}
+
+#[derive(Default)]
+pub struct SpanTable(RefCell<FxHashMap<HierSpan, PosSpan>>);
+
+impl SpanTable {
+    pub fn insert(&self, key: HierSpan, value: PosSpan) {
+        let mut ref_mut = self.0.borrow_mut();
+        ref_mut.insert(key, value);
+    }
+
+    pub fn get(&self, key: &HierSpan) -> Option<PosSpan> {
+        let ref_mut = self.0.borrow();
+        ref_mut.get(&key).copied()
+    }
 }
 
 impl PosSpan {

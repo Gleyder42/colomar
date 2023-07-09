@@ -1,7 +1,7 @@
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{
-    Ident, PosSpan, Spanned, SpannedBool, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN,
-    DECLARED_ARGUMENTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+    HierSpan, Ident, PosSpan, Spanned, SpannedBool, Text, UseRestriction, ACTIONS_LEN,
+    CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
 
@@ -185,6 +185,14 @@ impl TryFrom<Definition> for EnumDefinition {
             Definition::Struct(_) => Err("Cannot convert struct to enum definition"),
         }
     }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct PartialDeclaredArgument {
+    pub name: Ident,
+    pub types: Types,
+    pub default_value: Option<CallChain>,
+    pub span: HierSpan,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

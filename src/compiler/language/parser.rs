@@ -2,22 +2,76 @@ extern crate core;
 
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{Ident, PosSpan, Spanned, SpannedBool, UseRestriction};
+use crate::compiler::{Ident, PosSpan, SpanInterner, Spanned, SpannedBool, UseRestriction};
+use std::rc::Rc;
 
+use crate::compiler::offset::HierOffset;
 use chumsky::prelude::*;
 use smallvec::SmallVec;
 
 pub type ParserError = Simple<Token, PosSpan>;
 
-fn ident() -> impl Parser<Token, Ident, Error = ParserError> + Clone {
+fn ident(
+    interner: &dyn SpanInterner,
+    parent: Rc<HierOffset>,
+) -> impl Parser<Token, Ident, Error = ParserError> + Clone {
     filter_map(|span, token| match token {
-        Token::Ident(ident) => Ok(Ident { value: ident, span }),
+        Token::Ident(ident) => Ok(Ident {
+            value: ident,
+            span: interner.as_hier_span(parent.append(&ident), span),
+        }),
         _ => Err(ParserError::expected_input_found(
             span,
             Vec::new(),
             Some(token),
         )),
     })
+}
+
+fn declared_argument_types(
+    interner: &dyn SpanInterner,
+) -> impl Parser<Token, Types, Error = ParserError> {
+    ident(interner, HierOffset::new_root("types"))
+        .separated_by(just(Token::Ctrl('|')))
+        .map_with_span(|types, span| Types {
+            values: types.into(),
+            span,
+        })
+}
+
+fn declared_argument(
+    interner: &dyn SpanInterner,
+) -> impl Parser<Token, PartialDeclaredArgument, Error = ParserError> {
+    ident(interner, HierOffset::new_root("name"))
+        .then_ignore(just(Token::Ctrl(':')))
+        .then(declared_argument_types(interner))
+        .then(
+            just(Token::Ctrl('='))
+                .ignore_then(chain().ident_chain())
+                .or_not(),
+        )
+        .map_with_span(|((name, mut types), mut default_value), span| {
+            let parent = name.span;
+            let span = interner.combine_spans(
+                parent,
+                interner.as_hier_span(HierOffset::new_with(&"test"), span),
+            );
+            types
+                .values
+                .iter_mut()
+                .for_each(|ident| ident.span = interner.combine_spans(parent, ident.span));
+
+            default_value.iter_mut().for_each(|default_value| {
+                default_value.span = interner.combine_spans(parent, default_value.span)
+            });
+
+            PartialDeclaredArgument {
+                name,
+                types,
+                default_value,
+                span,
+            }
+        })
 }
 
 fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error = ParserError> {

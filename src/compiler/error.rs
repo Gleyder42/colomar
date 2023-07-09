@@ -2,14 +2,14 @@ use crate::compiler::cir::{
     CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId, Type,
 };
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{Ident, PosSpan, QueryTrisult, Text};
+use crate::compiler::{HierSpan, Ident, PosSpan, QueryTrisult, Text};
 use crate::query_error;
 use either::Either;
 use std::borrow::Cow;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
-    NotImplemented(Cow<'static, str>, PosSpan),
+    NotImplemented(Cow<'static, str>, HierSpan),
     DuplicateIdent {
         first: Ident,
         second: Ident,
@@ -34,12 +34,12 @@ pub enum CompilerError {
     WstParserError,
     MissingArgument {
         missing_arg: DeclaredArgumentId,
-        call_site: PosSpan,
+        call_site: HierSpan,
     },
     CannotFindNamedArgument(Ident),
-    ArgumentOutOfRange(usize, PosSpan),
+    ArgumentOutOfRange(usize, HierSpan),
     DuplicateNamedArgument(Ident),
-    CannotMixArguments(PosSpan),
+    CannotMixArguments(HierSpan),
     CannotEvalAsConst,
 }
 
@@ -72,7 +72,7 @@ impl CompilerError {
 }
 
 impl QueryTrisult<()> {
-    pub fn assume_or(expr: bool, reason: &'static str, span: PosSpan) -> QueryTrisult<()> {
+    pub fn assume_or(expr: bool, reason: &'static str, span: HierSpan) -> QueryTrisult<()> {
         if expr {
             QueryTrisult::Ok(())
         } else {
