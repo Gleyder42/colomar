@@ -31,7 +31,7 @@ pub mod compiler;
 pub mod test_assert;
 
 fn main() {
-    let filepath = format!("dsl/example/test/src/main.co");
+    let filepath = format!("docs/example/test/src/main.co");
     let path = Path::new(&filepath);
     let mut file = fs::File::open(path).expect("Cannot read from file");
 
@@ -301,7 +301,7 @@ fn main() {
             100.0 - (new_len as f32 / original_len as f32) * 100.0
         );
 
-        let impl_path = Path::new("dsl/example/test/native");
+        let impl_path = Path::new("docs/example/test/native");
         let elements = compiler::loader::read_impls(impl_path);
 
         use crate::compiler::codegen::Codegen;

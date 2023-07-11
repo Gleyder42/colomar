@@ -559,7 +559,7 @@ mod tests {
 
     fn nothing<A, B>(_: A, _: B) {}
 
-    const TEST_DIR: &'static str = "resources/test";
+    const TEST_DIR: &'static str = "res/test";
 
     fn assert_call_chain(
         expected: impl IntoIterator<Item = IdentTestData>,

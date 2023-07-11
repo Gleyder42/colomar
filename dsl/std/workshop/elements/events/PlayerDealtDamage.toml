@@ -1,6 +1,0 @@
-name = "PlayerDealtDamage"
-
-[variables]
-player = "Event Player"
-attacker = "Attacker"
-victim = "Victim"

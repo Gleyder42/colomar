@@ -175,7 +175,7 @@ pub fn query_wst_call_from_args(
 
     const ERROR: &str = "Compiler Bug:
             Not supplied arguments (e.g. arguments for a function)\
-            should have default values when generating workshop code";
+            should have default values when generating native code";
 
     let mut args: Vec<_> = defaulted_args
         .into_iter()

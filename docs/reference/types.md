@@ -2,7 +2,6 @@
 
 ```
 string // workshop string
-str // string constant
 num // workshop number
 bool // workshop bool
 any // any
