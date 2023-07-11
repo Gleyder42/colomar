@@ -14,6 +14,7 @@ pub enum Token {
     Native,
     Enum,
     By,
+    // Rename to partial
     Open,
     Struct,
     GetVar,
