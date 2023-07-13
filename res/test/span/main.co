@@ -1,3 +1,9 @@
+rule "Hello World" OngoingEachPlayer() {
+    cond player.isReloading
+
+    player.sendSmallMessage("Hello World")
+}
+
 native struct bool { }
 native struct string { }
 native struct num { }
@@ -25,10 +31,4 @@ open native struct Player {
 
 native enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
-}
-
-rule "Hello World" OngoingEachPlayer() {
-    cond player.isReloading
-
-    player.sendSmallMessage("Hello World")
 }

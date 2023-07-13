@@ -17,9 +17,11 @@ toml = "0.7.4"
 regex = "1.8.4"
 lazy_static = "1.4.0"
 clipboard-win = "4.5.0"
+hashlink = "0.8.3"
 
 [dev-dependencies]
 serde_yaml = "0.9.21"
 test-case = "3.1.0"
 derive-new = "0.5.9"
 anyhow = "1.0.71"
+pretty_assertions = "1.4.0"
