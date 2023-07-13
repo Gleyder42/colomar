@@ -16,6 +16,7 @@ pub mod error;
 pub mod language;
 pub mod loader;
 pub mod printer;
+mod span;
 pub mod trisult;
 pub mod wir;
 pub mod workshop;
