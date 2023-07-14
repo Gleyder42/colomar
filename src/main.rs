@@ -1,34 +1,25 @@
 #![feature(result_flattening)]
 #![feature(map_try_insert)]
 
-extern crate salsa;
-
-use crate::compiler::analysis::interner::Interner;
-use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
-use crate::compiler::language::lexer::lexer;
-use crate::compiler::language::parser::parser;
-use crate::compiler::{cir, FatSpan, QueryTrisult, Span, SpanSourceId};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
-use chumsky::prelude::*;
+use chumsky::Parser;
 use chumsky::Stream;
-use clipboard_win::set_clipboard_string;
+use compiler::analysis::decl::DeclQuery;
+use compiler::analysis::def::DefQuery;
+use compiler::analysis::interner::Interner;
+use compiler::cir::{Cir, DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use compiler::database::CompilerDatabase;
 use compiler::error::CompilerError;
+use compiler::language::lexer::lexer;
+use compiler::language::parser::parser;
 use compiler::trisult::Trisult;
+use compiler::{cir, language, FatSpan, QueryTrisult, Span, SpanInterner, SpanSourceId};
 use either::Either;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Read;
 use std::ops::Range;
 use std::path::Path;
-
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::def::DefQuery;
-
-use crate::compiler::SpanInterner;
-
-pub mod compiler;
-pub mod test_assert;
 
 fn main() {
     let filepath = format!("docs/tutorials/example/test/src/main.co");
@@ -59,7 +50,7 @@ fn main() {
 
         db.set_input_content(ast);
 
-        let im: Trisult<cir::Cir, CompilerError> = db.query_im();
+        let im: Trisult<Cir, CompilerError> = db.query_im();
 
         let output = im.to_option();
 
@@ -304,9 +295,9 @@ fn main() {
         let impl_path = Path::new("docs/tutorials/example/test/native");
         let elements = compiler::loader::read_impls(impl_path);
 
-        use crate::compiler::codegen::Codegen;
-        use crate::compiler::loader::WorkshopScriptLoader;
-        use crate::compiler::printer::PrinterQuery;
+        use compiler::codegen::Codegen;
+        use compiler::loader::WorkshopScriptLoader;
+        use compiler::printer::PrinterQuery;
         db.set_input_wscript_impls(elements);
 
         if let Some(cir) = output.0 {
@@ -320,8 +311,6 @@ fn main() {
                         match x {
                             QueryTrisult::Ok(value) => {
                                 println!("{}", value);
-
-                                set_clipboard_string(&value).unwrap();
                             }
                             QueryTrisult::Par(_, errors) | QueryTrisult::Err(errors) => {
                                 println!("{:?}", errors);
