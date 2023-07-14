@@ -13,7 +13,7 @@ use compiler::error::CompilerError;
 use compiler::language::lexer::lexer;
 use compiler::language::parser::parser;
 use compiler::trisult::Trisult;
-use compiler::{cir, language, FatSpan, QueryTrisult, Span, SpanInterner, SpanSourceId};
+use compiler::{FatSpan, QueryTrisult, Span, SpanInterner, SpanSourceId};
 use either::Either;
 use std::collections::HashSet;
 use std::fs;
