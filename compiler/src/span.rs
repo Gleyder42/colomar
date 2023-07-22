@@ -3,10 +3,13 @@ use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
+/// Span Id
+pub type Sid = Rc<Text>;
+
 #[derive(Debug)]
 struct Ident {
     value: Rc<Text>,
-    span: SpanKey,
+    span: HierSpan,
 }
 
 impl From<&'static str> for Ident {
@@ -15,7 +18,7 @@ impl From<&'static str> for Ident {
 
         Ident {
             value: value.clone(),
-            span: InnerSpanKey::new(value).into(),
+            span: SpanKey::new(value).into(),
         }
     }
 }
@@ -23,7 +26,7 @@ impl From<&'static str> for Ident {
 impl SpanKeyLinker for Ident {
     fn link_self(&self) {}
 
-    fn span_name(&self) -> SpanKey {
+    fn span_name(&self) -> HierSpan {
         self.span.clone()
     }
 }
@@ -32,7 +35,7 @@ impl SpanKeyLinker for Ident {
 struct Parameter {
     name: Ident,
     ty: Ident,
-    span: SpanKey,
+    span: HierSpan,
 }
 
 impl Parameter {
@@ -42,7 +45,7 @@ impl Parameter {
         Parameter {
             name,
             ty,
-            span: InnerSpanKey::new(value).into(),
+            span: SpanKey::new(value).into(),
         }
     }
 }
@@ -53,7 +56,7 @@ impl SpanKeyLinker for Parameter {
         self.span.link_to(self.span_name());
     }
 
-    fn span_name(&self) -> SpanKey {
+    fn span_name(&self) -> HierSpan {
         self.name.span.clone()
     }
 }
@@ -61,20 +64,20 @@ impl SpanKeyLinker for Parameter {
 #[derive(Debug)]
 struct Function {
     name: Ident,
-    parameters: (Vec<Parameter>, SpanKey),
+    parameters: (Vec<Parameter>, HierSpan),
     return_value: Ident,
-    span: SpanKey,
+    span: HierSpan,
 }
 
 impl Function {
-    fn new(name: Ident, parameters: (Vec<Parameter>, SpanKey), return_value: Ident) -> Self {
+    fn new(name: Ident, parameters: (Vec<Parameter>, HierSpan), return_value: Ident) -> Self {
         let value = name.value.clone();
 
         Function {
             name,
             parameters,
             return_value,
-            span: InnerSpanKey::new(value).into(),
+            span: SpanKey::new(value).into(),
         }
     }
 }
@@ -86,28 +89,35 @@ impl SpanKeyLinker for Function {
         self.parameters.link_to(self.span_name());
     }
 
-    fn span_name(&self) -> SpanKey {
+    fn span_name(&self) -> HierSpan {
         self.name.span.clone()
     }
 }
 
-type SpanKey = Rc<RefCell<InnerSpanKey>>;
+pub type HierSpan = Rc<RefCell<SpanKey>>;
 
-impl SpanKeyLinker for SpanKey {
+impl SpanKeyLinker for HierSpan {
     fn link_self(&self) {}
 
-    fn span_name(&self) -> SpanKey {
+    fn span_name(&self) -> HierSpan {
         self.clone()
     }
 }
 
 #[derive(Debug)]
-struct InnerSpanKey {
+pub struct SpanKey {
     value: Rc<Text>,
-    parent: Option<Rc<RefCell<InnerSpanKey>>>,
+    parent: Option<Rc<RefCell<SpanKey>>>,
 }
 
-impl InnerSpanKey {
+impl SpanKey {
+    pub fn new(sid: Sid) -> Self {
+        SpanKey {
+            value: sid,
+            parent: None,
+        }
+    }
+
     fn as_span_path(&self) -> SpanPath {
         let mut paths = Vec::new();
         paths.push(self.value.clone());
@@ -125,17 +135,8 @@ impl InnerSpanKey {
     }
 }
 
-impl InnerSpanKey {
-    fn new(value: Rc<Text>) -> InnerSpanKey {
-        InnerSpanKey {
-            value,
-            parent: None,
-        }
-    }
-}
-
-impl Into<SpanKey> for InnerSpanKey {
-    fn into(self) -> SpanKey {
+impl Into<HierSpan> for SpanKey {
+    fn into(self) -> HierSpan {
         Rc::new(RefCell::new(self))
     }
 }
@@ -143,7 +144,7 @@ impl Into<SpanKey> for InnerSpanKey {
 #[derive(Debug, Hash, Eq, PartialEq)]
 struct SpanPath(Vec<Rc<Text>>);
 
-impl Display for InnerSpanKey {
+impl Display for SpanKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let display = self
             .as_span_path()
@@ -158,34 +159,34 @@ impl Display for InnerSpanKey {
 }
 
 trait SpanKeyLinker {
-    fn link_to(&self, root: SpanKey) {
+    fn link_to(&self, root: HierSpan) {
         self.span_name().borrow_mut().parent = Some(root);
         self.link_self();
     }
 
     fn link_self(&self);
 
-    fn span_name(&self) -> SpanKey;
+    fn span_name(&self) -> HierSpan;
 }
 
-impl<T: SpanKeyLinker> SpanKeyLinker for (Vec<T>, SpanKey) {
+impl<T: SpanKeyLinker> SpanKeyLinker for (Vec<T>, HierSpan) {
     fn link_self(&self) {
         self.0.iter().for_each(|it| it.link_to(self.span_name()))
     }
 
-    fn span_name(&self) -> SpanKey {
+    fn span_name(&self) -> HierSpan {
         self.1.clone()
     }
 }
 
 #[test]
 fn test() {
-    let root: SpanKey = InnerSpanKey::new(Rc::new("root".into())).into();
+    let root: HierSpan = SpanKey::new(Rc::new("root".into())).into();
 
     let param_is_running = Parameter::new("isRunning".into(), "bool".into());
     let parameters = (
         vec![param_is_running],
-        InnerSpanKey::new(Rc::new("parameters".into())).into(),
+        SpanKey::new(Rc::new("parameters".into())).into(),
     );
     let function = Function::new("sendMessage".into(), parameters, "unit".into());
 

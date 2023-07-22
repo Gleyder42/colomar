@@ -20,7 +20,7 @@ pub mod error;
 pub mod language;
 pub mod loader;
 pub mod printer;
-mod span;
+pub mod span;
 pub mod test_assert;
 pub mod trisult;
 pub mod wir;
