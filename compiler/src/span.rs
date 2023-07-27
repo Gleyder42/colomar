@@ -24,10 +24,10 @@ impl From<&'static str> for Ident {
 }
 
 impl SpanKeyLinker for Ident {
-    fn link_self(&self) {}
+    fn link_self(&self, _span_name: HierSpan) {}
 
-    fn span_name(&self) -> HierSpan {
-        self.span.clone()
+    fn span_name(&self) -> Option<HierSpan> {
+        Some(self.span.clone())
     }
 }
 
@@ -51,13 +51,13 @@ impl Parameter {
 }
 
 impl SpanKeyLinker for Parameter {
-    fn link_self(&self) {
-        self.ty.link_to(self.span_name());
-        self.span.link_to(self.span_name());
+    fn link_self(&self, span_name: HierSpan) {
+        self.ty.link_to(span_name.clone());
+        self.span.link_to(span_name.clone());
     }
 
-    fn span_name(&self) -> HierSpan {
-        self.name.span.clone()
+    fn span_name(&self) -> Option<HierSpan> {
+        Some(self.name.span.clone())
     }
 }
 
@@ -83,24 +83,24 @@ impl Function {
 }
 
 impl SpanKeyLinker for Function {
-    fn link_self(&self) {
-        self.return_value.link_to(self.span_name());
-        self.span.link_to(self.span_name());
-        self.parameters.link_to(self.span_name());
+    fn link_self(&self, span_name: HierSpan) {
+        self.return_value.link_to(span_name.clone());
+        self.span.link_to(span_name.clone());
+        self.parameters.link_to(span_name.clone());
     }
 
-    fn span_name(&self) -> HierSpan {
-        self.name.span.clone()
+    fn span_name(&self) -> Option<HierSpan> {
+        Some(self.name.span.clone())
     }
 }
 
 pub type HierSpan = Rc<RefCell<SpanKey>>;
 
 impl SpanKeyLinker for HierSpan {
-    fn link_self(&self) {}
+    fn link_self(&self, span_name: HierSpan) {}
 
-    fn span_name(&self) -> HierSpan {
-        self.clone()
+    fn span_name(&self) -> Option<HierSpan> {
+        Some(self.clone())
     }
 }
 
@@ -111,11 +111,15 @@ pub struct SpanKey {
 }
 
 impl SpanKey {
-    pub fn new(sid: Sid) -> Self {
+    pub fn new(sid: impl Into<Sid>) -> Self {
         SpanKey {
-            value: sid,
+            value: sid.into(),
             parent: None,
         }
+    }
+
+    pub fn set_parent(&mut self, span: HierSpan) {
+        self.parent = Some(span);
     }
 
     fn as_span_path(&self) -> SpanPath {
@@ -158,24 +162,44 @@ impl Display for SpanKey {
     }
 }
 
-trait SpanKeyLinker {
+pub trait SpanKeyLinker {
     fn link_to(&self, root: HierSpan) {
-        self.span_name().borrow_mut().parent = Some(root);
-        self.link_self();
+        if let Some(span_name) = self.span_name() {
+            print!("Combine {} and {} ", root.borrow(), span_name.borrow());
+            span_name.borrow_mut().parent = Some(root);
+            println!("into {}", span_name.borrow());
+            self.link_self(span_name);
+        }
     }
 
-    fn link_self(&self);
+    fn link_self(&self, span_name: HierSpan);
 
-    fn span_name(&self) -> HierSpan;
+    fn span_name(&self) -> Option<HierSpan>;
 }
 
 impl<T: SpanKeyLinker> SpanKeyLinker for (Vec<T>, HierSpan) {
-    fn link_self(&self) {
-        self.0.iter().for_each(|it| it.link_to(self.span_name()))
+    fn link_self(&self, span_name: HierSpan) {
+        self.0.iter().for_each(|it| it.link_to(span_name.clone()))
     }
 
-    fn span_name(&self) -> HierSpan {
-        self.1.clone()
+    fn span_name(&self) -> Option<HierSpan> {
+        Some(self.1.clone())
+    }
+}
+
+impl<T: SpanKeyLinker> SpanKeyLinker for Option<T> {
+    fn link_to(&self, root: HierSpan) {
+        if let Some(value) = self {
+            value.link_to(root)
+        }
+    }
+
+    fn link_self(&self, span_name: HierSpan) {
+        unimplemented!()
+    }
+
+    fn span_name(&self) -> Option<HierSpan> {
+        unimplemented!()
     }
 }
 

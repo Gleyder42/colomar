@@ -1,9 +1,10 @@
+mod derive_span_link;
+
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use std::collections::HashMap;
-use std::ops::Deref;
 
 use quote::quote;
 use syn::spanned::Spanned;
@@ -38,11 +39,6 @@ impl Into<TokenStream2> for MacroError {
 
         Error::new(self.span, message).to_compile_error()
     }
-}
-macro_rules! throw {
-    ($span:expr, $($arg:tt)*) => {
-        return Error::new($span, format!($($arg)*)).to_compile_error().into()
-    };
 }
 
 struct Initializer {
@@ -142,6 +138,18 @@ fn derive_span_link(input: DeriveInput) -> MacroResult<TokenStream2> {
         }
     };
     Ok(constructor)
+}
+
+#[proc_macro_derive(NewSpanLink, attributes(no_span))]
+pub fn my_macro2(input: TokenStream) -> TokenStream {
+    // Parse the input tokens into a syntax tree
+    let input = parse_macro_input!(input as DeriveInput);
+    // Build the output, possibly using quasi-quotation
+
+    let token_stream = derive_span_link::derive_token_stream(input);
+
+    // Hand the output tokens back to the compiler
+    TokenStream::from(token_stream)
 }
 
 #[proc_macro_derive(SpanLink)]

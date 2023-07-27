@@ -1,33 +1,55 @@
-use colomar_macros::SpanLink;
-use compiler::span::{HierSpan, Sid, SpanKey};
-use smallvec::SmallVec;
+use colomar_macros::NewSpanLink;
+use compiler::span::{HierSpan, Sid, SpanKey, SpanKeyLinker};
+use compiler::Text;
+use smallvec::{Array, SmallVec};
 use std::fmt::{Display, Formatter, Write};
 
-struct Spanned<T: ToString> {
+struct Spanned<T> {
     value: T,
     span: HierSpan,
 }
 
-impl<T: ToString> Spanned<T> {
-    pub fn new(value: impl Into<T>) -> Self {
+impl<T> Spanned<T> {
+    pub fn new(root: impl Into<Text>, value: impl Into<T>) -> Self {
         let value = value.into();
-        let span = SpanKey::new(Sid::new(value.to_string().into())).into();
+        let span = SpanKey::new(Sid::new(root.into())).into();
 
         Spanned { value, span }
     }
 }
 
+impl<T> SpanKeyLinker for Spanned<T> {
+    fn link_self(&self, span_name: HierSpan) {}
+
+    fn span_name(&self) -> Option<HierSpan> {
+        Some(self.span.clone())
+    }
+}
+
+#[derive(Clone)]
 struct Ident {
-    name: Sid,
+    value: Sid,
     span: HierSpan,
 }
 
 impl Ident {
+    pub fn from_str(name: &str) -> Ident {
+        Ident::new(Text::new(name))
+    }
+
     pub fn new(name: impl Into<Sid>) -> Ident {
         let name = name.into();
         let span = SpanKey::new(name.clone()).into();
 
-        Ident { name, span }
+        Ident { value: name, span }
+    }
+}
+
+impl SpanKeyLinker for Ident {
+    fn link_self(&self, span_name: HierSpan) {}
+
+    fn span_name(&self) -> Option<HierSpan> {
+        Some(self.span.clone())
     }
 }
 
@@ -45,22 +67,55 @@ impl Display for Answer {
     }
 }
 
-#[derive(SpanLink)]
+#[derive(NewSpanLink)]
 struct Person {
     name: Ident,
     second_name: Option<Ident>,
-    amount: i32,
+    amount: Spanned<i32>,
     answer: Spanned<Answer>,
     span: HierSpan,
 }
 
-#[derive(SpanLink)]
+#[derive(NewSpanLink)]
+struct Persons {
+    #[no_span]
+    values: Vec<Person>,
+    span: HierSpan,
+}
+
+#[derive(NewSpanLink)]
+struct SmallerPersons {
+    #[no_span]
+    values: SmallVec<[Person; 2]>,
+    span: HierSpan,
+}
+
+#[derive(NewSpanLink)]
 struct CompilerPart {
     name: Ident,
-    persons: Vec<Person>,
-    smaller_persons: SmallVec<[Person; 2]>,
+    persons: Persons,
+    smaller_persons: SmallerPersons,
     span: HierSpan,
 }
 
 #[test]
-fn test() {}
+fn test() {
+    let person = Person::new(
+        Ident::from_str("First Name"),
+        None,
+        Spanned::new("amount", 10),
+        Spanned::new("answer", Answer::Yes),
+    );
+
+    let part = CompilerPart::new(
+        Ident::from_str("part"),
+        Persons::new(vec![person]),
+        SmallerPersons::new(SmallVec::new()),
+    );
+
+    let hier_span = SpanKey::new(Text::from("root")).into();
+
+    part.link_to(hier_span);
+
+    println!("{}", part.persons.span.borrow());
+}
