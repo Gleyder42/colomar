@@ -19,6 +19,7 @@ regex = "1.8.4"
 lazy_static = "1.4.0"
 colomar-macros = { path = "../macros" }
 impls = "1.0.3"
+petgraph = "0.6.3"
 
 [dev-dependencies]
 serde_yaml = "0.9.21"

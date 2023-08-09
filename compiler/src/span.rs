@@ -1,221 +1,230 @@
-use crate::Text;
-use std::cell::RefCell;
-use std::fmt::{Debug, Display, Formatter};
-use std::rc::Rc;
+use crate::{impl_intern_key, CheapRange, SpanInterner, Text};
+use petgraph::data::DataMap;
+use petgraph::prelude::*;
+use smallvec::SmallVec;
+use std::fmt::{Display, Formatter};
 
-/// Span Id
-pub type Sid = Rc<Text>;
+struct HierSpan(SpanData);
 
-#[derive(Debug)]
-struct Ident {
-    value: Rc<Text>,
-    span: HierSpan,
-}
+impl HierSpan {
+    fn become_complete(&mut self, func: impl FnOnce(NodeIndex) -> SpanPathId) {
+        let index = self.0.unwrap_intermediate();
+        let path = func(index);
+        self.0 = SpanData::Complete(path);
+    }
 
-impl From<&'static str> for Ident {
-    fn from(value: &'static str) -> Self {
-        let value: Rc<Text> = Rc::new(value.into());
-
-        Ident {
-            value: value.clone(),
-            span: SpanKey::new(value).into(),
-        }
+    fn become_intermediate(&mut self, func: impl FnOnce(CheapRange) -> NodeIndex) -> NodeIndex {
+        let range = self.0.unwrap_initial();
+        let index = func(range);
+        self.0 = SpanData::Intermediate(index);
+        index
     }
 }
 
-impl SpanKeyLinker for Ident {
-    fn link_self(&self, _span_name: HierSpan) {}
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+pub struct SpanPathId(salsa::InternId);
 
-    fn span_name(&self) -> Option<HierSpan> {
-        Some(self.span.clone())
+impl_intern_key!(SpanPathId);
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub struct SpanPath {
+    path: SmallVec<[Text; 8]>,
+}
+
+impl SpanPath {
+    pub fn new(path: impl Into<SmallVec<[Text; 8]>>) -> Self {
+        SpanPath { path: path.into() }
     }
 }
 
-#[derive(Debug)]
-struct Parameter {
-    name: Ident,
-    ty: Ident,
-    span: HierSpan,
-}
-
-impl Parameter {
-    fn new(name: Ident, ty: Ident) -> Parameter {
-        let value = name.value.clone();
-
-        Parameter {
-            name,
-            ty,
-            span: SpanKey::new(value).into(),
-        }
-    }
-}
-
-impl SpanKeyLinker for Parameter {
-    fn link_self(&self, span_name: HierSpan) {
-        self.ty.link_to(span_name.clone());
-        self.span.link_to(span_name.clone());
-    }
-
-    fn span_name(&self) -> Option<HierSpan> {
-        Some(self.name.span.clone())
-    }
-}
-
-#[derive(Debug)]
-struct Function {
-    name: Ident,
-    parameters: (Vec<Parameter>, HierSpan),
-    return_value: Ident,
-    span: HierSpan,
-}
-
-impl Function {
-    fn new(name: Ident, parameters: (Vec<Parameter>, HierSpan), return_value: Ident) -> Self {
-        let value = name.value.clone();
-
-        Function {
-            name,
-            parameters,
-            return_value,
-            span: SpanKey::new(value).into(),
-        }
-    }
-}
-
-impl SpanKeyLinker for Function {
-    fn link_self(&self, span_name: HierSpan) {
-        self.return_value.link_to(span_name.clone());
-        self.span.link_to(span_name.clone());
-        self.parameters.link_to(span_name.clone());
-    }
-
-    fn span_name(&self) -> Option<HierSpan> {
-        Some(self.name.span.clone())
-    }
-}
-
-pub type HierSpan = Rc<RefCell<SpanKey>>;
-
-impl SpanKeyLinker for HierSpan {
-    fn link_self(&self, span_name: HierSpan) {}
-
-    fn span_name(&self) -> Option<HierSpan> {
-        Some(self.clone())
-    }
-}
-
-#[derive(Debug)]
-pub struct SpanKey {
-    value: Rc<Text>,
-    parent: Option<Rc<RefCell<SpanKey>>>,
-}
-
-impl SpanKey {
-    pub fn new(sid: impl Into<Sid>) -> Self {
-        SpanKey {
-            value: sid.into(),
-            parent: None,
-        }
-    }
-
-    pub fn set_parent(&mut self, span: HierSpan) {
-        self.parent = Some(span);
-    }
-
-    fn as_span_path(&self) -> SpanPath {
-        let mut paths = Vec::new();
-        paths.push(self.value.clone());
-        let mut current = self.parent.clone();
-        loop {
-            match current {
-                Some(next) => {
-                    paths.push(next.borrow().value.clone());
-                    current = next.borrow().parent.clone()
-                }
-                None => break,
-            }
-        }
-        SpanPath(paths)
-    }
-}
-
-impl Into<HierSpan> for SpanKey {
-    fn into(self) -> HierSpan {
-        Rc::new(RefCell::new(self))
-    }
-}
-
-#[derive(Debug, Hash, Eq, PartialEq)]
-struct SpanPath(Vec<Rc<Text>>);
-
-impl Display for SpanKey {
+impl Display for SpanPath {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let display = self
-            .as_span_path()
-            .0
-            .into_iter()
-            .map(|it| it.to_string())
-            .rev()
+            .path
+            .iter()
+            .map(|it| it.as_str())
             .collect::<Vec<_>>()
             .join("/");
         write!(f, "{}", display)
     }
 }
 
-pub trait SpanKeyLinker {
-    fn link_to(&self, root: HierSpan) {
-        if let Some(span_name) = self.span_name() {
-            print!("Combine {} and {} ", root.borrow(), span_name.borrow());
-            span_name.borrow_mut().parent = Some(root);
-            println!("into {}", span_name.borrow());
-            self.link_self(span_name);
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+enum SpanData {
+    Initial(CheapRange),
+    Intermediate(NodeIndex),
+    Complete(SpanPathId),
+}
+
+impl SpanData {
+    fn unwrap_intermediate(&self) -> NodeIndex {
+        match self {
+            SpanData::Initial(range) => {
+                panic!("{range:?} is in initial state, but expected intermediate")
+            }
+            SpanData::Intermediate(node) => *node,
+            SpanData::Complete(path) => {
+                panic!("{path:?} is in complete state, but expected intermediate")
+            }
         }
     }
 
-    fn link_self(&self, span_name: HierSpan);
-
-    fn span_name(&self) -> Option<HierSpan>;
-}
-
-impl<T: SpanKeyLinker> SpanKeyLinker for (Vec<T>, HierSpan) {
-    fn link_self(&self, span_name: HierSpan) {
-        self.0.iter().for_each(|it| it.link_to(span_name.clone()))
-    }
-
-    fn span_name(&self) -> Option<HierSpan> {
-        Some(self.1.clone())
+    fn unwrap_initial(&self) -> CheapRange {
+        match self {
+            SpanData::Initial(range) => *range,
+            SpanData::Intermediate(node) => {
+                panic!("{node:?} is in intermediate state but expected inital")
+            }
+            SpanData::Complete(path) => {
+                panic!("{path:?} is in complete state, but expected inital")
+            }
+        }
     }
 }
 
-impl<T: SpanKeyLinker> SpanKeyLinker for Option<T> {
-    fn link_to(&self, root: HierSpan) {
-        if let Some(value) = self {
-            value.link_to(root)
+pub struct SpanNode {
+    segment: Text,
+    range: CheapRange,
+}
+
+impl SpanNode {
+    pub fn new(segment: impl Into<Text>, range: impl Into<CheapRange>) -> Self {
+        Self {
+            segment: segment.into(),
+            range: range.into(),
+        }
+    }
+}
+
+pub struct SpanGraphBuilder(DiGraph<SpanNode, ()>);
+
+impl SpanGraphBuilder {
+    fn add_node(&mut self, node: SpanNode) -> NodeIndex {
+        self.0.add_node(node)
+    }
+
+    fn connect(&mut self, child: NodeIndex, parent: NodeIndex) {
+        self.0.add_edge(child, parent, ());
+    }
+
+    fn get_path(&self, index: NodeIndex) -> SpanPath {
+        let node = self
+            .0
+            .node_weight(index)
+            .expect("Node should be added to the graph");
+        let path = vec![node]
+            .into_iter()
+            .chain(
+                self.0
+                    .neighbors(index)
+                    .map(|neighbor| self.0.node_weight(neighbor).unwrap()),
+            )
+            .map(|node| node.segment.clone()) // TODO do not clone
+            .collect();
+        SpanPath { path }
+    }
+}
+
+pub trait SpanGraphLinker {
+    fn build_graph(&mut self, parent: NodeIndex, graph: &mut SpanGraphBuilder);
+
+    fn intern_graph(&mut self, interner: &dyn SpanInterner, graph: &mut SpanGraphBuilder);
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::analysis::interner::InternerDatabase;
+    use crate::database::CompilerDatabase;
+    use crate::span::{HierSpan, SpanData, SpanGraphBuilder, SpanGraphLinker, SpanNode, SpanPath};
+    use crate::{CheapRange, SpanInterner, SpanInternerDatabase, Text};
+    use petgraph::data::DataMap;
+    use petgraph::graph::NodeIndex;
+    use petgraph::Graph;
+    use smallvec::{smallvec, SmallVec};
+
+    #[test]
+    fn test_display_empty_segment() {
+        let segment = SpanPath::new(SmallVec::new());
+
+        assert_eq!("", segment.to_string())
+    }
+
+    #[test]
+    fn test_display_segment() {
+        let segment = SpanPath::new(smallvec![
+            Text::from("root"),
+            Text::from("function"),
+            Text::from("name")
+        ]);
+
+        assert_eq!("root/function/name", segment.to_string())
+    }
+
+    struct Ident {
+        name: Text,
+        span: HierSpan,
+    }
+
+    struct Function {
+        name: Ident,
+        ty: Ident,
+        params: Vec<Ident>,
+    }
+
+    impl SpanGraphLinker for Function {
+        fn build_graph(&mut self, parent: NodeIndex, graph: &mut SpanGraphBuilder) {
+            let anchor = &self.name.span;
+        }
+
+        fn intern_graph(&mut self, interner: &dyn SpanInterner, graph: &mut SpanGraphBuilder) {
+            todo!()
         }
     }
 
-    fn link_self(&self, span_name: HierSpan) {
-        unimplemented!()
+    impl SpanGraphLinker for Ident {
+        fn build_graph(&mut self, parent: NodeIndex, graph: &mut SpanGraphBuilder) {
+            let anchor = self.span.become_intermediate(|range| {
+                graph.add_node(SpanNode::new(self.name.clone(), range))
+            });
+            graph.connect(anchor, parent);
+        }
+
+        fn intern_graph(&mut self, interner: &dyn SpanInterner, graph: &mut SpanGraphBuilder) {
+            self.span.become_complete(|node| {
+                let path = graph.get_path(node);
+                interner.intern_span_path(path)
+            });
+        }
     }
 
-    fn span_name(&self) -> Option<HierSpan> {
-        unimplemented!()
+    #[test]
+    fn test_linker() {
+        let mut function = Function {
+            name: Ident {
+                name: Text::from("isReloading"),
+                span: HierSpan(SpanData::Initial(CheapRange::from(1..2))),
+            },
+            ty: Ident {
+                name: Text::from("bool"),
+                span: HierSpan(SpanData::Initial(CheapRange::from(2..3))),
+            },
+            params: vec![
+                Ident {
+                    name: Text::from("a"),
+                    span: HierSpan(SpanData::Initial(CheapRange::from(4..5))),
+                },
+                Ident {
+                    name: Text::from("b"),
+                    span: HierSpan(SpanData::Initial(CheapRange::from(5..6))),
+                },
+            ],
+        };
+
+        let mut graph = SpanGraphBuilder(Graph::new());
+
+        let root = graph.0.add_node(Text::from("root"));
+        let database = CompilerDatabase::default();
+
+        function.build_graph(root, &mut graph);
     }
-}
-
-#[test]
-fn test() {
-    let root: HierSpan = SpanKey::new(Rc::new("root".into())).into();
-
-    let param_is_running = Parameter::new("isRunning".into(), "bool".into());
-    let parameters = (
-        vec![param_is_running],
-        SpanKey::new(Rc::new("parameters".into())).into(),
-    );
-    let function = Function::new("sendMessage".into(), parameters, "unit".into());
-
-    function.link_to(root);
-
-    println!("{}", function.return_value.span.borrow());
-    println!("{}", function.parameters.0[0].ty.span.borrow());
 }

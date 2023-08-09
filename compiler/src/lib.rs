@@ -1,6 +1,7 @@
 #![feature(result_flattening)]
 #![feature(map_try_insert)]
 
+use crate::span::{SpanGraphBuilder, SpanGraphLinker, SpanPath, SpanPathId};
 use crate::trisult::Trisult;
 use error::CompilerError;
 use smol_str::SmolStr;
@@ -89,6 +90,9 @@ pub struct Ident {
 pub trait SpanInterner {
     #[salsa::interned]
     fn intern_span_source(&self, span_source: SpanSource) -> SpanSourceId;
+
+    #[salsa::interned]
+    fn intern_span_path(&self, span_path: SpanPath) -> SpanPathId;
 }
 
 impl Span {
