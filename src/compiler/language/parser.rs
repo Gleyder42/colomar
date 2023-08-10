@@ -496,14 +496,17 @@ mod tests {
     }
 
     fn lex_code(span_source_id: SpanSourceId, code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
-        lexer(span_source_id).parse(code).map_err(|errors| {
-            let error_message = errors
-                .into_iter()
-                .map(|it| it.to_string())
-                .collect::<Vec<String>>()
-                .join("\n");
-            anyhow!(error_message)
-        })
+        lexer(span_source_id)
+            .parse(code)
+            .map_err(|errors| {
+                let error_message = errors
+                    .into_iter()
+                    .map(|it| it.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                anyhow!(error_message)
+            })
+            .map(|it| it.into_simple_spans())
     }
 
     fn test_parser_result<Ex, Ac, F>(

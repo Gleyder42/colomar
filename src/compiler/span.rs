@@ -1,14 +1,42 @@
+//! # Span
+//! A span is a range that locates a word in an array.
+//! For example: `Hello World`.
+//! - The span of `Hello` is `0..5`
+//! - The span of `World` is `6..11`  
+//!
+//! Spans are used to display helpful error messages, as this enables the compiler
+//! to point to the exact error's location.
+//!
+//! This module knows two spans.
+//! Every span has two components:
+//! - Source (alias context)  
+//! Points to the source file
+//! - Location  
+//! The range e.g. `0..5`
+//! The difference between the spans is how the components are stored.
+//!
+//! - [Span]
+//! This span has an interned source. That means the full file name was replaced by an id.
+//! This makes the span cloneable. It also prevent having to duplicate strings.
+//! The span's location may or may not point to correct source code position.
+//! - [FatSpan]
+//! The FatSpan has the the full file name.
+//! The span's location will always point to the correct source code position.
+//!
+//! The span location may not be accurate because the spans are internally converted into
+//! relative spans to better work with the compiler.  
+//!
 //! # Relative Span
 //!
 //! A span describes a word as a range.
 //! For example `Hello World`. `Hello` could have the range `0..5` `6..11`.
 //! If we now append a word at the front `No Hello World` the spans change to `0..2`, `3..8` and `9..14`
-//! Know the spans have shifted. In code a word could be an ident. An ident contains the span and value.
-//! Colomar uses a query system of the compiler, which caches result. Adding one word shift all ranges,
-//! and therefore all ident related things have to be recalculated because the span changed.
-//! This is unnecessary because the meaning of the code might not have changed.
+//! Now the spans have shifted. In code a word could be an ident. An ident contains the span and value.
+//! Colomar's compiler uses a query system, which caches result. Adding one word shift all ranges,
+//! and therefore all ident related things have to be redone because the span changed.
+//! This is unnecessary because the functionality of the code might not have changed.
 //! Take the following rust code. For simplicity lets assume every function has an associated line.
-//! ```
+//! ```text
 //! 1. fn c() { ... }
 //! 2.
 //! 3. fn d() { ... }
@@ -16,7 +44,7 @@
 //! If we now add a function `fn a()` all functions have other lines.
 //! This would mean the whole code would need to be recompiled although the code didn't really change
 //! functionally wise.
-//! ```
+//! ```text
 //! 1. fn a() { ... }
 //! 2.
 //! 3. fn c() { ... }
@@ -25,13 +53,13 @@
 //! ```
 //!
 //! Relative spans reduce this problem by counting from top to bottom and bottom to top.
-//! ```
+//! ```text
 //! 1. fn c() { ... }
 //! 2.
 //! -1. fn d() { ... }
 //! ```
 //! If we now add add a function `fn a()` to the top. The bottom function does not change its line.
-//! ```
+//! ```text
 //! 1. fn a() { ... }
 //! 2.
 //! 3. fn c() { ... }

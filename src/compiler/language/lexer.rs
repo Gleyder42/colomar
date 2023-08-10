@@ -162,7 +162,10 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id).parse(code).unwrap();
+        let actual = lexer(span_source_id)
+            .parse(code)
+            .unwrap()
+            .into_simple_spans();
         let expected = vec![
             Token::Num("1".to_string().into()),
             Token::Num("5".to_string().into()),
@@ -179,7 +182,10 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id).parse(code).unwrap();
+        let actual = lexer(span_source_id)
+            .parse(code)
+            .unwrap()
+            .into_simple_spans();
         let expected = vec![
             Token::String("Hello".to_string().into()),
             Token::String("Hello World".to_string().into()),
@@ -194,7 +200,10 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id).parse(code).unwrap();
+        let actual = lexer(span_source_id)
+            .parse(code)
+            .unwrap()
+            .into_simple_spans();
         let expected = vec![
             Token::NewLine,
             Token::NewLine,
@@ -214,7 +223,10 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id).parse(code).unwrap();
+        let actual = lexer(span_source_id)
+            .parse(code)
+            .unwrap()
+            .into_simple_spans();
         let expected = vec![
             Token::Rule,
             Token::Cond,
