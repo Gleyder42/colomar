@@ -352,7 +352,7 @@ mod tests {
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
     use crate::compiler::language::parser::ParserError;
-    use crate::compiler::span::SpanInterner;
+    use crate::compiler::span::{SimpleSpanLocation, SpanInterner};
     use crate::compiler::span::{Span, SpanLocation, SpanSourceId, Spanned};
     use anyhow::anyhow;
     use chumsky::prelude::end;
@@ -485,7 +485,7 @@ mod tests {
         let tokens: Vec<_> = lex_code(span_source_id, code)?;
         let eoi = Span::new(
             span_source_id,
-            SpanLocation::from(tokens.len()..tokens.len() + 1),
+            SpanLocation::from(SimpleSpanLocation::from(tokens.len()..tokens.len() + 1)),
         );
         let stream = Stream::from_iter(eoi, tokens.into_iter());
 

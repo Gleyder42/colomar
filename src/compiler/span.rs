@@ -53,10 +53,11 @@ use std::fmt::Debug;
 use std::mem::swap;
 use std::ops::Range;
 
-pub type SpanRange = usize;
-pub type SpanLocation = SimpleSpanLocation;
+pub type InnerSpan = usize;
+pub type SpanLocation = AbstractSpanLocation;
 pub type SpanSource = SmolStr;
 pub type SpannedBool = Option<Spanned<()>>;
+pub type OffsetTable = Vec<InnerSpan>;
 
 #[derive(Debug, Default, Copy, Clone, Hash, Eq, PartialEq)]
 struct Anchor(u8);
@@ -83,17 +84,23 @@ impl Anchor {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-struct ChunkSpanLocation {
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct ChunkSpanLocation {
     anchor: Anchor,
-    start: SpanRange,
-    end: SpanRange,
+    start: InnerSpan,
+    end: InnerSpan,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum AbstractSpanLocation {
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum AbstractSpanLocation {
     Chunk(ChunkSpanLocation),
     Simple(SimpleSpanLocation),
+}
+
+impl From<SimpleSpanLocation> for AbstractSpanLocation {
+    fn from(value: SimpleSpanLocation) -> Self {
+        AbstractSpanLocation::Simple(value)
+    }
 }
 
 impl AbstractSpanLocation {
@@ -104,14 +111,14 @@ impl AbstractSpanLocation {
         }
     }
 
-    fn start(&self) -> SpanRange {
+    pub fn start(&self) -> InnerSpan {
         match self {
             AbstractSpanLocation::Chunk(span) => span.start,
             AbstractSpanLocation::Simple(span) => span.start,
         }
     }
 
-    fn end(&self) -> SpanRange {
+    pub fn end(&self) -> InnerSpan {
         match self {
             AbstractSpanLocation::Chunk(span) => span.end,
             AbstractSpanLocation::Simple(span) => span.end,
@@ -119,7 +126,19 @@ impl AbstractSpanLocation {
     }
 }
 
-fn decode(span: ChunkSpanLocation, table: &[SpanRange]) -> SimpleSpanLocation {
+fn decode_in_place(span: &mut AbstractSpanLocation, offset_table: &[InnerSpan]) {
+    match span {
+        AbstractSpanLocation::Chunk(chunk) => {
+            let mut location = AbstractSpanLocation::Simple(decode(*chunk, offset_table));
+            swap(span, &mut location);
+        }
+        AbstractSpanLocation::Simple(simple) => {
+            eprintln!("Tried to decode {simple:?} but was already simple")
+        }
+    };
+}
+
+fn decode(span: ChunkSpanLocation, table: &[InnerSpan]) -> SimpleSpanLocation {
     let offset = table[span.anchor.as_usize()];
     if span.anchor.is_start() {
         SimpleSpanLocation {
@@ -134,23 +153,40 @@ fn decode(span: ChunkSpanLocation, table: &[SpanRange]) -> SimpleSpanLocation {
     }
 }
 
-fn priv_encode(
+fn encode(
     level: u16,
     mut spans: Vec<AbstractSpanLocation>,
-) -> (Vec<ChunkSpanLocation>, Vec<SpanRange>) {
-    let mut table = vec![0; 2_i32.pow(level as u32) as usize];
-    let offset = spans.last().unwrap().end();
-    inner_encode(level, offset, Anchor::default(), &mut spans, &mut table);
+) -> (Vec<ChunkSpanLocation>, Vec<InnerSpan>) {
+    let mut references: Vec<_> = spans.iter_mut().collect();
+
+    let table = encode_in_place(level, &mut references);
+
     let chunked_spans = spans.into_iter().map(|it| it.unwrap_chunked()).collect();
     (chunked_spans, table)
 }
 
+pub fn encode_in_place(
+    level: u16,
+    mut references: &mut [&mut AbstractSpanLocation],
+) -> Vec<InnerSpan> {
+    let mut table = vec![0; 2_i32.pow(level as u32) as usize];
+    let offset = references.last().unwrap().end();
+    inner_encode(
+        level,
+        offset,
+        Anchor::default(),
+        &mut references,
+        &mut table,
+    );
+    table
+}
+
 fn inner_encode(
     level: u16,
-    offset: SpanRange,
+    offset: InnerSpan,
     anchor: Anchor,
-    spans: &mut [AbstractSpanLocation],
-    table: &mut [SpanRange],
+    spans: &mut [&mut AbstractSpanLocation],
+    table: &mut [InnerSpan],
 ) {
     if spans.is_empty() {
         return;
@@ -158,13 +194,13 @@ fn inner_encode(
 
     if level == 0 {
         for span in spans {
-            let start = (offset as i64 - span.start() as i64).abs() as SpanRange;
-            let end = (offset as i64 - span.end() as i64).abs() as SpanRange;
+            let start = (offset as i64 - span.start() as i64).abs() as InnerSpan;
+            let end = (offset as i64 - span.end() as i64).abs() as InnerSpan;
 
             let mut chunked = AbstractSpanLocation::Chunk(ChunkSpanLocation { anchor, start, end });
             table[anchor.as_usize()] = offset;
 
-            swap(span, &mut chunked);
+            swap(*span, &mut chunked);
         }
     } else {
         let new_level = level - 1;
@@ -204,7 +240,7 @@ mod tests {
     /// Every span has a start and end value.
     /// The range parameter describes the range of a span (end - start = range)
     /// The len parameter describes how many spans should be generated.
-    fn gen_spans(len: usize, range: SpanRange) -> Vec<AbstractSpanLocation> {
+    fn gen_spans(len: usize, range: InnerSpan) -> Vec<AbstractSpanLocation> {
         let mut current = 0;
 
         (0..len)
@@ -222,7 +258,7 @@ mod tests {
     fn test_spans_with_equal_range() {
         let original_spans = gen_spans(5, 10);
 
-        let (encode_spans, table) = priv_encode(1, original_spans.clone());
+        let (encode_spans, table) = encode(1, original_spans.clone());
 
         let decoded_spans: Vec<_> = encode_spans
             .into_iter()
@@ -243,7 +279,7 @@ mod tests {
             }),
         ];
 
-        let (encode_spans, table) = priv_encode(1, original_spans.clone());
+        let (encode_spans, table) = encode(1, original_spans.clone());
 
         let decoded_spans: Vec<_> = encode_spans
             .into_iter()
@@ -253,14 +289,14 @@ mod tests {
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct SimpleSpanLocation {
-    pub start: SpanRange,
-    pub end: SpanRange,
+    pub start: InnerSpan,
+    pub end: InnerSpan,
 }
 
-impl From<Range<SpanRange>> for SimpleSpanLocation {
-    fn from(value: Range<SpanRange>) -> Self {
+impl From<Range<InnerSpan>> for SimpleSpanLocation {
+    fn from(value: Range<InnerSpan>) -> Self {
         SimpleSpanLocation {
             start: value.start,
             end: value.end,
@@ -302,9 +338,16 @@ impl Span {
 }
 
 impl FatSpan {
-    pub fn from_span(db: &(impl SpanInterner + ?Sized), span: Span) -> FatSpan {
+    pub fn from_span(
+        db: &(impl SpanInterner + ?Sized),
+        offset_table: &[InnerSpan],
+        mut span: Span,
+    ) -> FatSpan {
         FatSpan {
-            location: span.location,
+            location: {
+                decode_in_place(&mut span.location, offset_table);
+                span.location
+            },
             source: db.lookup_intern_span_source(span.source),
         }
     }
@@ -346,22 +389,22 @@ impl ariadne::Span for FatSpan {
     }
 
     fn start(&self) -> usize {
-        self.location.start
+        self.location.start()
     }
 
     fn end(&self) -> usize {
-        self.location.end
+        self.location.end()
     }
 }
 
 impl chumsky::Span for Span {
     type Context = SpanSourceId;
-    type Offset = SpanRange;
+    type Offset = InnerSpan;
 
     fn new(context: Self::Context, range: Range<Self::Offset>) -> Self {
         Self {
             source: context,
-            location: range.into(),
+            location: SimpleSpanLocation::from(range).into(),
         }
     }
 
@@ -370,11 +413,11 @@ impl chumsky::Span for Span {
     }
 
     fn start(&self) -> Self::Offset {
-        self.location.start
+        self.location.start()
     }
 
     fn end(&self) -> Self::Offset {
-        self.location.end
+        self.location.end()
     }
 }
 

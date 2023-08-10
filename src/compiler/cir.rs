@@ -325,8 +325,8 @@ impl AValueChain {
     /// The ghost span starts and ends just before the first avalue inside the span.
     /// It is used when the [AValueChain] has an implicit caller.
     pub fn ghost_span(&self) -> Span {
-        let start = self.span.location.start;
-        let end = self.span.location.start + 1;
+        let start = self.span.location.start();
+        let end = self.span.location.start() + 1;
         Span::new(self.span.source, SimpleSpanLocation::from(start..end))
     }
 
