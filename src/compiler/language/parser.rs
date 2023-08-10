@@ -2,8 +2,9 @@ extern crate core;
 
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{Ident, Span, Spanned, SpannedBool, UseRestriction};
+use crate::compiler::{Ident, UseRestriction};
 
+use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
 use smallvec::SmallVec;
 
@@ -346,13 +347,13 @@ pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
 mod tests {
     use super::*;
 
+    use crate::assert_iterator;
     use crate::compiler::cst::{Call, DeclaredArgument, Rule};
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
     use crate::compiler::language::parser::ParserError;
-    use crate::compiler::{SpanInterner, SpanLocation};
-    use crate::compiler::{SpanSourceId, Spanned};
-    use crate::{assert_iterator, Span};
+    use crate::compiler::span::SpanInterner;
+    use crate::compiler::span::{Span, SpanLocation, SpanSourceId, Spanned};
     use anyhow::anyhow;
     use chumsky::prelude::end;
     use chumsky::{Parser, Stream};

@@ -1,8 +1,9 @@
 use crate::compiler::cir::{
     CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId, Type,
 };
+use crate::compiler::span::Span;
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{Ident, QueryTrisult, Span, Text};
+use crate::compiler::{Ident, QueryTrisult, Text};
 use crate::query_error;
 use either::Either;
 use std::borrow::Cow;

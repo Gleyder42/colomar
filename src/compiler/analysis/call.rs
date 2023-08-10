@@ -3,8 +3,9 @@ use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::{Nameholder, Nameholders};
 use crate::compiler::cir::{AValueChain, CValue};
 use crate::compiler::cst::CallArgument;
+use crate::compiler::span::Spanned;
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
-use crate::compiler::{QueryTrisult, Spanned};
 use smallvec::smallvec;
 
 pub(super) fn query_call_chain(

@@ -7,8 +7,9 @@ use crate::compiler::cir::{
 };
 use crate::compiler::cst::Actions;
 use crate::compiler::error::CompilerError;
-use crate::compiler::{cir, cst, Ident, QueryTrisult, Spanned, Text};
+use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
 
+use crate::compiler::span::Spanned;
 use cir::DeclaredArgumentId;
 use cst::Ast;
 use std::collections::HashMap;

@@ -7,13 +7,14 @@ use crate::compiler::analysis::interner::Interner;
 use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
-use crate::compiler::{cir, FatSpan, QueryTrisult, Span, SpanSourceId};
+use crate::compiler::{cir, QueryTrisult};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
 use chumsky::Stream;
 use clipboard_win::set_clipboard_string;
 use compiler::database::CompilerDatabase;
 use compiler::error::CompilerError;
+use compiler::span::{FatSpan, Span, SpanSourceId};
 use compiler::trisult::Trisult;
 use either::Either;
 use std::collections::HashSet;
@@ -25,7 +26,7 @@ use std::path::Path;
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
 
-use crate::compiler::SpanInterner;
+use crate::compiler::span::SpanInterner;
 
 pub mod compiler;
 pub mod test_assert;
