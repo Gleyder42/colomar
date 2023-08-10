@@ -16,7 +16,7 @@ native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Sl
 
 open native struct Player {
 
-    native val isReloading: bool
+    native getvar isReloading: bool
 
     native fn sendSmallMessage(message: string)
 
