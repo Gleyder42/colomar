@@ -6,6 +6,8 @@ use crate::compiler::analysis::interner::Interner as AnalysisInterner;
 use crate::compiler::loader::WorkshopScriptLoader;
 use crate::compiler::{cir, wst, Ident, QueryTrisult};
 
+const CALLER_PLACEHOLDER: &'static str = "$caller$";
+
 #[salsa::query_group(CodegenDatabase)]
 pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
     /// Impl: [rule::query_wst_rule]

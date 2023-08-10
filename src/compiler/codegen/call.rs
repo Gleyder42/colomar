@@ -1,5 +1,5 @@
 use crate::compiler::cir::{CValue, Type};
-use crate::compiler::codegen::{Arg, Caller, Codegen};
+use crate::compiler::codegen::{Arg, Caller, Codegen, CALLER_PLACEHOLDER};
 use crate::compiler::error::CompilerError;
 use crate::compiler::wst::partial::Placeholder;
 
@@ -53,7 +53,7 @@ pub(super) fn query_wst_call_by_avalue(
             let r#type = caller.cir.return_called_type(db).r#type;
             let mut map = HashMap::new();
             if let Some(caller) = caller.wst {
-                map.insert(Placeholder::from("%caller%"), caller);
+                map.insert(Placeholder::from(CALLER_PLACEHOLDER), caller);
             }
 
             match r#type {
@@ -126,11 +126,11 @@ pub(super) fn query_wst_call_by_avalue(
                 .flat_map(|(args, wscript_function)| {
                     let mut map = HashMap::new();
                     if let Some(caller) = caller.unwrap().wst {
-                        map.insert(Placeholder::from("%caller%"), caller);
+                        map.insert(Placeholder::from(CALLER_PLACEHOLDER), caller);
                     }
 
                     for (name, call) in args {
-                        map.insert(Placeholder::from(format!("%{}%", name.value)), call);
+                        map.insert(Placeholder::from(format!("${}$", name.value)), call);
                     }
 
                     wscript_function

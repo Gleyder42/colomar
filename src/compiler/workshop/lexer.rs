@@ -35,14 +35,16 @@ fn string() -> impl Parser<char, Token, Error = Simple<char>> {
         .map(Token::String)
 }
 
+const PLACEHOLDER_DELIMITER: char = '$';
+
 fn placeholder() -> impl Parser<char, Token, Error = Simple<char>> {
-    filter::<char, _, _>(|c| *c == '%')
+    filter::<char, _, _>(|c| *c == PLACEHOLDER_DELIMITER)
         .then(
             filter::<char, _, _>(|c| c.is_ascii_alphanumeric() || *c == '_')
                 .repeated()
                 .at_least(1),
         )
-        .then(filter::<char, _, _>(|c| *c == '%'))
+        .then(filter::<char, _, _>(|c| *c == PLACEHOLDER_DELIMITER))
         .map(|((first, mut mid), last)| {
             let mut combined = Vec::with_capacity(mid.len() + 2);
             combined.push(first);
@@ -85,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_placeholders() {
-        let placeholders = ["%hello%", "%world%", "%t%", "%10%", "%a_b%"];
+        let placeholders = ["$hello$", "$world$", "$t$", "$10$", "$a_b$"];
 
         for code in placeholders {
             let actual = placeholder()
@@ -98,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_wrong_placeholders() {
-        let placeholders = ["test", "%%", "%%%", "  ", ""];
+        let placeholders = ["test", "$$", "$$$", "  ", ""];
 
         for code in placeholders {
             let actual = placeholder().then_ignore(end()).parse(code);
