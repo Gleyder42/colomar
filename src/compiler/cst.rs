@@ -1,7 +1,8 @@
+use crate::compiler::span::{Span, Spanned, SpannedBool};
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{
-    Ident, Span, Spanned, SpannedBool, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN,
-    DECLARED_ARGUMENTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+    Ident, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
+    FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
 

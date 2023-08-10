@@ -2,8 +2,9 @@ extern crate core;
 
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{Ident, Span, Spanned, SpannedBool, UseRestriction};
+use crate::compiler::{Ident, UseRestriction};
 
+use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
 use smallvec::SmallVec;
 
@@ -346,13 +347,13 @@ pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
 mod tests {
     use super::*;
 
+    use crate::assert_iterator;
     use crate::compiler::cst::{Call, DeclaredArgument, Rule};
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
     use crate::compiler::language::parser::ParserError;
-    use crate::compiler::{SpanInterner, SpanLocation};
-    use crate::compiler::{SpanSourceId, Spanned};
-    use crate::{assert_iterator, Span};
+    use crate::compiler::span::{SimpleSpanLocation, SpanInterner};
+    use crate::compiler::span::{Span, SpanLocation, SpanSourceId, Spanned};
     use anyhow::anyhow;
     use chumsky::prelude::end;
     use chumsky::{Parser, Stream};
@@ -484,7 +485,7 @@ mod tests {
         let tokens: Vec<_> = lex_code(span_source_id, code)?;
         let eoi = Span::new(
             span_source_id,
-            SpanLocation::from(tokens.len()..tokens.len() + 1),
+            SpanLocation::from(SimpleSpanLocation::from(tokens.len()..tokens.len() + 1)),
         );
         let stream = Stream::from_iter(eoi, tokens.into_iter());
 
@@ -495,14 +496,17 @@ mod tests {
     }
 
     fn lex_code(span_source_id: SpanSourceId, code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
-        lexer(span_source_id).parse(code).map_err(|errors| {
-            let error_message = errors
-                .into_iter()
-                .map(|it| it.to_string())
-                .collect::<Vec<String>>()
-                .join("\n");
-            anyhow!(error_message)
-        })
+        lexer(span_source_id)
+            .parse(code)
+            .map_err(|errors| {
+                let error_message = errors
+                    .into_iter()
+                    .map(|it| it.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                anyhow!(error_message)
+            })
+            .map(|it| it.into_simple_spans())
     }
 
     fn test_parser_result<Ex, Ac, F>(

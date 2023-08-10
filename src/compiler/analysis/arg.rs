@@ -5,8 +5,9 @@ use crate::compiler::cir::{
 };
 use crate::compiler::error::CompilerError;
 
-use crate::compiler::{cir, cst, Ident, QueryTrisult, Spanned, Text};
+use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
 
+use crate::compiler::span::Spanned;
 use either::Either;
 use smallvec::smallvec;
 use std::collections::{HashMap, HashSet};

@@ -4,7 +4,7 @@ use crate::compiler::analysis::interner::InternerDatabase;
 use crate::compiler::codegen::CodegenDatabase;
 use crate::compiler::loader::WorkshopScriptLoaderDatabase;
 use crate::compiler::printer::PrinterDatabase;
-use crate::compiler::SpanInternerDatabase;
+use crate::compiler::span::SpanInternerDatabase;
 
 #[salsa::database(
     DeclDatabase,
@@ -39,8 +39,9 @@ macro_rules! impl_intern_key {
 #[cfg(test)]
 pub mod test {
 
-    use crate::compiler::SpanInternerDatabase;
-    use crate::compiler::{SpanInterner, SpanSourceId};
+    use crate::compiler::span::SpanInterner;
+    use crate::compiler::span::SpanInternerDatabase;
+    use crate::compiler::span::SpanSourceId;
 
     #[salsa::database(SpanInternerDatabase, TestDatabaseHelperDatabase)]
     #[derive(Default)]

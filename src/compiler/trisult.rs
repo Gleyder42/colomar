@@ -1,6 +1,6 @@
-use crate::compiler::{Span, Spanned};
 use smallvec::{Array, SmallVec};
 
+use crate::compiler::span::{Span, Spanned};
 use std::fmt::Debug;
 
 /// Trisult is similar to [Result] but has one more in-between state.

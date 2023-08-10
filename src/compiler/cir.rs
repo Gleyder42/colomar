@@ -1,7 +1,8 @@
-use crate::compiler::{CheapRange, UseRestriction};
+use crate::compiler::span::{SimpleSpanLocation, Span, Spanned, SpannedBool};
+use crate::compiler::UseRestriction;
 use crate::compiler::{
-    Ident, Span, Spanned, SpannedBool, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN,
-    DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+    Ident, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN,
+    FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use crate::impl_intern_key;
 use smallvec::SmallVec;
@@ -324,9 +325,9 @@ impl AValueChain {
     /// The ghost span starts and ends just before the first avalue inside the span.
     /// It is used when the [AValueChain] has an implicit caller.
     pub fn ghost_span(&self) -> Span {
-        let start = self.span.location.start;
-        let end = self.span.location.start + 1;
-        Span::new(self.span.source, CheapRange::from(start..end))
+        let start = self.span.location.start();
+        let end = self.span.location.start() + 1;
+        Span::new(self.span.source, SimpleSpanLocation::from(start..end))
     }
 
     pub fn returning_avalue(&self) -> AValue {

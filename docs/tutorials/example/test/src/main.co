@@ -10,6 +10,10 @@ native enum Slot {
     Slot0, Slot1, All
 }
 
+native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Slot.All) {
+    native val player: Player
+}
+
 open native struct Player {
 
     native val isReloading: bool
@@ -17,10 +21,6 @@ open native struct Player {
     native fn sendSmallMessage(message: string)
 
     native fn heal(amount: num, player: Player)
-}
-
-native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Slot.All) {
-    native val player: Player
 }
 
 native enum Hero {

@@ -7,13 +7,14 @@ use crate::compiler::analysis::interner::Interner;
 use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
-use crate::compiler::{cir, FatSpan, QueryTrisult, Span, SpanSourceId};
+use crate::compiler::{cir, QueryTrisult};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
 use chumsky::Stream;
 use clipboard_win::set_clipboard_string;
 use compiler::database::CompilerDatabase;
 use compiler::error::CompilerError;
+use compiler::span::{FatSpan, Span, SpanSourceId};
 use compiler::trisult::Trisult;
 use either::Either;
 use std::collections::HashSet;
@@ -25,7 +26,7 @@ use std::path::Path;
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
 
-use crate::compiler::SpanInterner;
+use crate::compiler::span::{SimpleSpanLocation, SpanInterner};
 
 pub mod compiler;
 pub mod test_assert;
@@ -46,15 +47,22 @@ fn main() {
     println!("{:#?}", lexer_errors);
 
     let (ast, parser_errors) = if let Some(tokens) = tokens {
-        let eoi = Span::new(span_source_id, tokens.len()..tokens.len() + 1);
+        let (tokens, table) = tokens.into_relative_span();
+        println!("{:?}", tokens);
+
+        let eoi = Span::new(
+            span_source_id,
+            SimpleSpanLocation::from(tokens.len()..tokens.len() + 1),
+        );
         let stream = Stream::from_iter(eoi, tokens.into_iter());
-        parser().parse_recovery(stream)
+        let (ast, parser_errors) = parser().parse_recovery(stream);
+        (ast.map(|ast| (ast, table)), parser_errors)
     } else {
         (None, Vec::new())
     };
     println!("{:#?}", parser_errors);
 
-    if let Some(ast) = ast {
+    if let Some((ast, offset_table)) = ast {
         println!("{:#?}", ast);
 
         db.set_input_content(ast);
@@ -147,13 +155,13 @@ fn main() {
 
             match analysis_error {
                 CompilerError::DuplicateIdent { first, second } => {
-                    let first_span = FatSpan::from_span(&db, first.span);
-                    let second_span = FatSpan::from_span(&db, second.span);
+                    let first_span = FatSpan::from_span(&db, &offset_table, first.span);
+                    let second_span = FatSpan::from_span(&db, &offset_table, second.span);
 
                     Report::<FatSpan>::build(
                         ERROR_KIND,
                         first_span.source.clone(),
-                        first_span.location.start,
+                        first_span.location.start(),
                     )
                     .with_code(error_code)
                     .with_message(format!(
@@ -181,9 +189,9 @@ fn main() {
                     todo!()
                 }
                 CompilerError::CannotFindIdent(ident) => {
-                    let span = FatSpan::from_span(&db, ident.span);
+                    let span = FatSpan::from_span(&db, &offset_table, ident.span);
 
-                    Report::build(ERROR_KIND, span.source.clone(), span.location.start)
+                    Report::build(ERROR_KIND, span.source.clone(), span.location.start())
                         .with_code(error_code)
                         .with_message(format!(
                             "Cannot find {} in the current scope",
@@ -199,12 +207,12 @@ fn main() {
                         .unwrap();
                 }
                 CompilerError::NotA(type_name, actual_rvalue, occurrence) => {
-                    let occurrence_span = FatSpan::from_span(&db, occurrence.span);
+                    let occurrence_span = FatSpan::from_span(&db, &offset_table, occurrence.span);
 
                     Report::build(
                         ERROR_KIND,
                         occurrence_span.source.clone(),
-                        occurrence_span.location.start,
+                        occurrence_span.location.start(),
                     )
                     .with_code(error_code)
                     .with_message(format!("{} is not a {}", actual_rvalue.value, type_name))
@@ -217,11 +225,11 @@ fn main() {
                     .unwrap();
                 }
                 CompilerError::WrongType { actual, expected } => {
-                    let actual_span = FatSpan::from_span(&db, actual.span);
+                    let actual_span = FatSpan::from_span(&db, &offset_table, actual.span);
                     let report_builder = Report::build(
                         ERROR_KIND,
                         actual_span.source.clone(),
-                        actual_span.location.start,
+                        actual_span.location.start(),
                     )
                     .with_code(error_code)
                     .with_message("Wrong types")
@@ -242,7 +250,8 @@ fn main() {
                             )),
                         ),
                         Either::Right(called_type) => {
-                            let called_type_span = FatSpan::from_span(&db, called_type.span);
+                            let called_type_span =
+                                FatSpan::from_span(&db, &offset_table, called_type.span);
 
                             report_builder.with_label(
                                 Label::new(called_type_span.clone())
