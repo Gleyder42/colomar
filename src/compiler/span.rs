@@ -1,9 +1,57 @@
-use std::fmt::{Debug, Display};
+//! # Relative Span
+//!
+//! A span describes a word as a range.
+//! For example `Hello World`. `Hello` could have the range `0..5` `6..11`.
+//! If we now append a word at the front `No Hello World` the spans change to `0..2`, `3..8` and `9..14`
+//! Know the spans have shifted. In code a word could be an ident. An ident contains the span and value.
+//! Colomar uses a query system of the compiler, which caches result. Adding one word shift all ranges,
+//! and therefore all ident related things have to be recalculated because the span changed.
+//! This is unnecessary because the meaning of the code might not have changed.
+//! Take the following rust code. For simplicity lets assume every function has an associated line.
+//! ```
+//! 1. fn c() { ... }
+//! 2.
+//! 3. fn d() { ... }
+//! ```
+//! If we now add a function `fn a()` all functions have other lines.
+//! This would mean the whole code would need to be recompiled although the code didn't really change
+//! functionally wise.
+//! ```
+//! 1. fn a() { ... }
+//! 2.
+//! 3. fn c() { ... }
+//! 4.
+//! 5. fn d() { ... }
+//! ```
+//!
+//! Relative spans reduce this problem by counting from top to bottom and bottom to top.
+//! ```
+//! 1. fn c() { ... }
+//! 2.
+//! -1. fn d() { ... }
+//! ```
+//! If we now add add a function `fn a()` to the top. The bottom function does not change its line.
+//! ```
+//! 1. fn a() { ... }
+//! 2.
+//! 3. fn c() { ... }
+//! -2.
+//! -1. fn d() { ... }
+//! ```
+//! By splitting the file in half, we reduce the chance that all spans are changed.
+//! This is not an ideal solution.
+//! The ideal span would locate the code by only relying on hierarchical information, like what function
+//! belongs to what class and what parameter belongs to what function.
+//! The span would be hierarchical based.
+//! However, if a better cached hit rate would outweigh the overhead introduced by a hierarchical spans needs to
+//! be benchmarked first.
+//! For now its enough to prevent span change propagating through the whole file.
+
+use std::fmt::Debug;
 use std::mem::swap;
-use std::ops::Range;
 
 #[derive(Debug, Default, Copy, Clone, Hash, Eq, PartialEq)]
-struct Anchor(u16);
+struct Anchor(u8);
 
 impl Anchor {
     fn as_usize(&self) -> usize {
@@ -34,13 +82,13 @@ struct ChunkSpan {
     end: u32,
 }
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 struct SimpleSpan {
     start: u32,
     end: u32,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum AbstractSpan {
     Chunk(ChunkSpan),
     Simple(SimpleSpan),
@@ -84,7 +132,7 @@ fn decode(span: ChunkSpan, table: &[u32]) -> SimpleSpan {
     }
 }
 
-fn encode(level: u16, mut spans: Vec<AbstractSpan>) -> (Vec<ChunkSpan>, Vec<u32>) {
+fn priv_encode(level: u16, mut spans: Vec<AbstractSpan>) -> (Vec<ChunkSpan>, Vec<u32>) {
     let mut table = vec![0; 2_i32.pow(level as u32) as usize];
     let offset = spans.last().unwrap().end();
     inner_encode(level, offset, Anchor::default(), &mut spans, &mut table);
@@ -142,26 +190,23 @@ fn inner_encode(
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
-    use crate::compiler::language::lexer::{lexer, Token};
-    use crate::compiler::language::parser::parser;
-    use crate::compiler::{Span, SpanSourceId};
-    use chumsky::Stream;
-    use hashlink::LinkedHashMap;
-    use std::convert::identity;
-    use std::fs;
-    use std::path::Path;
-    use std::time::{Duration, Instant};
+    use crate::assert_iterator;
 
-    fn gen_spans(len: usize, size: u32) -> Vec<AbstractSpan> {
+    /// Generates a vec of numeric spans.  
+    ///
+    /// Generates a vec of [AbstractSpan::Simple].
+    /// Every span has a start and end value.
+    /// The range parameter describes the range of a span (end - start = range)
+    /// The len parameter describes how many spans should be generated.
+    fn gen_spans(len: usize, range: u32) -> Vec<AbstractSpan> {
         let mut current = 0;
 
         (0..len)
             .into_iter()
             .map(|_| {
                 let start = current;
-                current += size;
+                current += range;
                 let end = current;
                 AbstractSpan::Simple(SimpleSpan { start, end })
             })
@@ -169,22 +214,21 @@ mod tests {
     }
 
     #[test]
-    fn test() {
-        let spans = gen_spans(5, 10);
-        println!("{:#?}", spans);
+    fn test_spans_with_equal_range() {
+        let original_spans = gen_spans(5, 10);
 
-        let (vec, mut table) = encode(1, spans);
+        let (encode_spans, table) = priv_encode(1, original_spans.clone());
 
-        println!("{:#?}", vec);
-        println!("{:#?}", table);
-
-        let x: Vec<_> = vec.into_iter().map(|it| decode(it, &mut table)).collect();
-        println!("{:#?}", x);
+        let decoded_spans: Vec<_> = encode_spans
+            .into_iter()
+            .map(|it| AbstractSpan::Simple(decode(it, &table)))
+            .collect();
+        assert_iterator!(original_spans, decoded_spans);
     }
 
     #[test]
-    fn test2() {
-        let spans = vec![
+    fn test_spans_with_unequal_range() {
+        let original_spans = vec![
             AbstractSpan::Simple(SimpleSpan { start: 0, end: 15 }),
             AbstractSpan::Simple(SimpleSpan { start: 15, end: 50 }),
             AbstractSpan::Simple(SimpleSpan { start: 60, end: 77 }),
@@ -194,78 +238,12 @@ mod tests {
             }),
         ];
 
-        let (vec, table) = encode(1, spans);
+        let (encode_spans, table) = priv_encode(1, original_spans.clone());
 
-        println!("{:#?}", vec);
-        println!("{:#?}", table);
-
-        let x: Vec<_> = vec.into_iter().map(|it| decode(it, &table)).collect();
-        println!("{:#?}", x);
-    }
-
-    fn read_file<P: AsRef<Path>>(size: i32, path: P) -> (Vec<(ChunkSpan, Token)>, Statistics) {
-        use chumsky::Parser;
-
-        let content = fs::read_to_string(path).unwrap();
-        let tokens = lexer(SpanSourceId(0_usize.into()))
-            .parse(content.as_str())
-            .unwrap();
-        let spans: Vec<_> = tokens
-            .iter()
-            .map(|(_, span)| span)
-            .cloned()
-            .map(|it| {
-                AbstractSpan::Simple(SimpleSpan {
-                    start: it.location.start as u32,
-                    end: it.location.end as u32,
-                })
-            })
+        let decoded_spans: Vec<_> = encode_spans
+            .into_iter()
+            .map(|it| AbstractSpan::Simple(decode(it, &table)))
             .collect();
-        let tokens: Vec<_> = tokens.into_iter().map(|(token, span)| token).collect();
-        let len = tokens.len() as f64;
-
-        let level = (len / size as f64).sqrt().round() as u16;
-
-        let encode_time = Instant::now();
-        let (chunks, table) = encode(level, spans);
-        let encode_time = encode_time.elapsed();
-
-        let x = chunks.into_iter().zip(tokens.into_iter()).collect();
-        (
-            x,
-            Statistics {
-                len: len as usize,
-                level,
-                encode_time,
-            },
-        )
-    }
-
-    fn write<P: AsRef<Path>>(size: i32, in_path: P, out_path: P) {
-        let (a, statistics) = read_file(size, in_path);
-        fs::write(out_path, format!("{statistics:?} \n{:#?}", a)).unwrap();
-    }
-
-    #[derive(Debug, Copy, Clone)]
-    struct Statistics {
-        len: usize,
-        level: u16,
-        encode_time: Duration,
-    }
-
-    #[test]
-    fn test3() {
-        let size = 10;
-
-        write(
-            size,
-            Path::new("res/test/span/main.co"),
-            Path::new("res/test/span/out/a.txt"),
-        );
-        write(
-            size,
-            Path::new("res/test/span/main2.co"),
-            Path::new("res/test/span/out/b.txt"),
-        );
+        assert_iterator!(original_spans, decoded_spans);
     }
 }
