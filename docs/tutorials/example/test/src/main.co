@@ -17,6 +17,7 @@ native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Sl
 open native struct Player {
 
     native getvar isReloading: bool
+    native setvar damageDealt: num
 
     native fn sendSmallMessage(message: string)
 
@@ -30,5 +31,6 @@ native enum Hero {
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading
 
+    player.damageDealt = 150
     player.sendSmallMessage("Hello World")
-}
+ }

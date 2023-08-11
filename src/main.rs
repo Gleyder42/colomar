@@ -5,10 +5,11 @@ extern crate salsa;
 
 use crate::compiler::analysis::interner::Interner;
 use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
-use crate::compiler::language::lexer::lexer;
+use crate::compiler::language::lexer::{lexer, Token};
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cir, QueryTrisult};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
+use chumsky::error::SimpleReason;
 use chumsky::prelude::*;
 use chumsky::Stream;
 use clipboard_win::set_clipboard_string;
@@ -18,6 +19,7 @@ use compiler::span::{FatSpan, Span, SpanSourceId};
 use compiler::trisult::Trisult;
 use either::Either;
 use std::collections::HashSet;
+use std::ffi::OsStr;
 use std::fs;
 use std::io::Read;
 use std::ops::Range;
@@ -26,7 +28,7 @@ use std::path::Path;
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
 
-use crate::compiler::span::{SimpleSpanLocation, SpanInterner};
+use crate::compiler::span::{OffsetTable, SimpleSpanLocation, SpanInterner};
 
 pub mod compiler;
 pub mod test_assert;
@@ -46,9 +48,8 @@ fn main() {
     let (tokens, lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
     println!("{:#?}", lexer_errors);
 
-    let (ast, parser_errors) = if let Some(tokens) = tokens {
+    let (ast, offset_table, parser_errors) = if let Some(tokens) = tokens {
         let (tokens, table) = tokens.into_relative_span();
-        println!("{:?}", tokens);
 
         let eoi = Span::new(
             span_source_id,
@@ -56,13 +57,56 @@ fn main() {
         );
         let stream = Stream::from_iter(eoi, tokens.into_iter());
         let (ast, parser_errors) = parser().parse_recovery(stream);
-        (ast.map(|ast| (ast, table)), parser_errors)
+        (ast, Some(table), parser_errors)
     } else {
-        (None, Vec::new())
+        (None, None, Vec::new())
     };
-    println!("{:#?}", parser_errors);
+    let offset_table = offset_table.unwrap_or(OffsetTable::default());
 
-    if let Some((ast, offset_table)) = ast {
+    println!("{:#?}", parser_errors);
+    println!("Ast: {:#?}", ast);
+
+    for parser_error in parser_errors {
+        let whole_span = FatSpan::from_span(&db, &offset_table, parser_error.span());
+        let builder = Report::build(
+            ReportKind::Error,
+            whole_span.source.clone(),
+            whole_span.location.start(),
+        );
+
+        let builder = match parser_error.reason() {
+            SimpleReason::Unexpected => builder
+                .with_message(format!("Unexpected token '{:?}'", parser_error.found()))
+                .with_label(
+                    Label::new(whole_span.clone())
+                        .with_color(Color::Red)
+                        .with_message(format!(
+                            "Expected: {:?}",
+                            parser_error.expected().collect::<Vec<_>>()
+                        )),
+                ),
+            SimpleReason::Unclosed { delimiter, span } => {
+                let span = FatSpan::from_span(&db, &offset_table, *span);
+
+                builder
+                    .with_message(format!("Unclosed delimiter {delimiter}"))
+                    .with_label(
+                        Label::new(whole_span.clone())
+                            .with_color(Color::Red)
+                            .with_message("Starts here"),
+                    )
+                    .with_label(Label::new(span).with_color(Color::Cyan))
+            }
+            SimpleReason::Custom(_) => unimplemented!(),
+        };
+
+        builder
+            .finish()
+            .eprint(sources(vec![(whole_span.source.clone(), &source)]))
+            .unwrap();
+    }
+
+    if let Some(ast) = ast {
         println!("{:#?}", ast);
 
         db.set_input_content(ast);

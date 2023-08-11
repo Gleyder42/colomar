@@ -1,5 +1,5 @@
-use crate::compiler::cir::{CValue, Type};
-use crate::compiler::codegen::{Arg, Caller, Codegen, CALLER_PLACEHOLDER};
+use crate::compiler::cir::{AValueChain, CValue, Type};
+use crate::compiler::codegen::{Arg, Caller, Codegen, ASSIGMENT_PLACEHOLDER, CALLER_PLACEHOLDER};
 use crate::compiler::error::CompilerError;
 use crate::compiler::wst::partial::Placeholder;
 
@@ -10,21 +10,31 @@ use std::collections::{HashMap, HashSet};
 pub(super) fn query_wst_call(
     db: &dyn Codegen,
     caller: Option<Caller>,
-    avalue_chain: cir::AValueChain,
+    action: cir::Action,
 ) -> QueryTrisult<wst::Call> {
-    QueryTrisult::Ok(avalue_chain.avalues).fold_flat_map(
-        caller,
-        |acc| acc.unwrap().wst.unwrap(),
-        |acc, current| {
-            db.query_wst_call_by_avalue(acc, current.clone())
-                .map(|call| {
-                    Some(Caller {
-                        wst: call,
-                        cir: current,
+    let query_by_avalue = |avalue_chain: AValueChain, right_operand: Option<wst::Call>| {
+        QueryTrisult::Ok(avalue_chain.avalues).fold_flat_map(
+            // Caller is cloned here, because in an assignment the left and right side receives a caller
+            caller.clone(),
+            |acc| acc.unwrap().wst.unwrap(),
+            |acc, current| {
+                db.query_wst_call_by_avalue(acc, right_operand.clone(), current.clone())
+                    .map(|call| {
+                        Some(Caller {
+                            wst: call,
+                            cir: current,
+                        })
                     })
-                })
-        },
-    )
+            },
+        )
+    };
+
+    match action {
+        cir::Action::AvalueChain(avalue_chain) => query_by_avalue(avalue_chain, None),
+        cir::Action::Assigment(left, right) => {
+            query_by_avalue(right, None).flat_map(|right| query_by_avalue(left, Some(right)))
+        }
+    }
 }
 
 pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisult<wst::Ident> {
@@ -40,6 +50,7 @@ pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisu
 pub(super) fn query_wst_call_by_avalue(
     db: &dyn Codegen,
     caller: Option<Caller>,
+    right_operand: Option<wst::Call>,
     avalue: cir::AValue,
 ) -> QueryTrisult<Option<wst::Call>> {
     match avalue {
@@ -54,6 +65,10 @@ pub(super) fn query_wst_call_by_avalue(
             let mut map = HashMap::new();
             if let Some(caller) = caller.wst {
                 map.insert(Placeholder::from(CALLER_PLACEHOLDER), caller);
+            }
+
+            if let Some(right_operand) = right_operand {
+                map.insert(Placeholder::from(ASSIGMENT_PLACEHOLDER), right_operand);
             }
 
             match r#type {
@@ -118,7 +133,7 @@ pub(super) fn query_wst_call_by_avalue(
             db.query_wst_call_from_args(func_decl.arguments, called_args)
                 .into_iter()
                 .map(|arg| {
-                    db.query_wst_call(caller.clone(), arg.value)
+                    db.query_wst_call(caller.clone(), cir::Action::from(arg.value))
                         .map(|call| (arg.name, call))
                 })
                 .collect::<QueryTrisult<Vec<_>>>()
@@ -147,6 +162,11 @@ pub(super) fn query_wst_call_by_avalue(
                 args: vec![string],
             };
             QueryTrisult::Ok(custom_string.into()).inner_into_some()
+        }
+        cir::AValue::CValue(CValue::Number(number, _, _)) => {
+            let call = wst::Call::Number(number);
+
+            QueryTrisult::Ok(call).inner_into_some()
         }
         avalue => query_error!(CompilerError::NotImplemented(
             format!("Current avalue {:?} is not implemented", avalue).into(),

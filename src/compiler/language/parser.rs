@@ -3,9 +3,11 @@ extern crate core;
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
 use crate::compiler::{Ident, UseRestriction};
+use chumsky::combinator::To;
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
+use regex::Error;
 use smallvec::SmallVec;
 
 pub type ParserError = Simple<Token, Span>;
@@ -298,15 +300,25 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
     }
 }
 
+fn assigment() -> impl Parser<Token, Action, Error = ParserError> {
+    let ident_chain = || chain().ident_chain();
+
+    ident_chain()
+        .then_ignore(just(Token::Ctrl('=')))
+        .then(ident_chain())
+        .map(|(left, right)| Action::Assignment(left, right))
+}
+
 fn block() -> impl Parser<Token, Block, Error = ParserError> {
     let cond = just(Token::Cond)
         .ignore_then(chain().ident_chain())
         .map(|it| it as Condition);
 
-    let action = chain()
-        .ident_chain()
-        .map(Action::CallChain)
-        .or(property().map(Action::Property));
+    let action = choice((
+        assigment(),
+        chain().ident_chain().map(Action::CallChain),
+        property().map(Action::Property),
+    ));
 
     cond.then_ignore(at_least_newlines())
         .repeated()

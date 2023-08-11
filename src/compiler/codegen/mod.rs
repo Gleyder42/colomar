@@ -7,6 +7,7 @@ use crate::compiler::loader::WorkshopScriptLoader;
 use crate::compiler::{cir, wst, Ident, QueryTrisult};
 
 const CALLER_PLACEHOLDER: &'static str = "$caller$";
+const ASSIGMENT_PLACEHOLDER: &'static str = "$value$";
 
 #[salsa::query_group(CodegenDatabase)]
 pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
@@ -19,7 +20,7 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
     fn query_wst_call(
         &self,
         caller: Option<Caller>,
-        avalue_chain: cir::AValueChain,
+        action: cir::Action,
     ) -> QueryTrisult<wst::Call>;
 
     /// Impl: [call::query_const_eval]
@@ -31,6 +32,7 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
     fn query_wst_call_by_avalue(
         &self,
         caller: Option<Caller>,
+        right_operand: Option<wst::Call>,
         avalue: cir::AValue,
     ) -> QueryTrisult<Option<wst::Call>>;
 

@@ -86,4 +86,21 @@ mod tests {
 
         assert_eq!(actual_element, expected_element);
     }
+
+    #[test]
+    fn test_placeholder() {
+        let code = "Set Damage Dealt($caller$, $value$)";
+        let tokens = lexer().then_ignore(end()).parse(code).unwrap();
+        let actual_element = call().then_ignore(end()).parse(tokens).unwrap();
+
+        let expected_element = partial::Call::Function(partial::Function {
+            name: Ident(Text::new("Set Damage Dealt")),
+            args: vec![
+                partial::Call::Placeholder(Placeholder(Text::new("$caller$"))),
+                partial::Call::Placeholder(Placeholder(Text::new("$value$"))),
+            ],
+        });
+
+        assert_eq!(actual_element, expected_element);
+    }
 }

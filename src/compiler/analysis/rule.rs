@@ -14,23 +14,33 @@ pub(super) fn query_rule_actions(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
     actions: Actions,
-) -> QueryTrisult<Vec<AValueChain>> {
+) -> QueryTrisult<cir::Actions> {
     let event_type = cir::Type::Event(event_decl_id);
 
     actions
         .into_iter()
         .map(|action| match action {
-            Action::CallChain(call_chain) => db.query_call_chain(
-                smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
-                call_chain,
-            ),
+            Action::CallChain(call_chain) => db
+                .query_call_chain(
+                    smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
+                    call_chain,
+                )
+                .map(cir::Action::AvalueChain),
+            Action::Assignment(left, right) => {
+                let nameholders = smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)];
+
+                let left = db.query_call_chain(nameholders.clone(), left);
+                let right = db.query_call_chain(nameholders, right);
+                left.and_require(right)
+                    .map(|(left, right)| cir::Action::Assigment(left, right))
+            }
             Action::Property(ast_property) => db
                 .query_property(Some(event_type), ast_property)
                 .map(|property_decl| {
                     let span = property_decl.name.span;
                     let chain: AValueChain =
                         cir::AValue::RValue(RValue::Property(property_decl), span).into();
-                    chain
+                    cir::Action::AvalueChain(chain)
                 }),
         })
         .collect::<QueryTrisult<_>>()

@@ -64,6 +64,7 @@ pub enum Root {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Action {
     CallChain(CallChain),
+    Assignment(CallChain, CallChain),
     Property(PropertyDeclaration),
 }
 

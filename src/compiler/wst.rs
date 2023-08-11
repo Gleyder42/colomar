@@ -3,7 +3,6 @@ use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::{Op, Text};
 use std::fmt::{Display, Formatter};
 
-
 pub mod partial {
     use crate::compiler::{wst, Op, Text};
     use std::collections::HashMap;
@@ -193,14 +192,13 @@ impl Function {
         value: partial::Function,
         error_func: impl Fn(Placeholder) -> Result<Call, String> + Clone,
     ) -> Result<Self, String> {
-        let args: Vec<_> = value
-            .args
+        let args: Result<Vec<Call>, _> = dbg!(value.args)
             .into_iter()
-            .flat_map(|partial_call| Call::try_from_with(partial_call, error_func.clone()))
+            .map(|partial_call| Call::try_from_with(partial_call, error_func.clone()))
             .collect();
         Ok(Function {
-            name: value.name,
-            args,
+            name: dbg!(value.name),
+            args: args?,
         })
     }
 }

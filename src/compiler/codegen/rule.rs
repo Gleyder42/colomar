@@ -1,9 +1,8 @@
 use crate::compiler::codegen::{Caller, Codegen};
 use crate::compiler::error::CompilerError;
-use crate::compiler::trisult::{IntoTrisult};
+use crate::compiler::trisult::IntoTrisult;
 use crate::compiler::{cir, wst, Op, QueryTrisult};
 
-use crate::compiler::cir::AValueChain;
 use std::collections::{HashMap, VecDeque};
 
 pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<wst::Rule> {
@@ -12,7 +11,7 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
         db.query_wst_call_from_args(event_def.arguments, rule.arguments)
             .into_iter()
             .map(|arg| {
-                db.query_wst_call(None, arg.value)
+                db.query_wst_call(None, cir::Action::from(arg.value))
                     .map(|call| (arg.name, call))
             })
             .collect::<QueryTrisult<Vec<_>>>()
@@ -38,20 +37,20 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
             .map(|it| it.into_iter().collect::<VecDeque<_>>()) // TODO Add trait converting into all containers
     });
 
-    let query_event_wst_call = |chain: Vec<AValueChain>| -> QueryTrisult<Vec<wst::Call>> {
+    let query_event_wst_call = |chain: Vec<cir::Action>| -> QueryTrisult<Vec<wst::Call>> {
         chain
             .into_iter()
-            .map(|actions| {
+            .map(|action| {
                 let caller = Caller {
                     wst: None,
-                    cir: cir::AValue::RValue(rule.event.into(), actions.ghost_span()),
+                    cir: cir::AValue::RValue(rule.event.into(), action.ghost_span()),
                 };
-                db.query_wst_call(Some(caller), actions)
+                db.query_wst_call(Some(caller), action)
             })
             .collect::<QueryTrisult<Vec<wst::Call>>>()
     };
 
-    let conditions = rule.conditions.into_iter().map(|it| it.0).collect();
+    let conditions = rule.conditions.into_iter().map(cir::Action::from).collect();
 
     let wscript_event_name = db.query_wscript_event_name_impl(event_decl.name.value);
 

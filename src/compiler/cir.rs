@@ -19,8 +19,6 @@ pub type Predicates = SmallVec<[Predicate; CONDITIONS_LEN]>;
 
 pub type EnumConstants = SmallVec<[EnumConstant; ENUM_CONSTANTS_LEN]>;
 
-pub type Actions = Vec<AValueChain>;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Cir(pub Vec<Root>);
 
@@ -285,6 +283,8 @@ pub struct EventDefinition {
     pub properties: PropertyDecls,
 }
 
+pub type Actions = Vec<Action>;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rule {
     pub title: Text,
@@ -292,6 +292,33 @@ pub struct Rule {
     pub arguments: CalledArguments,
     pub conditions: Predicates,
     pub actions: Actions,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Action {
+    AvalueChain(AValueChain),
+    Assigment(AValueChain, AValueChain),
+}
+
+impl Action {
+    pub fn ghost_span(&self) -> Span {
+        match self {
+            Action::AvalueChain(avalue_chain) => avalue_chain.ghost_span(),
+            Action::Assigment(left, _) => left.ghost_span(),
+        }
+    }
+}
+
+impl From<AValueChain> for Action {
+    fn from(value: AValueChain) -> Self {
+        Action::AvalueChain(value)
+    }
+}
+
+impl From<Predicate> for Action {
+    fn from(value: Predicate) -> Self {
+        Action::AvalueChain(value.0)
+    }
 }
 
 /// Represents a value which is known at runtime time or compile time and it refers

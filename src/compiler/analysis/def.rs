@@ -56,8 +56,8 @@ pub trait DefQuery: DeclQuery {
     fn query_rule_actions(
         &self,
         event_decl_id: EventDeclarationId,
-        actions: Actions,
-    ) -> QueryTrisult<Vec<AValueChain>>;
+        actions: cst::Actions,
+    ) -> QueryTrisult<cir::Actions>;
 
     // Struct
 
