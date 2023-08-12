@@ -70,7 +70,7 @@ fn main() {
         let builder = Report::build(
             ReportKind::Error,
             whole_span.source.clone(),
-            whole_span.location.start(),
+            whole_span.location.start() as usize,
         );
 
         let builder = match parser_error.reason() {
@@ -204,7 +204,7 @@ fn main() {
                     Report::<FatSpan>::build(
                         ERROR_KIND,
                         first_span.source.clone(),
-                        first_span.location.start(),
+                        first_span.location.start() as usize,
                     )
                     .with_code(error_code)
                     .with_message(format!(
@@ -234,20 +234,24 @@ fn main() {
                 CompilerError::CannotFindIdent(ident) => {
                     let span = FatSpan::from_span(&db, &offset_table, ident.span);
 
-                    Report::build(ERROR_KIND, span.source.clone(), span.location.start())
-                        .with_code(error_code)
-                        .with_message(format!(
-                            "Cannot find {} in the current scope",
-                            ident.value.fg(Color::Cyan)
-                        ))
-                        .with_label(
-                            Label::new(span.clone())
-                                .with_color(Color::Cyan)
-                                .with_message("This"),
-                        )
-                        .finish()
-                        .eprint(sources(vec![(span.source.clone(), &source)]))
-                        .unwrap();
+                    Report::build(
+                        ERROR_KIND,
+                        span.source.clone(),
+                        span.location.start() as usize,
+                    )
+                    .with_code(error_code)
+                    .with_message(format!(
+                        "Cannot find {} in the current scope",
+                        ident.value.fg(Color::Cyan)
+                    ))
+                    .with_label(
+                        Label::new(span.clone())
+                            .with_color(Color::Cyan)
+                            .with_message("This"),
+                    )
+                    .finish()
+                    .eprint(sources(vec![(span.source.clone(), &source)]))
+                    .unwrap();
                 }
                 CompilerError::NotA(type_name, actual_rvalue, occurrence) => {
                     let occurrence_span = FatSpan::from_span(&db, &offset_table, occurrence.span);
@@ -255,7 +259,7 @@ fn main() {
                     Report::build(
                         ERROR_KIND,
                         occurrence_span.source.clone(),
-                        occurrence_span.location.start(),
+                        occurrence_span.location.start() as usize,
                     )
                     .with_code(error_code)
                     .with_message(format!("{} is not a {}", actual_rvalue.value, type_name))
@@ -272,7 +276,7 @@ fn main() {
                     let report_builder = Report::build(
                         ERROR_KIND,
                         actual_span.source.clone(),
-                        actual_span.location.start(),
+                        actual_span.location.start() as usize,
                     )
                     .with_code(error_code)
                     .with_message("Wrong types")

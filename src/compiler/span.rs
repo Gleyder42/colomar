@@ -81,7 +81,7 @@ use std::fmt::Debug;
 use std::mem::swap;
 use std::ops::Range;
 
-pub type InnerSpan = usize;
+pub type InnerSpan = u32;
 pub type SpanLocation = AbstractSpanLocation;
 pub type SpanSource = SmolStr;
 pub type SpannedBool = Option<Spanned<()>>;
@@ -316,6 +316,17 @@ pub struct SimpleSpanLocation {
     pub end: InnerSpan,
 }
 
+impl From<Range<usize>> for SimpleSpanLocation {
+    fn from(value: Range<usize>) -> Self {
+        let error_message: &str = &format!("Line length should not exceed {}", u32::MAX);
+
+        SimpleSpanLocation {
+            start: InnerSpan::try_from(value.start).expect(error_message),
+            end: InnerSpan::try_from(value.end).expect(error_message),
+        }
+    }
+}
+
 impl From<Range<InnerSpan>> for SimpleSpanLocation {
     fn from(value: Range<InnerSpan>) -> Self {
         SimpleSpanLocation {
@@ -410,11 +421,11 @@ impl ariadne::Span for FatSpan {
     }
 
     fn start(&self) -> usize {
-        self.location.start()
+        self.location.start() as usize
     }
 
     fn end(&self) -> usize {
-        self.location.end()
+        self.location.end() as usize
     }
 }
 
