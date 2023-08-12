@@ -1,10 +1,11 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::cir::{AValueChain, EventDeclarationId, StructDeclarationId};
-use crate::compiler::cst::{Conditions};
+use crate::compiler::cst::Conditions;
 use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
 
 use super::event;
+use super::im;
 use super::r#struct as sstruct;
 use super::rule;
 
@@ -12,9 +13,13 @@ use super::rule;
 pub trait DefQuery: DeclQuery {
     // Im
 
-    /// [super::im::query_im]
-    #[salsa::invoke(super::im::query_im)]
+    /// [im::query_im]
+    #[salsa::invoke(im::query_im)]
     fn query_im(&self) -> QueryTrisult<cir::Cir>;
+
+    /// [im::query_player_struct_def]
+    #[salsa::invoke(im::query_player_struct_def)]
+    fn query_player_struct_def(&self) -> cst::Struct;
 
     // Event
 

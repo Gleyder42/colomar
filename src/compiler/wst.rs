@@ -107,6 +107,18 @@ pub struct Event {
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Variable {
+    pub index: u8,
+    pub name: Ident,
+}
+
+impl Display for Variable {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.index, self.name)
+    }
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Call {
     Condition(Condition),
     String(Text),

@@ -1,9 +1,11 @@
 mod call;
 mod rule;
+mod variables;
 
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::interner::Interner as AnalysisInterner;
 use crate::compiler::loader::WorkshopScriptLoader;
+use crate::compiler::wst::Variable;
 use crate::compiler::{cir, wst, Ident, QueryTrisult};
 
 const CALLER_PLACEHOLDER: &str = "$caller$";
@@ -43,6 +45,10 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
         decl_args: cir::DeclaredArgumentIds,
         called_args: cir::CalledArguments,
     ) -> Vec<Arg>;
+
+    /// Impl: [variables::query_player_variables]
+    #[salsa::invoke(variables::query_player_variables)]
+    fn query_player_variables(&self) -> QueryTrisult<Vec<Variable>>;
 }
 
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]

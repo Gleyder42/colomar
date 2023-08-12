@@ -1,9 +1,10 @@
 use crate::compiler::cir::{AValueChain, CValue, Type};
 use crate::compiler::codegen::{Arg, Caller, Codegen, ASSIGMENT_PLACEHOLDER, CALLER_PLACEHOLDER};
 use crate::compiler::error::CompilerError;
-use crate::compiler::wst::partial::Placeholder;
 
-use crate::compiler::{cir, wst, QueryTrisult};
+use crate::compiler::wst::partial::Placeholder;
+use crate::compiler::wst::Ident;
+use crate::compiler::{cir, wst, QueryTrisult, Text};
 use crate::query_error;
 use std::collections::{HashMap, HashSet};
 
@@ -53,62 +54,100 @@ pub(super) fn query_wst_call_by_avalue(
     right_operand: Option<wst::Call>,
     avalue: cir::AValue,
 ) -> QueryTrisult<Option<wst::Call>> {
+    let mut map = HashMap::new();
+    if let Some(Caller {
+        wst: Some(ref caller),
+        ..
+    }) = caller
+    {
+        map.insert(Placeholder::from(CALLER_PLACEHOLDER), caller.clone());
+    }
+    if let Some(ref right_operand) = right_operand {
+        map.insert(
+            Placeholder::from(ASSIGMENT_PLACEHOLDER),
+            right_operand.clone(),
+        );
+    }
+
     match avalue {
-        cir::AValue::RValue(cir::RValue::Property(property_decl), _) => QueryTrisult::assume_or(
-            property_decl.is_native.is_some() && caller.is_some(),
-            "Only native instance properties are implemented",
-            property_decl.name.span,
-        )
-        .flat_start(|| {
-            let caller = caller.unwrap();
-            let r#type = caller.cir.return_called_type(db).r#type;
-            let mut map = HashMap::new();
-            if let Some(caller) = caller.wst {
-                map.insert(Placeholder::from(CALLER_PLACEHOLDER), caller);
-            }
+        cir::AValue::RValue(cir::RValue::Property(property_decl), _)
+            if property_decl.is_native.is_some() && caller.is_some() =>
+        {
+            QueryTrisult::empty().flat_start(|| {
+                let caller = caller.unwrap();
+                let r#type = caller.cir.return_called_type(db).r#type;
 
-            if let Some(right_operand) = right_operand {
-                map.insert(Placeholder::from(ASSIGMENT_PLACEHOLDER), right_operand);
-            }
+                match r#type {
+                    Type::Enum(enum_id) => {
+                        let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_id);
+                        db.query_wscript_enum_constant_impl(
+                            enum_decl.name.value,
+                            property_decl.name.value,
+                        )
+                        .inner_into_some()
+                    }
+                    Type::Struct(struct_id) => {
+                        let struct_decl: cir::StructDeclaration =
+                            db.lookup_intern_struct_decl(struct_id);
+                        db.query_wscript_struct_property_impl(
+                            struct_decl.name.value,
+                            property_decl.name.value,
+                        )
+                        .flat_map(|partial_call| {
+                            partial_call
+                                .saturate(&map)
+                                .map_err(CompilerError::PlaceholderError)
+                                .into()
+                        })
+                        .inner_into_some()
+                    }
+                    Type::Event(event_id) => {
+                        let event_decl: cir::EventDeclaration =
+                            db.lookup_intern_event_decl(event_id);
+                        db.query_wscript_event_context_property_impl(
+                            event_decl.name.value,
+                            property_decl.name.value,
+                        )
+                        .inner_into_some()
+                    }
+                    Type::Unit => query_error!(CompilerError::NotImplemented(
+                        "Unit as caller is currently not implemented".into(),
+                        property_decl.name.span
+                    )),
+                }
+            })
+        }
+        cir::AValue::RValue(cir::RValue::Property(property_decl), _)
+            if property_decl.is_native.is_none() && caller.is_some() && right_operand.is_some() =>
+        {
+            // TODO Is this the right place to define workshop functions?
+            // TODO Decide where to place fundamental workshop functions.
+            const SET_PLAYER_VARIABLE: &str = "Set Player Variable($caller$, $name$, $value$)";
 
-            match r#type {
-                Type::Enum(enum_id) => {
-                    let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_id);
-                    db.query_wscript_enum_constant_impl(
-                        enum_decl.name.value,
-                        property_decl.name.value,
-                    )
-                    .inner_into_some()
-                }
-                Type::Struct(struct_id) => {
-                    let struct_decl: cir::StructDeclaration =
-                        db.lookup_intern_struct_decl(struct_id);
-                    db.query_wscript_struct_property_impl(
-                        struct_decl.name.value,
-                        property_decl.name.value,
-                    )
-                    .flat_map(|partial_call| {
-                        partial_call
-                            .saturate(&mut map)
-                            .map_err(CompilerError::PlaceholderError)
-                            .into()
-                    })
-                    .inner_into_some()
-                }
-                Type::Event(event_id) => {
-                    let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(event_id);
-                    db.query_wscript_event_context_property_impl(
-                        event_decl.name.value,
-                        property_decl.name.value,
-                    )
-                    .inner_into_some()
-                }
-                Type::Unit => query_error!(CompilerError::NotImplemented(
-                    "Unit as caller is currently not implemented".into(),
-                    property_decl.name.span
-                )),
-            }
-        }),
+            // TODO Should the map be cloned here?
+            let mut map = map.clone();
+            map.insert(
+                Placeholder::from("$name$"),
+                wst::Call::Ident(Ident::from(property_decl.name)),
+            );
+
+            use wst::partial;
+            let placeholder = |name| partial::Call::Placeholder(Placeholder(Text::from(name)));
+
+            let function = partial::Function {
+                name: wst::Ident::from("Set Player Variable"),
+                args: vec![
+                    placeholder("$caller$"),
+                    placeholder("$name$"),
+                    placeholder("$value$"),
+                ],
+            };
+            let call = partial::Call::Function(function);
+            let call = call
+                .saturate(&map)
+                .map_err(|error| CompilerError::PlaceholderError(error));
+            QueryTrisult::from(call).inner_into_some()
+        }
         cir::AValue::RValue(cir::RValue::EnumConstant(enum_constant_id), ..) => {
             let enum_constant: cir::EnumConstant = db.lookup_intern_enum_constant(enum_constant_id);
             let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_constant.r#enum);
@@ -139,10 +178,8 @@ pub(super) fn query_wst_call_by_avalue(
                 .collect::<QueryTrisult<Vec<_>>>()
                 .and_require(wscript_function)
                 .flat_map(|(args, wscript_function)| {
-                    let mut map = HashMap::new();
-                    if let Some(caller) = caller.unwrap().wst {
-                        map.insert(Placeholder::from(CALLER_PLACEHOLDER), caller);
-                    }
+                    // TODO Should the map be cloned here?
+                    let mut map = map.clone();
 
                     for (name, call) in args {
                         map.insert(Placeholder::from(format!("${}$", name.value)), call);

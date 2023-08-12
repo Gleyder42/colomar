@@ -85,7 +85,7 @@ impl<T, E> Trisult<T, E> {
 
     pub fn and_only_errors<U>(self, other: Trisult<U, E>) -> Trisult<T, E> {
         let other_errors = match other {
-            Trisult::Ok(_) => Vec::new(),
+            Trisult::Ok(_) => return self,
             Trisult::Par(_, errors) | Trisult::Err(errors) => errors,
         };
 

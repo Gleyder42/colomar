@@ -12,7 +12,6 @@ use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::error::SimpleReason;
 use chumsky::prelude::*;
 use chumsky::Stream;
-use clipboard_win::set_clipboard_string;
 use compiler::database::CompilerDatabase;
 use compiler::error::CompilerError;
 use compiler::span::{FatSpan, Span, SpanSourceId};
@@ -26,6 +25,7 @@ use std::path::Path;
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
+use crate::compiler::printer::PrinterQuery;
 
 use crate::compiler::span::{OffsetTable, SimpleSpanLocation, SpanInterner};
 
@@ -365,27 +365,13 @@ fn main() {
         use crate::compiler::printer::PrinterQuery;
         db.set_input_wscript_impls(elements);
 
-        if let Some(cir) = output.0 {
-            for root in cir {
-                match root {
-                    Root::Rule(rule) => {
-                        let x: QueryTrisult<String> = db
-                            .query_wst_rule(rule)
-                            .map(|it| db.query_wst_rule_to_string(it));
-
-                        match x {
-                            QueryTrisult::Ok(value) => {
-                                println!("{}", value);
-
-                                set_clipboard_string(&value).unwrap();
-                            }
-                            QueryTrisult::Par(_, errors) | QueryTrisult::Err(errors) => {
-                                println!("{:?}", errors);
-                            }
-                        }
-                    }
-                    _ => {}
-                }
+        let trisult = db.query_workshop_output();
+        match trisult {
+            Trisult::Ok(value) => {
+                println!("{value}")
+            }
+            QueryTrisult::Par(_, errors) | QueryTrisult::Err(errors) => {
+                println!("Errors: {:?}", errors);
             }
         }
     }

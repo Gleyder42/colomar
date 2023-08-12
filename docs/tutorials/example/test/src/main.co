@@ -16,6 +16,8 @@ native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Sl
 
 open native struct Player {
 
+    var counter: num;
+
     native getvar isReloading: bool;
     native setvar damageDealt: num;
 
@@ -31,6 +33,7 @@ native enum Hero {
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading;
 
+    player.counter = 1;
     player.damageDealt = 150;
     player.sendSmallMessage("Hello World");
  }

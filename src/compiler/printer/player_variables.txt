@@ -1,0 +1,4 @@
+variables {{
+    player:
+{player_variables}
+}}
