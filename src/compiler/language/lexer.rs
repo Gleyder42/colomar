@@ -42,7 +42,6 @@ pub enum Token {
     Val,
     Var,
     Fn,
-    NewLine,
     Type,
     Ident(Text),
     String(Text),
@@ -66,12 +65,11 @@ impl Display for Token {
             Token::Fn => write!(f, "fn"),
             Token::Type => write!(f, "type"),
             Token::Val => write!(f, "val"),
-            Token::NewLine => write!(f, "newline"),
+            Token::Var => write!(f, "var"),
             Token::Ident(string) => write!(f, "{string}"),
             Token::String(string) => write!(f, "{string}"),
             Token::Num(string) => write!(f, "{string}"),
             Token::Ctrl(ctrl) => write!(f, "{ctrl}"),
-            Token::Var => write!(f, "var"),
         }
     }
 }
@@ -92,7 +90,7 @@ pub fn lexer(
         .map(Text::new)
         .map(Token::String);
 
-    let ctrl = one_of("(){},.:|=").map(Token::Ctrl);
+    let ctrl = one_of("(){},.:|=;").map(Token::Ctrl);
 
     let ident = text::ident().map(|ident: String| match ident.as_str() {
         "rule" => Token::Rule,
@@ -112,16 +110,9 @@ pub fn lexer(
         _ => Token::Ident(Text::new(ident)),
     });
 
-    let newline = text::newline().map(|_| Token::NewLine);
-
-    let token = choice((num, newline, string, ctrl, ident)).recover_with(skip_then_retry_until([]));
-
-    let whitespace = filter(|c: &char| c.is_whitespace() && !NEWLINE_CHARS.contains(c))
-        .ignored()
-        .repeated();
+    let token = choice((num, string, ctrl, ident)).recover_with(skip_then_retry_until([]));
 
     token
-        .padded_by(whitespace)
         .map_with_span(move |tok, span| {
             (
                 tok,
@@ -132,16 +123,6 @@ pub fn lexer(
         .map(UndecidedSpan)
         .then_ignore(end())
 }
-
-const NEWLINE_CHARS: [char; 7] = [
-    '\n',       // line feed
-    '\r',       // Carriage return
-    '\x0B',     // Vertical tab
-    '\x0C',     // Form feed
-    '\u{0085}', // Next line
-    '\u{2028}', // Line separator
-    '\u{2029}', // Paragraph separator
-];
 
 #[cfg(test)]
 mod tests {

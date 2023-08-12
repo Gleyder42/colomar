@@ -5,7 +5,7 @@ extern crate salsa;
 
 use crate::compiler::analysis::interner::Interner;
 use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
-use crate::compiler::language::lexer::{lexer, Token};
+use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cir, QueryTrisult};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
@@ -19,7 +19,6 @@ use compiler::span::{FatSpan, Span, SpanSourceId};
 use compiler::trisult::Trisult;
 use either::Either;
 use std::collections::HashSet;
-use std::ffi::OsStr;
 use std::fs;
 use std::io::Read;
 use std::ops::Range;

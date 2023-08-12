@@ -1,13 +1,9 @@
-extern crate core;
-
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
 use crate::compiler::{Ident, UseRestriction};
-use chumsky::combinator::To;
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
-use regex::Error;
 use smallvec::SmallVec;
 
 pub type ParserError = Simple<Token, Span>;
@@ -24,26 +20,26 @@ fn ident() -> impl Parser<Token, Ident, Error = ParserError> + Clone {
 }
 
 fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error = ParserError> {
+    let types = ident()
+        .separated_by(just(Token::Ctrl('|')))
+        .map_with_span(|types, span| Types {
+            values: types.into(),
+            span,
+        });
+    let default_value = just(Token::Ctrl('='))
+        .ignore_then(chain().ident_chain())
+        .or_not();
+
     ident()
         .then_ignore(just(Token::Ctrl(':')))
-        .then(
-            ident()
-                .separated_by(just(Token::Ctrl('|')))
-                .map_with_span(|types, span| Types {
-                    values: types.into(),
-                    span,
-                }),
-        )
-        .then(
-            just(Token::Ctrl('='))
-                .ignore_then(chain().ident_chain())
-                .or_not(),
-        )
+        .then(types)
+        .then(default_value)
         .map_with_span(|((name, types), default_value), span| (name, types, default_value, span))
         .separated_by(just(Token::Ctrl(',')))
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
-        .map(|it| {
-            it.into_iter()
+        .map(|arg_tuples| {
+            arg_tuples
+                .into_iter()
                 .enumerate()
                 .map(
                     |(position, (name, types, default_value, span))| DeclaredArgument {
@@ -66,9 +62,12 @@ fn native_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
 }
 
 fn event() -> impl Parser<Token, Event, Error = ParserError> {
-    just(Token::Native)
-        .or_not()
-        .map_with_span(Spanned::ignore_value)
+    let by = just(Token::By)
+        .ignore_then(ident())
+        .then(chain().args())
+        .or_not();
+
+    native_or_not()
         .then_ignore(just(Token::Event))
         .then(ident())
         .map_with_span(|(is_native, name), span| EventDeclaration {
@@ -77,12 +76,7 @@ fn event() -> impl Parser<Token, Event, Error = ParserError> {
             span,
         })
         .then(declared_arguments())
-        .then(
-            just(Token::By)
-                .ignore_then(ident())
-                .then(chain().args())
-                .or_not(),
-        )
+        .then(by)
         .validate(|((a, b), c), span, emit| {
             if a.is_native.is_some() && c.is_some() {
                 emit(Simple::custom(
@@ -108,8 +102,7 @@ fn event() -> impl Parser<Token, Event, Error = ParserError> {
 fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
     let constants = ident()
         .separated_by(just(Token::Ctrl(',')))
-        .allow_trailing()
-        .padded_by(newline_repeated());
+        .allow_trailing();
 
     native_or_not()
         .then_ignore(just(Token::Enum))
@@ -128,16 +121,16 @@ fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
 }
 
 fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
+    let use_restriction_tokens = (
+        just(Token::GetVar),
+        just(Token::SetVar),
+        just(Token::Val),
+        just(Token::Var),
+    );
+    let use_restriction = choice(use_restriction_tokens).map_with_span(Spanned::new);
+
     native_or_not()
-        .then(
-            choice((
-                just(Token::GetVar),
-                just(Token::SetVar),
-                just(Token::Val),
-                just(Token::Var),
-            ))
-            .map_with_span(Spanned::new),
-        )
+        .then(use_restriction)
         .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
         .then(ident())
@@ -174,6 +167,12 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
         })
 }
 
+fn open_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
+    just(Token::Open)
+        .or_not()
+        .map_with_span(Spanned::ignore_value)
+}
+
 fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
     let member_function = native_or_not()
         .then_ignore(just(Token::Fn))
@@ -190,11 +189,10 @@ fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
         Function(FunctionDeclaration),
     }
 
-    let open_keyword = just(Token::Open)
-        .or_not()
-        .map_with_span(Spanned::ignore_value);
+    let property = property().map(StructMember::Property);
+    let member_function = member_function.map(StructMember::Function);
 
-    open_keyword
+    open_or_not()
         .then(native_or_not())
         .then_ignore(just(Token::Struct))
         .then(ident())
@@ -205,10 +203,8 @@ fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
             span,
         })
         .then(
-            property()
-                .map(StructMember::Property)
-                .or(member_function.map(StructMember::Function))
-                .padded_by(just(Token::NewLine).repeated())
+            choice((property, member_function))
+                .then_ignore(just(Token::Ctrl(';')))
                 .repeated()
                 .delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))),
         )
@@ -233,10 +229,6 @@ fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
         })
 }
 
-fn newline_repeated() -> impl Parser<Token, (), Error = ParserError> + Clone {
-    just(Token::NewLine).repeated().ignored()
-}
-
 struct IdentChainParserResult<'a> {
     ident_chain: BoxedParser<'a, Token, CallChain, ParserError>,
     args: BoxedParser<'a, Token, CallArguments, ParserError>,
@@ -255,9 +247,8 @@ impl<'a> IdentChainParserResult<'a> {
 fn chain<'a>() -> IdentChainParserResult<'a> {
     let mut ident_chain = Recursive::<_, CallChain, _>::declare();
 
-    let args = ident()
-        .then_ignore(just(Token::Ctrl('=')))
-        .or_not()
+    let arg_name_or_not = ident().then_ignore(just(Token::Ctrl('='))).or_not();
+    let args = arg_name_or_not
         .then(ident_chain.clone())
         .map_with_span(|(named, call_chain), span| match named {
             Some(name) => CallArgument::Named(name, call_chain, span),
@@ -320,22 +311,17 @@ fn block() -> impl Parser<Token, Block, Error = ParserError> {
         property().map(Action::Property),
     ));
 
-    cond.then_ignore(at_least_newlines())
-        .repeated()
-        .then(action.then_ignore(at_least_newlines()).repeated())
-        .delimited_by(
-            just(Token::Ctrl('{')).padded_by(newline_repeated()),
-            just(Token::Ctrl('}')).padded_by(newline_repeated()),
-        )
+    let conditions = cond.then_ignore(just(Token::Ctrl(';'))).repeated();
+    let actions = action.then_ignore(just(Token::Ctrl(';'))).repeated();
+
+    conditions
+        .then(actions)
+        .delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}')))
         .map_with_span(|(conditions, actions), span| Block {
             actions: actions.into(),
             conditions: conditions.into(),
             span,
         })
-}
-
-fn at_least_newlines() -> impl Parser<Token, (), Error = ParserError> {
-    just(Token::NewLine).repeated().at_least(1).map(|_| ())
 }
 
 fn rule() -> impl Parser<Token, Rule, Error = ParserError> {
@@ -365,7 +351,6 @@ pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
     let struct_parser = r#struct().map(Root::Struct);
 
     choice((rule_parser, event_parser, enum_parser, struct_parser))
-        .padded_by(newline_repeated())
         .repeated()
         .then_ignore(end())
         .map(Ast)

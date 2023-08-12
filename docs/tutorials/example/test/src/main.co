@@ -11,17 +11,17 @@ native enum Slot {
 }
 
 native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Slot.All) {
-    native val player: Player
+    native val player: Player;
 }
 
 open native struct Player {
 
-    native getvar isReloading: bool
-    native setvar damageDealt: num
+    native getvar isReloading: bool;
+    native setvar damageDealt: num;
 
-    native fn sendSmallMessage(message: string)
+    native fn sendSmallMessage(message: string);
 
-    native fn heal(amount: num, player: Player)
+    native fn heal(amount: num, player: Player);
 }
 
 native enum Hero {
@@ -29,8 +29,8 @@ native enum Hero {
 }
 
 rule "Hello World" OngoingEachPlayer() {
-    cond player.isReloading
+    cond player.isReloading;
 
-    player.damageDealt = 150
-    player.sendSmallMessage("Hello World")
+    player.damageDealt = 150;
+    player.sendSmallMessage("Hello World");
  }
