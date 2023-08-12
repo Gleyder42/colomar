@@ -81,7 +81,7 @@ impl_intern_key!(NativeFuncId);
 impl_intern_key!(NativeEventId);
 
 lazy_static! {
-    static ref TEMPLATE_REGEX: Regex = Regex::new(r#"\$\w*\$"#).unwrap();
+    static ref TEMPLATE_REGEX: Regex = Regex::new(r"\$\w*\$").unwrap();
 }
 
 impl LiteralOwscript {
@@ -136,7 +136,6 @@ mod tests {
 
         let actual_name: Vec<_> = TEMPLATE_REGEX
             .find_iter(code)
-            .into_iter()
             .map(|mat| mat.as_str())
             .collect();
 

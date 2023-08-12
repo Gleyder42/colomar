@@ -36,10 +36,7 @@ pub mod partial {
             })
         }
 
-        pub fn saturate(
-            self,
-            map: &mut HashMap<Placeholder, wst::Call>,
-        ) -> Result<wst::Call, String> {
+        pub fn saturate(self, map: &HashMap<Placeholder, wst::Call>) -> Result<wst::Call, String> {
             self.try_into_call(|placeholder| {
                 map.get(&placeholder)
                     .ok_or(format!("Cannot find placeholder {:?}", placeholder))

@@ -3,7 +3,7 @@ extern crate core;
 use crate::compiler::span::{OffsetTable, SimpleSpanLocation, Span, SpanSourceId};
 use crate::compiler::{span, Text};
 use chumsky::prelude::*;
-use chumsky::text::Character;
+
 use std::fmt::{Debug, Display, Formatter};
 use std::string::String;
 
@@ -110,9 +110,10 @@ pub fn lexer(
         _ => Token::Ident(Text::new(ident)),
     });
 
-    let token = choice((num, string, ctrl, ident)).recover_with(skip_then_retry_until([]));
+    let token = choice((ident, num, string, ctrl)).recover_with(skip_then_retry_until([]));
 
     token
+        .padded()
         .map_with_span(move |tok, span| {
             (
                 tok,
@@ -175,29 +176,6 @@ mod tests {
         let expected = vec![
             Token::String("Hello".to_string().into()),
             Token::String("Hello World".to_string().into()),
-        ];
-
-        assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
-    }
-
-    #[test]
-    fn test_newline() {
-        let code = "\n \n\n rule\n \rrule";
-        let interner = TestDatabase::default();
-        let span_source_id = interner.intern_str("test_end_is_consumed");
-
-        let actual = lexer(span_source_id)
-            .parse(code)
-            .unwrap()
-            .into_simple_spans();
-        let expected = vec![
-            Token::NewLine,
-            Token::NewLine,
-            Token::NewLine,
-            Token::Rule,
-            Token::NewLine,
-            Token::NewLine,
-            Token::Rule,
         ];
 
         assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
