@@ -19,9 +19,15 @@ fn query_wst_rule_to_string(_db: &dyn PrinterQuery, rule: wst::Rule) -> String {
 }
 
 fn join_to_string<T: ToString>(iter: impl IntoIterator<Item = T>) -> String {
+    const SPACES: &str = "        ";
+
     let mut string = iter
         .into_iter()
-        .map(|it| it.to_string())
+        .map(|it| {
+            let mut spaces = SPACES.to_string();
+            spaces.push_str(&it.to_string());
+            spaces
+        })
         .collect::<Vec<_>>()
         .join(";\n");
     string.push(';');

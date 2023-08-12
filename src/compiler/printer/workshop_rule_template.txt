@@ -9,11 +9,11 @@ rule("{rule}")
 
 	conditions
 	{{
-		{conditions}
+{conditions}
 	}}
 
 	actions
 	{{
-		{actions}
+{actions}
 	}}
 }}
