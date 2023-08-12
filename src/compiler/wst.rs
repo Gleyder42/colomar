@@ -189,12 +189,13 @@ impl Function {
         value: partial::Function,
         error_func: impl Fn(Placeholder) -> Result<Call, String> + Clone,
     ) -> Result<Self, String> {
-        let args: Result<Vec<Call>, _> = dbg!(value.args)
+        let args: Result<Vec<Call>, _> = value
+            .args
             .into_iter()
             .map(|partial_call| Call::try_from_with(partial_call, error_func.clone()))
             .collect();
         Ok(Function {
-            name: dbg!(value.name),
+            name: value.name,
             args: args?,
         })
     }
