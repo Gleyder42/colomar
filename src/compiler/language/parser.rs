@@ -583,7 +583,7 @@ mod tests {
         actual: impl IntoIterator<Item = Box<Call>>,
     ) {
         actual.into_iter()
-            .zip(expected.into_iter())
+            .zip(expected)
             .for_each(|(call, test_data)| {
                 match *call {
                     Call::IdentArguments { name: actual_ident, args: actual_args, .. } => {
@@ -591,7 +591,7 @@ mod tests {
                             IdentTestData::IdentWithArgs { ident: expected_ident, args: expected_args } => {
                                 assert_eq!(expected_ident, actual_ident.value, "Check if idents are equal");
                                 expected_args.into_iter()
-                                    .zip(actual_args.into_iter())
+                                    .zip(actual_args)
                                     .for_each(|(expected, actual)| {
                                         assert_call_chain(expected, actual.call_chain());
                                     })
@@ -690,7 +690,7 @@ mod tests {
                 expected
                     .args
                     .into_iter()
-                    .zip(actual.arguments.into_iter())
+                    .zip(actual.arguments)
                     .for_each(|(actual, expected)| assert_call_chain(actual, expected.call_chain()))
             },
         );
@@ -720,7 +720,7 @@ mod tests {
                 expected
                     .args
                     .into_iter()
-                    .zip(actual.into_iter())
+                    .zip(actual)
                     .for_each(|(expected, actual)| {
                         assert_eq!(expected.name, actual.name.value);
 

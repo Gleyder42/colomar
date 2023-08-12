@@ -7,6 +7,7 @@ use crate::compiler::{Ident, QueryTrisult, Text};
 use crate::query_error;
 use either::Either;
 use std::borrow::Cow;
+use std::mem::size_of;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {

@@ -199,13 +199,7 @@ pub fn encode_in_place(
 ) -> Vec<InnerSpan> {
     let mut table = vec![0; 2_i32.pow(level as u32) as usize];
     let offset = references.last().unwrap().end();
-    inner_encode(
-        level,
-        offset,
-        Anchor::default(),
-        &mut references,
-        &mut table,
-    );
+    inner_encode(level, offset, Anchor::default(), references, &mut table);
     table
 }
 
@@ -272,7 +266,6 @@ mod tests {
         let mut current = 0;
 
         (0..len)
-            .into_iter()
             .map(|_| {
                 let start = current;
                 current += range;
