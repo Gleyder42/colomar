@@ -3,7 +3,6 @@
 
 extern crate salsa;
 
-use crate::compiler::analysis::interner::Interner;
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cir, QueryTrisult};
@@ -286,9 +285,7 @@ fn main() {
         let impl_path = Path::new("docs/tutorials/example/test/native");
         let elements = compiler::loader::read_impls(impl_path);
 
-        use crate::compiler::codegen::Codegen;
         use crate::compiler::loader::WorkshopScriptLoader;
-        use crate::compiler::printer::PrinterQuery;
         db.set_input_wscript_impls(elements);
 
         let trisult = db.query_workshop_output();

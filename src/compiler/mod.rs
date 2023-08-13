@@ -1,8 +1,8 @@
 use crate::compiler::trisult::Trisult;
 use error::CompilerError;
+use hashlink::LinkedHashMap;
 use smol_str::SmolStr;
 use span::Span;
-use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 
 pub mod analysis;
@@ -23,7 +23,7 @@ pub mod wst;
 
 pub type Text = SmolStr;
 // TODO Use hashlink instead
-pub type HashableMap<K, V> = BTreeMap<K, V>;
+pub type HashableMap<K, V> = LinkedHashMap<K, V>;
 pub type QueryTrisult<T> = Trisult<T, CompilerError>;
 
 pub const CONDITIONS_LEN: usize = 6;
@@ -55,7 +55,7 @@ pub enum UseRestriction {
     Var,
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Op {
     Equals,
     NotEquals,

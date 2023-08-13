@@ -6,7 +6,7 @@ pub mod partial {
     use crate::compiler::{wst, Op, Text};
     use std::collections::HashMap;
 
-    #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Clone, Debug, Hash, Eq, PartialEq)]
     pub struct Placeholder(pub Text);
 
     impl<T: Into<Text>> From<T> for Placeholder {
@@ -18,16 +18,16 @@ pub mod partial {
     pub trait Replacer: Fn(Placeholder) -> Result<wst::Call, SaturateError> + Clone {}
     impl<T: Fn(Placeholder) -> Result<wst::Call, SaturateError> + Clone> Replacer for T {}
 
-    #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Clone, Debug, Hash, Eq, PartialEq)]
     pub struct SaturateError(Placeholder, SaturateErrorReason);
 
-    #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Clone, Debug, Hash, Eq, PartialEq)]
     pub enum SaturateErrorReason {
         WasPartial,
         CannotFindReplace,
     }
 
-    #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Clone, Debug, Hash, Eq, PartialEq)]
     pub enum Call {
         Condition(Condition),
         String(String),
@@ -76,7 +76,7 @@ pub mod partial {
         }
     }
 
-    #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Clone, Debug, Hash, Eq, PartialEq)]
     pub struct Function {
         pub name: wst::Ident,
         pub args: Vec<Call>,
@@ -97,7 +97,7 @@ pub mod partial {
         }
     }
 
-    #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Clone, Debug, Hash, Eq, PartialEq)]
     pub struct Condition {
         pub left: Box<Call>,
         pub op: Op,
@@ -118,7 +118,7 @@ pub mod partial {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Ident(pub Text);
 
 impl Display for Ident {
@@ -139,14 +139,14 @@ impl From<compiler::Ident> for Ident {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Event {
     pub name: Ident,
     pub team: Ident,
     pub hero_slot: Ident,
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Variable {
     pub index: u8,
     pub name: Ident,
@@ -158,7 +158,7 @@ impl Display for Variable {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Call {
     Condition(Condition),
     String(Text),
@@ -208,7 +208,7 @@ impl From<Function> for Call {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Function {
     pub name: Ident,
     pub args: Vec<Call>,
@@ -227,7 +227,7 @@ impl Display for Function {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Condition {
     pub left: Box<Call>,
     pub op: Op,
@@ -246,7 +246,7 @@ impl Display for Condition {
     }
 }
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Rule {
     pub title: Text,
     pub event: Event,

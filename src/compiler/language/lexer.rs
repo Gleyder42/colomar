@@ -1,11 +1,10 @@
 extern crate core;
 
-use crate::compiler::span::{InnerSpan, OffsetTable, SimpleSpanLocation, Span, SpanSourceId};
+use crate::compiler::span::{OffsetTable, SimpleSpanLocation, Span, SpanSourceId};
 use crate::compiler::{span, Text};
 use chumsky::prelude::*;
 
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Range;
 use std::string::String;
 
 #[derive(Debug)]

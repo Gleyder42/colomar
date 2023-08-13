@@ -193,10 +193,7 @@ fn encode(
     (chunked_spans, table)
 }
 
-pub fn encode_in_place(
-    level: u16,
-    mut references: &mut [&mut AbstractSpanLocation],
-) -> Vec<InnerSpan> {
+pub fn encode_in_place(level: u16, references: &mut [&mut AbstractSpanLocation]) -> Vec<InnerSpan> {
     let mut table = vec![0; 2_i32.pow(level as u32) as usize];
     let offset = references.last().unwrap().end();
     inner_encode(level, offset, Anchor::default(), references, &mut table);

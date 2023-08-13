@@ -26,15 +26,6 @@ impl Display for Token {
     }
 }
 
-fn string() -> impl Parser<char, Token, Error = Simple<char>> {
-    just('"')
-        .ignore_then(filter(|c| *c != '"').repeated())
-        .then_ignore(just('"'))
-        .collect::<String>()
-        .map(Text::new)
-        .map(Token::String)
-}
-
 const PLACEHOLDER_DELIMITER: char = '$';
 
 fn placeholder() -> impl Parser<char, Token, Error = Simple<char>> {
