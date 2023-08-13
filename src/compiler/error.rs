@@ -3,6 +3,7 @@ use crate::compiler::cir::{
 };
 use crate::compiler::span::Span;
 use crate::compiler::trisult::Trisult;
+use crate::compiler::wst::partial::SaturateError;
 use crate::compiler::{Ident, QueryTrisult, Text};
 use crate::query_error;
 use either::Either;
@@ -28,7 +29,7 @@ pub enum CompilerError {
     // TODO Add more information
     InvalidNativeDefinition(&'static str),
     NoCaller,
-    PlaceholderError(String),
+    PlaceholderError(SaturateError),
     // TODO Add any information
     WstLexerError,
     // TODO Add any information

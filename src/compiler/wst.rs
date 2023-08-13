@@ -1,5 +1,4 @@
 use crate::compiler;
-use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::{Op, Text};
 use std::fmt::{Display, Formatter};
 
@@ -16,6 +15,18 @@ pub mod partial {
         }
     }
 
+    pub trait Replacer: Fn(Placeholder) -> Result<wst::Call, SaturateError> + Clone {}
+    impl<T: Fn(Placeholder) -> Result<wst::Call, SaturateError> + Clone> Replacer for T {}
+
+    #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    pub struct SaturateError(Placeholder, SaturateErrorReason);
+
+    #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+    pub enum SaturateErrorReason {
+        WasPartial,
+        CannotFindReplace,
+    }
+
     #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
     pub enum Call {
         Condition(Condition),
@@ -27,39 +38,40 @@ pub mod partial {
     }
 
     impl Call {
-        pub fn complete(self) -> Result<wst::Call, String> {
-            self.try_into_call(|placeholder| {
-                Err(format!(
-                    "Assumed Call but was PartialCall with placeholder {:?}",
-                    placeholder
-                ))
+        pub fn complete(self) -> Result<wst::Call, SaturateError> {
+            self.saturate_with(|placeholder| {
+                let error = SaturateError(placeholder, SaturateErrorReason::WasPartial);
+                Err(error)
             })
         }
 
-        pub fn saturate(self, map: &HashMap<Placeholder, wst::Call>) -> Result<wst::Call, String> {
-            self.try_into_call(|placeholder| {
-                map.get(&placeholder)
-                    .ok_or(format!("Cannot find placeholder {:?}", placeholder))
+        pub fn saturate(
+            self,
+            replace_call_map: &HashMap<Placeholder, wst::Call>,
+        ) -> Result<wst::Call, SaturateError> {
+            self.saturate_with(|placeholder| {
+                replace_call_map
+                    .get(&placeholder)
+                    .ok_or(SaturateError(placeholder, SaturateErrorReason::WasPartial))
                     .cloned()
             })
         }
 
-        pub(super) fn try_into_call(
+        pub(super) fn saturate_with(
             self,
-            // TODO Add opaque type
-            error_func: impl Fn(Placeholder) -> Result<wst::Call, String> + Clone,
-        ) -> Result<wst::Call, String> {
+            replacer: impl Replacer,
+        ) -> Result<wst::Call, SaturateError> {
             match self {
-                Call::Condition(condition) => Ok(wst::Call::Condition(
-                    wst::Condition::try_from_with(condition, error_func)?,
-                )),
+                Call::Condition(condition) => {
+                    condition.saturate_with(replacer).map(wst::Call::Condition)
+                }
                 Call::String(string) => Ok(wst::Call::String(Text::from(string))),
                 Call::Number(number) => Ok(wst::Call::String(Text::from(number))),
                 Call::Ident(ident) => Ok(wst::Call::Ident(ident)),
-                Call::Function(function) => Ok(wst::Call::Function(wst::Function::try_from_with(
-                    function, error_func,
-                )?)),
-                Call::Placeholder(placeholder) => error_func(placeholder),
+                Call::Function(function) => {
+                    function.saturate_with(replacer).map(wst::Call::Function)
+                }
+                Call::Placeholder(placeholder) => replacer(placeholder),
             }
         }
     }
@@ -70,11 +82,39 @@ pub mod partial {
         pub args: Vec<Call>,
     }
 
+    impl Function {
+        fn saturate_with(self, replacer: impl Replacer) -> Result<wst::Function, SaturateError> {
+            let args: Result<Vec<wst::Call>, _> = self
+                .args
+                .into_iter()
+                .map(|call| Call::saturate_with(call, replacer.clone()))
+                .collect();
+            let function = wst::Function {
+                name: self.name,
+                args: args?,
+            };
+            Ok(function)
+        }
+    }
+
     #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
     pub struct Condition {
         pub left: Box<Call>,
         pub op: Op,
         pub right: Box<Call>,
+    }
+
+    impl Condition {
+        fn saturate_with(self, replacer: impl Replacer) -> Result<wst::Condition, SaturateError> {
+            let left = Call::saturate_with(*self.left, replacer.clone())?;
+            let right = Call::saturate_with(*self.right, replacer)?;
+            let condition = wst::Condition {
+                left: Box::new(left),
+                op: self.op,
+                right: Box::new(right),
+            };
+            Ok(condition)
+        }
     }
 }
 
@@ -127,6 +167,16 @@ pub enum Call {
     Function(Function),
 }
 
+impl Call {
+    pub fn unwrap_function(self) -> Function {
+        if let Call::Function(function) = self {
+            function
+        } else {
+            panic!("Cannot unwrap {:?} as function", self)
+        }
+    }
+}
+
 impl Display for Call {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let string = match self {
@@ -137,16 +187,6 @@ impl Display for Call {
             Call::Function(it) => it.to_string(),
         };
         write!(f, "{}", string)
-    }
-}
-
-impl Call {
-    pub fn unwrap_function(self) -> Function {
-        if let Call::Function(function) = self {
-            function
-        } else {
-            panic!("Cannot unwrap {:?} as function", self)
-        }
     }
 }
 
@@ -165,15 +205,6 @@ impl From<Ident> for Call {
 impl From<Function> for Call {
     fn from(value: Function) -> Self {
         Call::Function(value)
-    }
-}
-
-impl Call {
-    fn try_from_with(
-        value: partial::Call,
-        error_func: impl Fn(Placeholder) -> Result<Call, String> + Clone,
-    ) -> Result<Self, String> {
-        value.try_into_call(error_func)
     }
 }
 
@@ -196,23 +227,6 @@ impl Display for Function {
     }
 }
 
-impl Function {
-    fn try_from_with(
-        value: partial::Function,
-        error_func: impl Fn(Placeholder) -> Result<Call, String> + Clone,
-    ) -> Result<Self, String> {
-        let args: Result<Vec<Call>, _> = value
-            .args
-            .into_iter()
-            .map(|partial_call| Call::try_from_with(partial_call, error_func.clone()))
-            .collect();
-        Ok(Function {
-            name: value.name,
-            args: args?,
-        })
-    }
-}
-
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Condition {
     pub left: Box<Call>,
@@ -229,19 +243,6 @@ impl Display for Condition {
             op = self.op,
             right = self.right
         )
-    }
-}
-
-impl Condition {
-    fn try_from_with(
-        value: partial::Condition,
-        error_func: impl Fn(Placeholder) -> Result<Call, String> + Clone,
-    ) -> Result<Self, String> {
-        Ok(Condition {
-            left: Box::new(Call::try_from_with(*value.left, error_func.clone())?),
-            op: value.op,
-            right: Box::new(Call::try_from_with(*value.right, error_func)?),
-        })
     }
 }
 
