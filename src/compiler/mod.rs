@@ -22,7 +22,6 @@ pub mod workshop;
 pub mod wst;
 
 pub type Text = SmolStr;
-// TODO Use hashlink instead
 pub type HashableMap<K, V> = LinkedHashMap<K, V>;
 pub type QueryTrisult<T> = Trisult<T, CompilerError>;
 
