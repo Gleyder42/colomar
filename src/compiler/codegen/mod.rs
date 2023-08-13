@@ -6,7 +6,7 @@ use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::interner::Interner as AnalysisInterner;
 use crate::compiler::loader::WorkshopScriptLoader;
 use crate::compiler::wst::Variable;
-use crate::compiler::{cir, wst, Ident, QueryTrisult};
+use crate::compiler::{cir, wst, AssignMod, Ident, QueryTrisult};
 
 const CALLER_PLACEHOLDER: &str = "$caller$";
 const ASSIGMENT_PLACEHOLDER: &str = "$value$";
@@ -34,7 +34,7 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
     fn query_wst_call_by_avalue(
         &self,
         caller: Option<Caller>,
-        right_operand: Option<wst::Call>,
+        right_operand: Option<(wst::Call, Option<AssignMod>)>,
         avalue: cir::AValue,
     ) -> QueryTrisult<Option<wst::Call>>;
 

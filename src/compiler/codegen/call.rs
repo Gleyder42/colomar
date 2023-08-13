@@ -4,7 +4,7 @@ use crate::compiler::error::CompilerError;
 
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::Ident;
-use crate::compiler::{cir, wst, QueryTrisult, Text};
+use crate::compiler::{cir, wst, AssignMod, QueryTrisult, Text};
 use crate::query_error;
 use std::collections::{HashMap, HashSet};
 
@@ -13,28 +13,28 @@ pub(super) fn query_wst_call(
     caller: Option<Caller>,
     action: cir::Action,
 ) -> QueryTrisult<wst::Call> {
-    let query_by_avalue = |avalue_chain: AValueChain, right_operand: Option<wst::Call>| {
-        QueryTrisult::Ok(avalue_chain.avalues).fold_flat_map(
-            // Caller is cloned here, because in an assignment the left and right side receives a caller
-            caller.clone(),
-            |acc| acc.unwrap().wst.unwrap(),
-            |acc, current| {
-                db.query_wst_call_by_avalue(acc, right_operand.clone(), current.clone())
-                    .map(|call| {
-                        Some(Caller {
-                            wst: call,
-                            cir: current,
+    let query_by_avalue =
+        |avalue_chain: AValueChain, right_operand: Option<(wst::Call, Option<AssignMod>)>| {
+            QueryTrisult::Ok(avalue_chain.avalues).fold_flat_map(
+                // Caller is cloned here, because in an assignment the left and right side receives a caller
+                caller.clone(),
+                |acc| acc.unwrap().wst.unwrap(),
+                |acc, current| {
+                    db.query_wst_call_by_avalue(acc, right_operand.clone(), current.clone())
+                        .map(|call| {
+                            Some(Caller {
+                                wst: call,
+                                cir: current,
+                            })
                         })
-                    })
-            },
-        )
-    };
+                },
+            )
+        };
 
     match action {
         cir::Action::AvalueChain(avalue_chain) => query_by_avalue(avalue_chain, None),
-        cir::Action::Assigment(left, right) => {
-            query_by_avalue(right, None).flat_map(|right| query_by_avalue(left, Some(right)))
-        }
+        cir::Action::Assigment(left, right, assign_mod) => query_by_avalue(right, None)
+            .flat_map(|right| query_by_avalue(left, Some((right, assign_mod)))),
     }
 }
 
@@ -51,7 +51,7 @@ pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisu
 pub(super) fn query_wst_call_by_avalue(
     db: &dyn Codegen,
     caller: Option<Caller>,
-    right_operand: Option<wst::Call>,
+    right_operand: Option<(wst::Call, Option<AssignMod>)>,
     avalue: cir::AValue,
 ) -> QueryTrisult<Option<wst::Call>> {
     let mut map = HashMap::new();
@@ -65,7 +65,7 @@ pub(super) fn query_wst_call_by_avalue(
     if let Some(ref right_operand) = right_operand {
         map.insert(
             Placeholder::from(ASSIGMENT_PLACEHOLDER),
-            right_operand.clone(),
+            right_operand.0.clone(),
         );
     }
 
@@ -120,9 +120,7 @@ pub(super) fn query_wst_call_by_avalue(
         cir::AValue::RValue(cir::RValue::Property(property_decl), _)
             if property_decl.is_native.is_none() && caller.is_some() && right_operand.is_some() =>
         {
-            // TODO Is this the right place to define workshop functions?
-            // TODO Decide where to place fundamental workshop functions.
-            const SET_PLAYER_VARIABLE: &str = "Set Player Variable($caller$, $name$, $value$)";
+            let right_operand = right_operand.unwrap();
 
             // TODO Should the map be cloned here?
             let mut map = map.clone();
@@ -134,14 +132,39 @@ pub(super) fn query_wst_call_by_avalue(
             use wst::partial;
             let placeholder = |name| partial::Call::Placeholder(Placeholder(Text::from(name)));
 
-            let function = partial::Function {
-                name: wst::Ident::from("Set Player Variable"),
-                args: vec![
-                    placeholder("$caller$"),
-                    placeholder("$name$"),
-                    placeholder("$value$"),
-                ],
+            let function = match right_operand.1 {
+                Some(assign_mod) => {
+                    map.insert(
+                        Placeholder::from("$assign_mod$"),
+                        wst::Call::Ident(Ident::from(assign_mod.to_string())),
+                    );
+
+                    // TODO Is this the right place to define workshop functions?
+                    // TODO Decide where to place fundamental workshop functions.
+                    const MODIFY_PLAYER_VARIABLE: &str = "Modify Player Variable";
+                    partial::Function {
+                        name: wst::Ident::from(MODIFY_PLAYER_VARIABLE),
+                        args: vec![
+                            placeholder("$caller$"),
+                            placeholder("$name$"),
+                            placeholder("$assign_mod$"),
+                            placeholder("$value$"),
+                        ],
+                    }
+                }
+                None => {
+                    const SET_PLAYER_VARIABLE: &str = "Set Player Variable";
+                    partial::Function {
+                        name: wst::Ident::from(SET_PLAYER_VARIABLE),
+                        args: vec![
+                            placeholder("$caller$"),
+                            placeholder("$name$"),
+                            placeholder("$value$"),
+                        ],
+                    }
+                }
             };
+
             let call = partial::Call::Function(function);
             let call = call
                 .saturate(&map)

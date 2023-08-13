@@ -1,5 +1,5 @@
 use crate::compiler::span::{SimpleSpanLocation, Span, Spanned, SpannedBool};
-use crate::compiler::UseRestriction;
+use crate::compiler::{AssignMod, UseRestriction};
 use crate::compiler::{
     Ident, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
@@ -297,14 +297,14 @@ pub struct Rule {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Action {
     AvalueChain(AValueChain),
-    Assigment(AValueChain, AValueChain),
+    Assigment(AValueChain, AValueChain, Option<AssignMod>),
 }
 
 impl Action {
     pub fn ghost_span(&self) -> Span {
         match self {
             Action::AvalueChain(avalue_chain) => avalue_chain.ghost_span(),
-            Action::Assigment(left, _) => left.ghost_span(),
+            Action::Assigment(left, ..) => left.ghost_span(),
         }
     }
 }

@@ -26,13 +26,13 @@ pub(super) fn query_rule_actions(
                     call_chain,
                 )
                 .map(cir::Action::AvalueChain),
-            Action::Assignment(left, right) => {
+            Action::Assignment(left, right, assign_mod) => {
                 let nameholders = smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)];
 
                 let left = db.query_call_chain(nameholders.clone(), left);
                 let right = db.query_call_chain(nameholders, right);
                 left.and_require(right)
-                    .map(|(left, right)| cir::Action::Assigment(left, right))
+                    .map(|(left, right)| cir::Action::Assigment(left, right, assign_mod))
             }
             Action::Property(ast_property) => db
                 .query_property(Some(event_type), ast_property)

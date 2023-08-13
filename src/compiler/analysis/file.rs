@@ -63,8 +63,7 @@ pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Definitio
             }
         })
         .collect();
-    println!("{}", map.len());
-    dbg!(map)
+    map
 }
 
 pub(super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, EventDefinition> {

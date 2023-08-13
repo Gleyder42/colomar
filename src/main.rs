@@ -4,7 +4,6 @@
 extern crate salsa;
 
 use crate::compiler::analysis::interner::Interner;
-use crate::compiler::cir::{DeclaredArgument, FunctionDecl, PropertyDecl, Root, StructDeclaration};
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cir, QueryTrisult};
@@ -45,7 +44,6 @@ fn main() {
     let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
 
     let (tokens, lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
-    println!("{:#?}", lexer_errors);
 
     let (ast, offset_table, parser_errors) = if let Some(tokens) = tokens {
         let (tokens, table) = tokens.into_relative_span();
@@ -61,9 +59,6 @@ fn main() {
         (None, None, Vec::new())
     };
     let offset_table = offset_table.unwrap_or(OffsetTable::default());
-
-    println!("{:#?}", parser_errors);
-    println!("Ast: {:#?}", ast);
 
     for parser_error in parser_errors {
         let whole_span = FatSpan::from_span(&db, &offset_table, parser_error.span());
@@ -106,81 +101,12 @@ fn main() {
     }
 
     if let Some(ast) = ast {
-        println!("{:#?}", ast);
-
         db.set_input_content(ast);
 
         let im: Trisult<cir::Cir, CompilerError> = db.query_im();
 
         let output = im.to_option();
 
-        println!("{:#?}", output.1);
-
-        if let Some(im) = output.0.clone() {
-            for root in im {
-                match root {
-                    Root::Rule(rule) => {
-                        println!("{:#?}", rule);
-                    }
-                    Root::Event(event) => {
-                        let decl = db.lookup_intern_event_decl(event.declaration);
-
-                        let vec = event
-                            .definition
-                            .arguments
-                            .into_iter()
-                            .map(|it| db.lookup_intern_decl_arg(it))
-                            .collect::<Vec<DeclaredArgument>>();
-
-                        println!(
-                            "Event\nDecl: {:#?}\nDef: {:#?}, Proprs: {:#?}",
-                            decl, vec, event.definition.properties
-                        );
-                    }
-                    Root::Enum(r#enum) => {
-                        let decl = db.lookup_intern_enum_decl(r#enum.declaration);
-
-                        let constants: Vec<_> = r#enum
-                            .definition
-                            .constants
-                            .into_iter()
-                            .map(|it| db.lookup_intern_enum_constant(it))
-                            .collect();
-
-                        println!(
-                            "Enum\nDecl: {:#?}\nDef: {:#?}\nSpan: {:#?}",
-                            decl, constants, r#enum.span
-                        );
-                    }
-                    Root::Struct(r#struct) => {
-                        let struct_decl: StructDeclaration =
-                            db.lookup_intern_struct_decl(r#struct.decl);
-
-                        let properties = r#struct
-                            .def
-                            .properties
-                            .into_iter()
-                            .map(|it| db.lookup_intern_property_decl(it))
-                            .collect::<Vec<PropertyDecl>>();
-
-                        let functions = r#struct
-                            .def
-                            .functions
-                            .into_iter()
-                            .map(|it| db.lookup_intern_function_decl(it))
-                            .collect::<Vec<FunctionDecl>>();
-
-                        println!(
-                            "Struct {:#?}, Properties: {:#?}, Functions: {:#?}",
-                            struct_decl, properties, functions
-                        );
-                    }
-                };
-                println!("===")
-            }
-        }
-
-        println!("{:#?}", output.1);
         // Due the nature of demand-driven compilation, the queries return duplicate errors,
         // if an erroneous query is queried multiple times.
         // However, the errors only seem to be duplicate, because they just miss context information

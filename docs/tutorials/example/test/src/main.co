@@ -33,7 +33,11 @@ native enum Hero {
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading;
 
-    player.counter = 1;
+    player.counter += 1;
+    player.counter -= 1;
+    player.counter *= 1;
+    player.counter /= 1;
+    player.counter = 10;
     player.damageDealt = 150;
     player.sendSmallMessage("Hello World");
  }

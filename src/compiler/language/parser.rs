@@ -1,6 +1,6 @@
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{Ident, UseRestriction};
+use crate::compiler::{AssignMod, Ident, UseRestriction};
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
@@ -294,10 +294,27 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
 fn assigment() -> impl Parser<Token, Action, Error = ParserError> {
     let ident_chain = || chain().ident_chain();
 
+    let assign_mods = (
+        just(Token::Ctrl('+')),
+        just(Token::Ctrl('-')),
+        just(Token::Ctrl('*')),
+        just(Token::Ctrl('/')),
+    );
+    let assign_mod = choice(assign_mods)
+        .map(|token| match token {
+            Token::Ctrl('+') => AssignMod::Add,
+            Token::Ctrl('-') => AssignMod::Sub,
+            Token::Ctrl('*') => AssignMod::Mul,
+            Token::Ctrl('/') => AssignMod::Div,
+            _ => unreachable!(),
+        })
+        .or_not();
+
     ident_chain()
+        .then(assign_mod)
         .then_ignore(just(Token::Ctrl('=')))
         .then(ident_chain())
-        .map(|(left, right)| Action::Assignment(left, right))
+        .map(|((left, assign_mod), right)| Action::Assignment(left, right, assign_mod))
 }
 
 fn block() -> impl Parser<Token, Block, Error = ParserError> {

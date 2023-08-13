@@ -69,3 +69,23 @@ impl Display for Op {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AssignMod {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+impl Display for AssignMod {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            AssignMod::Add => "Add",
+            AssignMod::Sub => "Subtract",
+            AssignMod::Mul => "Multiply",
+            AssignMod::Div => "Divide",
+        };
+        write!(f, "{name}")
+    }
+}

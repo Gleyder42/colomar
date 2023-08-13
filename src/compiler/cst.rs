@@ -1,7 +1,7 @@
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{
-    Ident, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
+    AssignMod, Ident, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
@@ -64,7 +64,7 @@ pub enum Root {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum Action {
     CallChain(CallChain),
-    Assignment(CallChain, CallChain),
+    Assignment(CallChain, CallChain, Option<AssignMod>),
     Property(PropertyDeclaration),
 }
 
