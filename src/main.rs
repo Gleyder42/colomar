@@ -42,7 +42,7 @@ fn main() {
     let mut db = CompilerDatabase::default();
     let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
 
-    let (tokens, lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
+    let (tokens, _lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
 
     let (ast, offset_table, parser_errors) = if let Some(tokens) = tokens {
         let (tokens, table) = tokens.into_relative_span();

@@ -91,11 +91,11 @@ fn query_wst_call_by_rvalue(
     rvalue: RValue,
     caller: Option<Caller>,
     assigner: Option<Assigner>,
-    span: Span,
+    _span: Span,
 ) -> QueryTrisult<Option<wst::Call>> {
     match rvalue {
         RValue::Type(Type::Enum(_)) => QueryTrisult::Ok(None),
-        RValue::Function(func_id) => {
+        RValue::Function(_func_id) => {
             todo!()
         }
         RValue::Property(property_id) => {
@@ -105,7 +105,7 @@ fn query_wst_call_by_rvalue(
                 (Some(_native), Some(caller), _) => {
                     query_wst_call_by_wscript_impl(db, replacement_map, property, caller)
                 }
-                (None, Some(caller), Some(assigner)) => {
+                (None, Some(_caller), Some(assigner)) => {
                     query_wst_call_by_assignment(db, replacement_map, property, assigner)
                 }
                 _ => {
@@ -148,7 +148,7 @@ fn query_wst_call_by_function_call(
     func_decl: FunctionDecl,
     called_args: CalledArguments,
     caller: Option<Caller>,
-    span: Span,
+    _span: Span,
 ) -> QueryTrisult<Option<wst::Call>> {
     let wscript_function: QueryTrisult<wst::partial::Call> = db.query_wscript_struct_function_impl(
         func_decl.instance.unwrap().name(db),
@@ -172,7 +172,7 @@ fn query_wst_call_by_function_call(
             }
 
             wscript_function
-                .saturate(&mut replacement_map)
+                .saturate(&replacement_map)
                 .map_err(CompilerError::PlaceholderError)
                 .into()
         })
@@ -180,10 +180,10 @@ fn query_wst_call_by_function_call(
 }
 
 fn query_wst_call_by_assignment(
-    db: &dyn Codegen,
+    _db: &dyn Codegen,
     replacement_map: &ReplacementMap,
     property_decl: cir::PropertyDecl,
-    (call, assign_mod): Assigner,
+    (_call, assign_mod): Assigner,
 ) -> QueryTrisult<Option<wst::Call>> {
     // TODO Should the map be cloned here?
     let mut replacement_map = replacement_map.clone();
@@ -231,7 +231,7 @@ fn query_wst_call_by_assignment(
     let call = partial::Call::Function(function);
     let call = call
         .saturate(&replacement_map)
-        .map_err(|error| CompilerError::PlaceholderError(error));
+        .map_err(CompilerError::PlaceholderError);
     QueryTrisult::from(call).inner_into_some()
 }
 
@@ -263,7 +263,7 @@ fn process_wscript(
             db.query_wscript_struct_property_impl(struct_decl.name.value, property_decl.name.value)
                 .flat_map(|partial_call| {
                     partial_call
-                        .saturate(&replacement_map)
+                        .saturate(replacement_map)
                         .map_err(CompilerError::PlaceholderError)
                         .into()
                 })

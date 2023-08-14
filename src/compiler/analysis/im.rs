@@ -36,6 +36,5 @@ pub(super) fn query_player_struct_def(db: &dyn DefQuery) -> cst::Struct {
             }
         })
         .collect();
-    let player_struct = player_struct.remove(0);
-    player_struct
+    player_struct.remove(0)
 }
