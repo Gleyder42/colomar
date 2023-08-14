@@ -1,221 +1,132 @@
-use crate::compiler::cir::{AValueChain, CValue, Type};
-use crate::compiler::codegen::{Arg, Caller, Codegen, ASSIGMENT_PLACEHOLDER, CALLER_PLACEHOLDER};
+use crate::compiler::cir::{AValueChain, CValue, RValue, Type};
+use crate::compiler::codegen::{
+    Arg, Assigner, Caller, Codegen, ASSIGMENT_PLACEHOLDER, CALLER_PLACEHOLDER,
+};
 use crate::compiler::error::CompilerError;
 
+use crate::compiler::span::Span;
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::Ident;
-use crate::compiler::{cir, wst, AssignMod, QueryTrisult, Text};
+use crate::compiler::{cir, wst, QueryTrisult};
 use crate::query_error;
+use cir::{CalledArguments, FunctionDecl};
 use std::collections::{HashMap, HashSet};
+
+type ReplacementMap = HashMap<Placeholder, wst::Call>;
 
 pub(super) fn query_wst_call(
     db: &dyn Codegen,
     caller: Option<Caller>,
     action: cir::Action,
 ) -> QueryTrisult<wst::Call> {
-    let query_by_avalue =
-        |avalue_chain: AValueChain, right_operand: Option<(wst::Call, Option<AssignMod>)>| {
-            QueryTrisult::Ok(avalue_chain.avalues).fold_flat_map(
-                // Caller is cloned here, because in an assignment the left and right side receives a caller
-                caller.clone(),
-                |acc| acc.unwrap().wst.unwrap(),
-                |acc, current| {
-                    db.query_wst_call_by_avalue(acc, right_operand.clone(), current.clone())
-                        .map(|call| {
-                            Some(Caller {
-                                wst: call,
-                                cir: current,
-                            })
-                        })
-                },
-            )
-        };
+    let query_by_avalue = |chain: AValueChain, assigner: Option<Assigner>| {
+        QueryTrisult::Ok(chain.avalues).fold_flat_map(
+            // Caller is cloned here, because in an assignment the left and right side receives a caller
+            caller.clone(),
+            |acc| acc.unwrap().wst.unwrap(),
+            |acc, current| {
+                db.query_wst_call_by_avalue(acc, assigner.clone(), current.clone())
+                    .map(|call| Some(Caller::new(call, current)))
+            },
+        )
+    };
 
     match action {
         cir::Action::AvalueChain(avalue_chain) => query_by_avalue(avalue_chain, None),
-        cir::Action::Assigment(left, right, assign_mod) => query_by_avalue(right, None)
-            .flat_map(|right| query_by_avalue(left, Some((right, assign_mod)))),
-    }
-}
-
-pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisult<wst::Ident> {
-    match call {
-        wst::Call::Condition(_) => query_error!(CompilerError::CannotEvalAsConst),
-        wst::Call::String(_) => query_error!(CompilerError::CannotEvalAsConst),
-        wst::Call::Number(_) => query_error!(CompilerError::CannotEvalAsConst),
-        wst::Call::Ident(ident) => QueryTrisult::Ok(ident),
-        wst::Call::Function(_) => query_error!(CompilerError::CannotEvalAsConst),
+        cir::Action::Assigment(left, right, assign_mod) => {
+            let right = query_by_avalue(right, None);
+            right.flat_map(|right| query_by_avalue(left, Some((right, assign_mod))))
+        }
     }
 }
 
 pub(super) fn query_wst_call_by_avalue(
     db: &dyn Codegen,
     caller: Option<Caller>,
-    right_operand: Option<(wst::Call, Option<AssignMod>)>,
+    assigner: Option<Assigner>,
     avalue: cir::AValue,
 ) -> QueryTrisult<Option<wst::Call>> {
-    let mut map = HashMap::new();
+    let mut replacement_map = HashMap::new();
     if let Some(Caller {
         wst: Some(ref caller),
         ..
     }) = caller
     {
-        map.insert(Placeholder::from(CALLER_PLACEHOLDER), caller.clone());
+        replacement_map.insert(Placeholder::from(CALLER_PLACEHOLDER), caller.clone());
     }
-    if let Some(ref right_operand) = right_operand {
-        map.insert(
+    if let Some(ref right_operand) = assigner {
+        replacement_map.insert(
             Placeholder::from(ASSIGMENT_PLACEHOLDER),
             right_operand.0.clone(),
         );
     }
 
     match avalue {
-        cir::AValue::RValue(cir::RValue::Property(property_decl), _)
-            if property_decl.is_native.is_some() && caller.is_some() =>
-        {
-            QueryTrisult::empty().flat_start(|| {
-                let caller = caller.unwrap();
-                let r#type = caller.cir.return_called_type(db).r#type;
-
-                match r#type {
-                    Type::Enum(enum_id) => {
-                        let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_id);
-                        db.query_wscript_enum_constant_impl(
-                            enum_decl.name.value,
-                            property_decl.name.value,
-                        )
-                        .inner_into_some()
-                    }
-                    Type::Struct(struct_id) => {
-                        let struct_decl: cir::StructDeclaration =
-                            db.lookup_intern_struct_decl(struct_id);
-                        db.query_wscript_struct_property_impl(
-                            struct_decl.name.value,
-                            property_decl.name.value,
-                        )
-                        .flat_map(|partial_call| {
-                            partial_call
-                                .saturate(&map)
-                                .map_err(CompilerError::PlaceholderError)
-                                .into()
-                        })
-                        .inner_into_some()
-                    }
-                    Type::Event(event_id) => {
-                        let event_decl: cir::EventDeclaration =
-                            db.lookup_intern_event_decl(event_id);
-                        db.query_wscript_event_context_property_impl(
-                            event_decl.name.value,
-                            property_decl.name.value,
-                        )
-                        .inner_into_some()
-                    }
-                    Type::Unit => query_error!(CompilerError::NotImplemented(
-                        "Unit as caller is currently not implemented".into(),
-                        property_decl.name.span
-                    )),
-                }
-            })
+        cir::AValue::RValue(rvalue, span) => {
+            query_wst_call_by_rvalue(db, &replacement_map, rvalue, caller, assigner, span)
         }
-        cir::AValue::RValue(cir::RValue::Property(property_decl), _)
-            if property_decl.is_native.is_none() && caller.is_some() && right_operand.is_some() =>
-        {
-            let right_operand = right_operand.unwrap();
-
-            // TODO Should the map be cloned here?
-            let mut map = map.clone();
-            map.insert(
-                Placeholder::from("$name$"),
-                wst::Call::Ident(Ident::from(property_decl.name)),
-            );
-
-            use wst::partial;
-            let placeholder = |name| partial::Call::Placeholder(Placeholder(Text::from(name)));
-
-            let function = match right_operand.1 {
-                Some(assign_mod) => {
-                    map.insert(
-                        Placeholder::from("$assign_mod$"),
-                        wst::Call::Ident(Ident::from(assign_mod.to_string())),
-                    );
-
-                    // TODO Is this the right place to define workshop functions?
-                    // TODO Decide where to place fundamental workshop functions.
-                    const MODIFY_PLAYER_VARIABLE: &str = "Modify Player Variable";
-                    partial::Function {
-                        name: wst::Ident::from(MODIFY_PLAYER_VARIABLE),
-                        args: vec![
-                            placeholder("$caller$"),
-                            placeholder("$name$"),
-                            placeholder("$assign_mod$"),
-                            placeholder("$value$"),
-                        ],
-                    }
-                }
-                None => {
-                    const SET_PLAYER_VARIABLE: &str = "Set Player Variable";
-                    partial::Function {
-                        name: wst::Ident::from(SET_PLAYER_VARIABLE),
-                        args: vec![
-                            placeholder("$caller$"),
-                            placeholder("$name$"),
-                            placeholder("$value$"),
-                        ],
-                    }
-                }
-            };
-
-            let call = partial::Call::Function(function);
-            let call = call
-                .saturate(&map)
-                .map_err(|error| CompilerError::PlaceholderError(error));
-            QueryTrisult::from(call).inner_into_some()
-        }
-        cir::AValue::RValue(cir::RValue::EnumConstant(enum_constant_id), ..) => {
-            let enum_constant: cir::EnumConstant = db.lookup_intern_enum_constant(enum_constant_id);
-            let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_constant.r#enum);
-
-            db.query_wscript_enum_constant_impl(enum_decl.name.value, enum_constant.name.value)
-                .inner_into_some()
-        }
-        cir::AValue::RValue(cir::RValue::Type(Type::Enum(_)), ..) => QueryTrisult::Ok(None),
-        cir::AValue::FunctionCall(func_decl_id, call_arg_ids, _span) => {
-            let func_decl: cir::FunctionDecl = db.lookup_intern_function_decl(func_decl_id);
+        cir::AValue::FunctionCall(func_decl_id, call_arg_ids, span) => {
+            let func_decl: FunctionDecl = db.lookup_intern_function_decl(func_decl_id);
             let called_args = call_arg_ids
                 .into_iter()
                 .map(|it| db.lookup_intern_called_argument(it))
                 .collect();
 
-            let wscript_function: QueryTrisult<wst::partial::Call> = db
-                .query_wscript_struct_function_impl(
-                    func_decl.instance.unwrap().name(db),
-                    func_decl.name.value,
-                );
+            query_wst_call_by_function_call(
+                db,
+                &replacement_map,
+                func_decl,
+                called_args,
+                caller,
+                span,
+            )
+        }
+        cir::AValue::CValue(cvalue) => query_wst_call_by_cvalue(db, cvalue),
+    }
+}
 
-            db.query_wst_call_from_args(func_decl.arguments, called_args)
-                .into_iter()
-                .map(|arg| {
-                    db.query_wst_call(caller.clone(), cir::Action::from(arg.value))
-                        .map(|call| (arg.name, call))
-                })
-                .collect::<QueryTrisult<Vec<_>>>()
-                .and_require(wscript_function)
-                .flat_map(|(args, wscript_function)| {
-                    // TODO Should the map be cloned here?
-                    let mut map = map.clone();
+fn query_wst_call_by_rvalue(
+    db: &dyn Codegen,
+    replacement_map: &ReplacementMap,
+    rvalue: RValue,
+    caller: Option<Caller>,
+    assigner: Option<Assigner>,
+    span: Span,
+) -> QueryTrisult<Option<wst::Call>> {
+    match rvalue {
+        RValue::Type(Type::Enum(_)) => QueryTrisult::Ok(None),
+        RValue::Function(func_id) => {
+            todo!()
+        }
+        RValue::Property(property_id) => {
+            let property = db.lookup_intern_property_decl(property_id);
 
-                    for (name, call) in args {
-                        map.insert(Placeholder::from(format!("${}$", name.value)), call);
-                    }
+            match (&property.is_native, caller, assigner) {
+                (Some(_native), Some(caller), _) => {
+                    query_wst_call_by_wscript_impl(db, replacement_map, property, caller)
+                }
+                (None, Some(caller), Some(assigner)) => {
+                    query_wst_call_by_assignment(db, replacement_map, property, assigner)
+                }
+                _ => {
+                    todo!()
+                }
+            }
+        }
+        RValue::EnumConstant(enum_constant_id) => {
+            let enum_constant = db.lookup_intern_enum_constant(enum_constant_id);
+            let enum_decl = db.lookup_intern_enum_decl(enum_constant.r#enum);
 
-                    wscript_function
-                        .saturate(&mut map)
-                        .map_err(CompilerError::PlaceholderError)
-                        .into()
-                })
+            db.query_wscript_enum_constant_impl(enum_decl.name.value, enum_constant.name.value)
                 .inner_into_some()
         }
-        cir::AValue::CValue(CValue::String(string, _, _)) => {
+        _ => todo!(),
+    }
+}
+
+fn query_wst_call_by_cvalue(_db: &dyn Codegen, cvalue: CValue) -> QueryTrisult<Option<wst::Call>> {
+    match cvalue {
+        CValue::String(string, ..) => {
             let string = wst::Call::String(string);
             let custom_string = wst::Function {
                 name: "Custom String".into(),
@@ -223,14 +134,152 @@ pub(super) fn query_wst_call_by_avalue(
             };
             QueryTrisult::Ok(custom_string.into()).inner_into_some()
         }
-        cir::AValue::CValue(CValue::Number(number, _, _)) => {
+        CValue::Number(number, ..) => {
             let call = wst::Call::Number(number);
 
             QueryTrisult::Ok(call).inner_into_some()
         }
-        avalue => query_error!(CompilerError::NotImplemented(
-            format!("Current avalue {:?} is not implemented", avalue).into(),
-            avalue.span()
+    }
+}
+
+fn query_wst_call_by_function_call(
+    db: &dyn Codegen,
+    replacement_map: &ReplacementMap,
+    func_decl: FunctionDecl,
+    called_args: CalledArguments,
+    caller: Option<Caller>,
+    span: Span,
+) -> QueryTrisult<Option<wst::Call>> {
+    let wscript_function: QueryTrisult<wst::partial::Call> = db.query_wscript_struct_function_impl(
+        func_decl.instance.unwrap().name(db),
+        func_decl.name.value,
+    );
+
+    db.query_wst_call_from_args(func_decl.arguments, called_args)
+        .into_iter()
+        .map(|arg| {
+            db.query_wst_call(caller.clone(), cir::Action::from(arg.value))
+                .map(|call| (arg.name, call))
+        })
+        .collect::<QueryTrisult<Vec<_>>>()
+        .and_require(wscript_function)
+        .flat_map(|(args, wscript_function)| {
+            // TODO Should the map be cloned here?
+            let mut replacement_map = replacement_map.clone();
+
+            for (name, call) in args {
+                replacement_map.insert(Placeholder::from(format!("${}$", name.value)), call);
+            }
+
+            wscript_function
+                .saturate(&mut replacement_map)
+                .map_err(CompilerError::PlaceholderError)
+                .into()
+        })
+        .inner_into_some()
+}
+
+fn query_wst_call_by_assignment(
+    db: &dyn Codegen,
+    replacement_map: &ReplacementMap,
+    property_decl: cir::PropertyDecl,
+    (call, assign_mod): Assigner,
+) -> QueryTrisult<Option<wst::Call>> {
+    // TODO Should the map be cloned here?
+    let mut replacement_map = replacement_map.clone();
+    replacement_map.insert(
+        Placeholder::from("$name$"),
+        wst::Call::Ident(Ident::from(property_decl.name)),
+    );
+
+    use wst::partial;
+    let placeholder = |name| partial::Call::Placeholder(Placeholder::from(name));
+
+    let function = match assign_mod {
+        Some(assign_mod) => {
+            replacement_map.insert(
+                Placeholder::from("$assign_mod$"),
+                wst::Call::Ident(Ident::from(assign_mod.to_string())),
+            );
+
+            // TODO Is this the right place to define workshop functions?
+            // TODO Decide where to place fundamental workshop functions.
+            const MODIFY_PLAYER_VARIABLE: &str = "Modify Player Variable";
+            partial::Function {
+                name: wst::Ident::from(MODIFY_PLAYER_VARIABLE),
+                args: vec![
+                    placeholder("$caller$"),
+                    placeholder("$name$"),
+                    placeholder("$assign_mod$"),
+                    placeholder("$value$"),
+                ],
+            }
+        }
+        None => {
+            const SET_PLAYER_VARIABLE: &str = "Set Player Variable";
+            partial::Function {
+                name: wst::Ident::from(SET_PLAYER_VARIABLE),
+                args: vec![
+                    placeholder("$caller$"),
+                    placeholder("$name$"),
+                    placeholder("$value$"),
+                ],
+            }
+        }
+    };
+
+    let call = partial::Call::Function(function);
+    let call = call
+        .saturate(&replacement_map)
+        .map_err(|error| CompilerError::PlaceholderError(error));
+    QueryTrisult::from(call).inner_into_some()
+}
+
+fn query_wst_call_by_wscript_impl(
+    db: &dyn Codegen,
+    replacement_map: &ReplacementMap,
+    property_decl: cir::PropertyDecl,
+    caller: Caller,
+) -> QueryTrisult<Option<wst::Call>> {
+    QueryTrisult::flat_start(|| process_wscript(db, replacement_map, property_decl, caller))
+}
+
+fn process_wscript(
+    db: &dyn Codegen,
+    replacement_map: &ReplacementMap,
+    property_decl: cir::PropertyDecl,
+    caller: Caller,
+) -> QueryTrisult<Option<wst::Call>> {
+    let r#type = caller.cir.return_called_type(db).r#type;
+
+    match r#type {
+        Type::Enum(enum_id) => {
+            let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_id);
+            db.query_wscript_enum_constant_impl(enum_decl.name.value, property_decl.name.value)
+                .inner_into_some()
+        }
+        Type::Struct(struct_id) => {
+            let struct_decl: cir::StructDeclaration = db.lookup_intern_struct_decl(struct_id);
+            db.query_wscript_struct_property_impl(struct_decl.name.value, property_decl.name.value)
+                .flat_map(|partial_call| {
+                    partial_call
+                        .saturate(&replacement_map)
+                        .map_err(CompilerError::PlaceholderError)
+                        .into()
+                })
+                .inner_into_some()
+        }
+        Type::Event(event_id) => {
+            let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(event_id);
+            db.query_wscript_event_context_property_impl(
+                event_decl.name.value,
+                property_decl.name.value,
+            )
+            .inner_into_some()
+        }
+        Type::Unit => query_error!(CompilerError::NotImplemented(
+            "Unit as caller is currently not implemented".into(),
+            property_decl.name.span
         )),
     }
 }
@@ -238,7 +287,7 @@ pub(super) fn query_wst_call_by_avalue(
 pub fn query_wst_call_from_args(
     db: &dyn Codegen,
     decl_args: cir::DeclaredArgumentIds,
-    called_args: cir::CalledArguments,
+    called_args: CalledArguments,
 ) -> Vec<Arg> {
     let all_decl_args: HashSet<_> = decl_args.into_iter().collect();
 
@@ -276,4 +325,14 @@ pub fn query_wst_call_from_args(
 
     args.sort_by_key(|arg| arg.index);
     args
+}
+
+pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisult<Ident> {
+    match call {
+        wst::Call::Condition(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::String(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::Number(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::Ident(ident) => QueryTrisult::Ok(ident),
+        wst::Call::Function(_) => query_error!(CompilerError::CannotEvalAsConst),
+    }
 }

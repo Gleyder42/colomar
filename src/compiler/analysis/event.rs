@@ -33,7 +33,9 @@ pub(super) fn query_event_properties(
         .into_iter()
         .map(|action| match action {
             Action::Property(property_decl) => db.query_property(Some(event_type), property_decl),
-            Action::CallChain(_) | Action::Assignment(..) => todo!(),
+            Action::CallChain(_) | Action::Assignment(..) => {
+                todo!("Currently only properties are supported in even definitions")
+            }
         })
         .collect::<QueryTrisult<_>>()
 }

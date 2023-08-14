@@ -38,7 +38,7 @@ pub(super) fn query_call_chain(
                     .query_namespaced_rvalue(nameholders, ident.clone())
                     .map(|rvalue| {
                         (
-                            smallvec![rvalue.clone().into()],
+                            smallvec![Nameholder::from_rvalue(rvalue.clone(), db)],
                             cir::AValue::RValue(rvalue, ident.span),
                         )
                     }),

@@ -5,8 +5,10 @@ use crate::compiler::{
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use crate::impl_intern_key;
+use hashlink::LinkedHashSet;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
+use std::hash::Hash;
 
 pub type DeclaredArgumentIds = SmallVec<[DeclaredArgumentId; DECLARED_ARGUMENTS_LEN]>;
 pub type FunctionDeclIds = SmallVec<[FunctionDeclId; FUNCTIONS_DECLS_LEN]>;
@@ -132,8 +134,6 @@ impl_intern_key!(EnumConstantId);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnumDefinition {
-    // TODO Maybe use a hashset or hashmap to show that names are unique
-    // TODO hashsets have no hash value (?)
     pub constants: EnumConstantIds,
 }
 
@@ -198,8 +198,7 @@ impl Display for Type {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledTypes {
-    // TODO Use small_vec here
-    pub types: Vec<CalledType>,
+    pub types: LinkedHashSet<CalledType>,
     pub span: Span,
 }
 
@@ -208,15 +207,13 @@ impl From<CalledType> for CalledTypes {
         let span = value.span;
 
         CalledTypes {
-            types: vec![value],
+            types: LinkedHashSet::from_iter(vec![value]),
             span,
         }
     }
 }
 
 impl CalledTypes {
-    // TODO This should not be O(n)
-    // TODO Either make it a map or sort the vec before
     pub fn contains_type(&self, r#type: &Type) -> bool {
         self.types.iter().any(|it| it.r#type == *r#type)
     }
@@ -323,11 +320,11 @@ impl From<Predicate> for Action {
 
 /// Represents a value which is known at runtime time or compile time and it refers
 /// to some other code
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum RValue {
     Type(Type),
-    Function(FunctionDecl),
-    Property(PropertyDecl),
+    Function(FunctionDeclId),
+    Property(PropertyDeclId),
     EnumConstant(EnumConstantId),
 }
 
@@ -365,7 +362,6 @@ impl AValueChain {
 /// Represents a value which is known at runtime time or compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
-    // TODO Should this be FunctionDeclId or FunctionDecl?
     FunctionCall(FunctionDeclId, CalledArgumentIds, Span),
     RValue(RValue, Span),
     CValue(CValue),

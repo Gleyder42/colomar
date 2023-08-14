@@ -37,7 +37,6 @@ pub const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
-    // TODO Rename this field to text
     pub value: Text,
     pub span: Span,
 }

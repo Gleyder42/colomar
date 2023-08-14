@@ -11,6 +11,8 @@ use crate::compiler::{cir, wst, AssignMod, Ident, QueryTrisult};
 const CALLER_PLACEHOLDER: &str = "$caller$";
 const ASSIGMENT_PLACEHOLDER: &str = "$value$";
 
+pub type Assigner = (wst::Call, Option<AssignMod>);
+
 #[salsa::query_group(CodegenDatabase)]
 pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
     /// Impl: [rule::query_wst_rule]
@@ -34,7 +36,7 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
     fn query_wst_call_by_avalue(
         &self,
         caller: Option<Caller>,
-        right_operand: Option<(wst::Call, Option<AssignMod>)>,
+        assigner: Option<Assigner>,
         avalue: cir::AValue,
     ) -> QueryTrisult<Option<wst::Call>>;
 
@@ -55,6 +57,12 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
 pub struct Caller {
     wst: Option<wst::Call>,
     cir: cir::AValue,
+}
+
+impl Caller {
+    pub fn new(wst: Option<wst::Call>, cir: cir::AValue) -> Caller {
+        Caller { wst, cir }
+    }
 }
 
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]

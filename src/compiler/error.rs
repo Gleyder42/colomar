@@ -46,8 +46,6 @@ pub enum CompilerError {
 }
 
 impl CompilerError {
-    // TODO Create pattern for error codes
-    // Possibly use non ids for error codes?
     pub fn error_code(&self) -> u16 {
         match self {
             CompilerError::NotImplemented(..) => 0,

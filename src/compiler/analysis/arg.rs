@@ -9,6 +9,7 @@ use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
 
 use crate::compiler::span::Spanned;
 use either::Either;
+use hashlink::LinkedHashSet;
 use smallvec::smallvec;
 use std::collections::{HashMap, HashSet};
 
@@ -170,7 +171,7 @@ pub(super) fn query_declared_arg(
             position: decl_arg.position,
             name: decl_arg.name,
             types: CalledTypes {
-                types,
+                types: LinkedHashSet::from_iter(types),
                 span: decl_arg.types.span,
             },
             default_value,

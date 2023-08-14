@@ -319,12 +319,12 @@ impl<E> Trisult<(), E> {
         Trisult::Ok(())
     }
 
-    pub fn start<U>(self, func: impl FnOnce() -> U) -> Trisult<U, E> {
-        self.map(|_| func())
+    pub fn start<U>(func: impl FnOnce() -> U) -> Trisult<U, E> {
+        Trisult::empty().map(|_| func())
     }
 
-    pub fn flat_start<U>(self, func: impl FnOnce() -> Trisult<U, E>) -> Trisult<U, E> {
-        self.flat_map(|_| func())
+    pub fn flat_start<U>(func: impl FnOnce() -> Trisult<U, E>) -> Trisult<U, E> {
+        Trisult::empty().flat_map(|_| func())
     }
 }
 

@@ -7,6 +7,7 @@ use crate::compiler::trisult::Trisult;
 use crate::compiler::{cir, cst, QueryTrisult};
 use crate::query_error;
 
+use crate::compiler::analysis::interner::IntoInternId;
 use either::Either;
 use smallvec::smallvec;
 
@@ -39,7 +40,8 @@ pub(super) fn query_rule_actions(
                 .map(|property_decl| {
                     let span = property_decl.name.span;
                     let chain: AValueChain =
-                        cir::AValue::RValue(RValue::Property(property_decl), span).into();
+                        cir::AValue::RValue(RValue::Property(property_decl.intern(db)), span)
+                            .into();
                     cir::Action::AvalueChain(chain)
                 }),
         })

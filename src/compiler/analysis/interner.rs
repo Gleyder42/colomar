@@ -114,14 +114,17 @@ impl RValue {
                 let enum_constant: EnumConstant = db.lookup_intern_enum_constant(*enum_constant_id);
                 Type::Enum(enum_constant.r#enum)
             }
-            RValue::Property(property_decl) => property_decl.r#type,
-            RValue::Function(function_decl) => function_decl.return_type,
+            RValue::Property(property_decl_id) => {
+                db.lookup_intern_property_decl(*property_decl_id).r#type
+            }
+            RValue::Function(func_decl_id) => {
+                db.lookup_intern_function_decl(*func_decl_id).return_type
+            }
         }
     }
 
     pub fn name<I: Interner + ?Sized>(&self, db: &I) -> Ident {
-        // TODO Maybe not clone here?
-        match self.clone() {
+        match *self {
             RValue::Type(r#type) => match r#type {
                 Type::Enum(r#enum) => db.lookup_intern_enum_decl(r#enum).name,
                 Type::Struct(r#struct) => db.lookup_intern_struct_decl(r#struct).name,
@@ -131,14 +134,17 @@ impl RValue {
             RValue::EnumConstant(enum_constant) => {
                 db.lookup_intern_enum_constant(enum_constant).name
             }
-            RValue::Property(property_decl) => property_decl.name,
-            RValue::Function(function_decl) => function_decl.name,
+            RValue::Property(property_decl_id) => {
+                db.lookup_intern_property_decl(property_decl_id).name
+            }
+            RValue::Function(function_decl_id) => {
+                db.lookup_intern_function_decl(function_decl_id).name
+            }
         }
     }
 }
 
 impl AValue {
-    // TODO Rename this to return_type
     pub fn return_called_type<I: Interner + ?Sized>(&self, db: &I) -> CalledType {
         match self {
             AValue::RValue(rvalue, span) => CalledType {
