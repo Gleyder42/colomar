@@ -45,7 +45,7 @@ fn main() {
     let (tokens, _lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
 
     let (ast, offset_table, parser_errors) = if let Some(tokens) = tokens {
-        let (tokens, table) = tokens.into_relative_span();
+        let (tokens, table) = tokens.use_relative_spans();
 
         let eoi = Span::new(
             span_source_id,

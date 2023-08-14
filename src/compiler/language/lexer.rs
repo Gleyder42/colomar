@@ -8,10 +8,10 @@ use std::fmt::{Debug, Display, Formatter};
 use std::string::String;
 
 #[derive(Debug)]
-pub struct UndecidedSpan(Vec<(Token, Span)>);
+pub struct LexerTokens(Vec<(Token, Span)>);
 
-impl UndecidedSpan {
-    pub fn into_relative_span(mut self) -> (Vec<(Token, Span)>, OffsetTable) {
+impl LexerTokens {
+    pub fn use_relative_spans(mut self) -> (Vec<(Token, Span)>, OffsetTable) {
         let mut references: Vec<_> = self
             .0
             .iter_mut()
@@ -22,7 +22,7 @@ impl UndecidedSpan {
         (self.0, table)
     }
 
-    pub fn into_simple_spans(self) -> Vec<(Token, Span)> {
+    pub fn use_absolute_spans(self) -> Vec<(Token, Span)> {
         self.0
     }
 }
@@ -35,7 +35,7 @@ pub enum Token {
     Native,
     Enum,
     By,
-    Open, // Rename to partial
+    Open, // TODO Rename to partial
     Struct,
     GetVar,
     SetVar,
@@ -74,9 +74,7 @@ impl Display for Token {
     }
 }
 
-pub fn lexer(
-    span_source_id: SpanSourceId,
-) -> impl Parser<char, UndecidedSpan, Error = Simple<char>> {
+pub fn lexer(span_source_id: SpanSourceId) -> impl Parser<char, LexerTokens, Error = Simple<char>> {
     let num = text::int(10)
         .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
         .collect::<String>()
@@ -121,7 +119,7 @@ pub fn lexer(
             )
         })
         .repeated()
-        .map(UndecidedSpan)
+        .map(LexerTokens)
         .then_ignore(end())
 }
 
@@ -152,7 +150,7 @@ mod tests {
         let actual = lexer(span_source_id)
             .parse(code)
             .unwrap()
-            .into_simple_spans();
+            .use_absolute_spans();
         let expected = vec![
             Token::Num("1".to_string().into()),
             Token::Num("5".to_string().into()),
@@ -172,7 +170,7 @@ mod tests {
         let actual = lexer(span_source_id)
             .parse(code)
             .unwrap()
-            .into_simple_spans();
+            .use_absolute_spans();
         let expected = vec![
             Token::String("Hello".to_string().into()),
             Token::String("Hello World".to_string().into()),
@@ -190,7 +188,7 @@ mod tests {
         let actual = lexer(span_source_id)
             .parse(code)
             .unwrap()
-            .into_simple_spans();
+            .use_absolute_spans();
         let expected = vec![
             Token::Rule,
             Token::Cond,

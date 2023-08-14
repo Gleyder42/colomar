@@ -536,7 +536,7 @@ mod tests {
                     .join("\n");
                 anyhow!(error_message)
             })
-            .map(|it| it.into_simple_spans())
+            .map(|it| it.use_absolute_spans())
     }
 
     fn test_parser_result<Ex, Ac, F>(
