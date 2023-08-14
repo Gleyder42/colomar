@@ -7,7 +7,7 @@ use crate::compiler::error::CompilerError;
 use crate::compiler::span::Span;
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::Ident;
-use crate::compiler::{cir, wst, QueryTrisult};
+use crate::compiler::{cir, compiler_todo, wst, QueryTrisult};
 use crate::query_error;
 use cir::{CalledArguments, FunctionDecl};
 use std::collections::{HashMap, HashSet};
@@ -91,7 +91,7 @@ fn query_wst_call_by_rvalue(
     rvalue: RValue,
     caller: Option<Caller>,
     assigner: Option<Assigner>,
-    _span: Span,
+    span: Span,
 ) -> QueryTrisult<Option<wst::Call>> {
     match rvalue {
         RValue::Type(Type::Enum(_)) => QueryTrisult::Ok(None),
@@ -108,9 +108,7 @@ fn query_wst_call_by_rvalue(
                 (None, Some(_caller), Some(assigner)) => {
                     query_wst_call_by_assignment(db, replacement_map, property, assigner)
                 }
-                _ => {
-                    todo!()
-                }
+                _ => compiler_todo("Properties are not implemented", span),
             }
         }
         RValue::EnumConstant(enum_constant_id) => {

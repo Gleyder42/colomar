@@ -3,6 +3,7 @@ use error::CompilerError;
 use hashlink::LinkedHashMap;
 use smol_str::SmolStr;
 use span::Span;
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
 
 pub mod analysis;
@@ -86,4 +87,8 @@ impl Display for AssignMod {
         };
         write!(f, "{name}")
     }
+}
+
+fn compiler_todo<T>(string: impl Into<Cow<'static, str>>, span: Span) -> QueryTrisult<T> {
+    QueryTrisult::Err(vec![CompilerError::NotImplemented(string.into(), span)])
 }

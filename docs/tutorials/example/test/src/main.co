@@ -30,8 +30,11 @@ native enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
 }
 
+
 rule "Hello World" OngoingEachPlayer() {
     cond player.isReloading;
+
+    val hello: bool;
 
     player.counter += 1;
     player.counter -= 1;
