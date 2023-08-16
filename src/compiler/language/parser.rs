@@ -4,6 +4,7 @@ use crate::compiler::{AssignMod, Ident, UseRestriction};
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
+use regex::Error;
 use smallvec::SmallVec;
 
 pub type ParserError = Simple<Token, Span>;
@@ -165,6 +166,39 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
                 r#type,
             }
         })
+}
+
+fn expression() -> impl Parser<Token, Expr, Error = ParserError> {
+    let atom = chain().ident_chain().map(Expr::CallChain);
+
+    let op = |c| just(Token::Ctrl(c));
+    let dup_op = |c| op(c).repeated().exactly(2);
+
+    let neg = op('!')
+        .repeated()
+        .then(atom)
+        .foldr(|_, rhs| Expr::Neg(Box::new(rhs)));
+
+    let and = neg
+        .clone()
+        .then(
+            dup_op('&')
+                .to(Expr::And as fn(_, _) -> _)
+                .then(neg)
+                .repeated(),
+        )
+        .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
+
+    let or = and
+        .clone()
+        .then(
+            dup_op('|')
+                .to(Expr::Or as fn(_, _) -> _)
+                .then(and)
+                .repeated(),
+        )
+        .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
+    or
 }
 
 fn open_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
@@ -486,6 +520,22 @@ mod tests {
     }
 
     #[derive(Debug, Deserialize)]
+    enum ExprTestData {
+        Chain(CallChainTestData),
+        Neg {
+            value: Box<ExprTestData>,
+        },
+        And {
+            lhs: Box<ExprTestData>,
+            rhs: Box<ExprTestData>,
+        },
+        Or {
+            lhs: Box<ExprTestData>,
+            rhs: Box<ExprTestData>,
+        },
+    }
+
+    #[derive(Debug, Deserialize)]
     struct DeclArgTestData {
         name: String,
         r#type: VarLen<String>,
@@ -723,6 +773,50 @@ mod tests {
             declared_arguments(),
             nothing::<DeclArgsTestData, _>,
         )
+    }
+
+    #[test]
+    fn test_valid_expr() {
+        let key = ResKey::new(TEST_DIR, "expr", "valid");
+
+        fn assertion(expected: ExprTestData, actual: Expr) {
+            match (expected, actual) {
+                (ExprTestData::Chain(expected), Expr::CallChain(actual)) => {
+                    assert_call_chain(expected.idents.into_iter(), actual);
+                }
+                (
+                    ExprTestData::And {
+                        lhs: ex_lhs,
+                        rhs: ex_rhs,
+                    },
+                    Expr::And(ac_lhs, ac_rhs),
+                ) => {
+                    assertion(*ex_lhs, *ac_lhs);
+                    assertion(*ex_rhs, *ac_rhs);
+                }
+                (
+                    ExprTestData::Or {
+                        lhs: ex_lhs,
+                        rhs: ex_rhs,
+                    },
+                    Expr::Or(ac_lhs, ac_rhs),
+                ) => {
+                    assertion(*ex_lhs, *ac_lhs);
+                    assertion(*ex_rhs, *ac_rhs);
+                }
+                (ExprTestData::Neg { value: ex }, Expr::Neg(ac)) => {
+                    assertion(*ex, *ac);
+                }
+                (expected, actual) => {
+                    assert!(
+                        false,
+                        "Actual {actual:#?} and expected {expected:#?} are different"
+                    )
+                }
+            }
+        }
+
+        test_parser_result(&key, false, expression(), assertion);
     }
 
     #[test]

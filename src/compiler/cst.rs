@@ -240,6 +240,14 @@ pub enum CallArgument {
     Pos(CallChain),
 }
 
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum Expr {
+    CallChain(CallChain),
+    Neg(Box<Expr>),
+    And(Box<Expr>, Box<Expr>),
+    Or(Box<Expr>, Box<Expr>),
+}
+
 impl CallArgument {
     pub fn call_chain(self) -> CallChain {
         match self {

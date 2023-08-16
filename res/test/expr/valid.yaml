@@ -1,0 +1,54 @@
+code: |-
+  hello && world
+expected:
+  !And
+  lhs: !Chain
+    idents: ["hello"]
+  rhs: !Chain
+    idents: ["world"]
+---
+code: |-
+  !hello
+expected:
+  !Neg
+  value: !Chain
+   idents: ["hello"]
+---
+code: |-
+  !!!hello
+expected:
+  !Neg
+  value: !Neg
+    value: !Neg
+      value: !Chain
+        idents: ["hello"]
+---
+code: |-
+  destroy || hello && world
+expected:
+  !Or
+  lhs: !Chain
+    idents: ["destroy"]
+  rhs: !And
+    lhs: !Chain
+      idents: ["hello"]
+    rhs: !Chain
+      idents: ["world"]
+---
+code: |-
+  foo || a && b && c || bar
+expected:
+  !Or
+  lhs: !Or
+    lhs: !Chain
+      idents: ["foo"]
+    rhs: !And
+      lhs: !And
+        lhs: !Chain
+          idents: ["a"]
+        rhs: !Chain
+          idents: ["b"]
+      rhs: !Chain
+       idents: ["c"]
+  rhs: !Chain
+    idents: ["bar"]
