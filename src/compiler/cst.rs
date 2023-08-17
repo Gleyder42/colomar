@@ -6,7 +6,7 @@ use crate::compiler::{
 };
 use smallvec::SmallVec;
 
-pub type Condition = CallChain;
+pub type Condition = Expr;
 
 pub type Conditions = SmallVec<[Condition; CONDITIONS_LEN]>;
 pub type Actions = SmallVec<[Action; ACTIONS_LEN]>;
@@ -240,13 +240,7 @@ pub enum CallArgument {
     Pos(CallChain),
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub enum Expr {
-    CallChain(CallChain),
-    Neg(Box<Expr>),
-    And(Box<Expr>, Box<Expr>),
-    Or(Box<Expr>, Box<Expr>),
-}
+pub type Expr = crate::compiler::Expr<CallChain>;
 
 impl CallArgument {
     pub fn call_chain(self) -> CallChain {

@@ -318,6 +318,7 @@ fn print_errors(
             CompilerError::DuplicateNamedArgument(_) => {}
             CompilerError::CannotMixArguments(_) => {}
             CompilerError::CannotEvalAsConst => {}
+            CompilerError::WrongTypeInBinaryExpression(_, _) => {}
         }
     }
 }

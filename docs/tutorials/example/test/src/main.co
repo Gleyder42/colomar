@@ -30,16 +30,8 @@ native enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
 }
 
-config Greeting {
-    name: string
-    message: string
-    ability: Ability
-}
-
 rule "Hello World" OngoingEachPlayer() {
-    cond player.isReloading && player.isInAir || player.isOnGround;
-
-    val hello: bool;
+    cond player.isReloading && player.isReloading;
 
     player.counter += 1;
     player.counter -= 1;

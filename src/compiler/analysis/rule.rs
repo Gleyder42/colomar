@@ -52,35 +52,17 @@ pub(super) fn query_rule_cond(
     db: &dyn DefQuery,
     event_decl_id: EventDeclarationId,
     conditions: Conditions,
-) -> QueryTrisult<Vec<AValueChain>> {
+) -> QueryTrisult<Vec<cir::Expr>> {
     conditions
         .into_iter()
         .map(|condition| {
-            db.query_call_chain(
+            db.query_expr(
                 smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
+                true,
                 condition,
             )
         })
-        .collect::<QueryTrisult<Vec<_>>>()
-        .and_require(db.query_bool_type().map(Type::Struct))
-        .flat_map(|(avalues, bool_id)| {
-            avalues
-                .into_iter()
-                .map(|avalue_chain: AValueChain| {
-                    let avalue = avalue_chain.returning_avalue();
-
-                    let called_type = avalue.return_called_type(db);
-                    if called_type.r#type == bool_id {
-                        Trisult::Ok(avalue_chain)
-                    } else {
-                        query_error!(CompilerError::WrongType {
-                            actual: called_type,
-                            expected: Either::Left(bool_id)
-                        })
-                    }
-                })
-                .collect()
-        })
+        .collect::<QueryTrisult<Vec<cir::Expr>>>()
 }
 
 pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisult<cir::Rule> {

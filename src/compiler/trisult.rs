@@ -1,6 +1,7 @@
 use smallvec::{Array, SmallVec};
 
 use crate::compiler::span::{Span, Spanned};
+use crate::compiler::QueryTrisult;
 use std::fmt::Debug;
 
 /// Trisult is similar to [Result] but has one more in-between state.
@@ -103,6 +104,24 @@ impl<T, E> Trisult<T, E> {
         }
     }
 
+    pub fn soft_filter_with<W, F>(self, with: Trisult<W, E>, filter: F) -> Trisult<T, E>
+    where
+        F: FnOnce(&T, W) -> Result<(), E>,
+    {
+        self.and_require(with)
+            .flat_map(|(value, with)| match filter(&value, with) {
+                Ok(_) => Trisult::Ok(value),
+                Err(error) => Trisult::Par(value, vec![error]),
+            })
+    }
+
+    pub fn soft_filter<F: FnOnce(&T) -> Result<(), E>>(self, filter: F) -> Trisult<T, E> {
+        self.flat_map(|value| match filter(&value) {
+            Ok(_) => Trisult::Ok(value),
+            Err(error) => Trisult::Par(value, vec![error]),
+        })
+    }
+
     /// Combines this result's value [T] with another result's value [O].
     ///
     /// # Notes
@@ -186,6 +205,18 @@ impl<T, E> Trisult<T, E> {
             ),
             None => self.map(|it| (it, None)),
         }
+    }
+
+    pub fn to<U, F: FnOnce() -> U>(self, func: F) -> Trisult<U, E> {
+        self.map(|_| func())
+    }
+
+    pub fn helper<H, F>(self, helper: Trisult<H, E>, func: F) -> Trisult<T, E>
+    where
+        F: FnOnce(Trisult<(T, H), E>) -> Trisult<T, E>,
+    {
+        let trisult = self.and_require(helper);
+        func(trisult)
     }
 
     /// Maps this result's value [T] to another value [O].

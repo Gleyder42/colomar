@@ -91,6 +91,15 @@ pub trait DeclQuery: Interner {
 
     // Call
 
+    /// Impl: [call::query_expr]
+    #[salsa::invoke(call::query_expr)]
+    fn query_expr(
+        &self,
+        inital_nameholders: Nameholders,
+        enforce_bool: bool,
+        expr: cst::Expr,
+    ) -> QueryTrisult<cir::Expr>;
+
     /// Impl: [call::query_call_chain]
     #[salsa::invoke(call::query_call_chain)]
     fn query_call_chain(

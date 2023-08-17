@@ -1,4 +1,5 @@
-use crate::compiler::span::{SimpleSpanLocation, Span, Spanned, SpannedBool};
+use crate::compiler::analysis::interner::Interner;
+use crate::compiler::span::{SimpleSpanLocation, Span, SpanLocation, Spanned, SpannedBool};
 use crate::compiler::{AssignMod, UseRestriction};
 use crate::compiler::{
     Ident, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN,
@@ -171,12 +172,23 @@ impl From<EventDeclarationId> for Type {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Predicate(pub AValueChain);
+pub struct Predicate(pub Expr);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledType {
     pub r#type: Type,
     pub span: Span,
+}
+
+impl PartialEq<StructDeclarationId> for CalledType {
+    fn eq(&self, other: &StructDeclarationId) -> bool {
+        match self.r#type {
+            Type::Enum(_) => false,
+            Type::Struct(id) => id == *other,
+            Type::Event(_) => false,
+            Type::Unit => false,
+        }
+    }
 }
 
 impl Display for CalledType {
@@ -293,6 +305,7 @@ pub struct Rule {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Action {
+    Expr(Expr),
     AvalueChain(AValueChain),
     Assigment(AValueChain, AValueChain, Option<AssignMod>),
 }
@@ -300,9 +313,22 @@ pub enum Action {
 impl Action {
     pub fn ghost_span(&self) -> Span {
         match self {
+            Action::Expr(expr) => expr.span(),
             Action::AvalueChain(avalue_chain) => avalue_chain.ghost_span(),
             Action::Assigment(left, ..) => left.ghost_span(),
         }
+    }
+}
+
+impl From<Predicate> for Action {
+    fn from(value: Predicate) -> Self {
+        Action::Expr(value.0)
+    }
+}
+
+impl From<Expr> for Action {
+    fn from(value: Expr) -> Self {
+        Action::Expr(value)
     }
 }
 
@@ -312,9 +338,37 @@ impl From<AValueChain> for Action {
     }
 }
 
-impl From<Predicate> for Action {
-    fn from(value: Predicate) -> Self {
-        Action::AvalueChain(value.0)
+pub type Expr = crate::compiler::Expr<AValueChain>;
+
+#[derive(Debug)]
+pub struct ExprReturnValueError(pub AValue, pub AValue);
+
+impl Expr {
+    pub fn span(&self) -> Span {
+        match self {
+            Expr::Chain(chain) => chain.span,
+            // TODO Use correct span here
+            Expr::Neg(neg) => neg.span(),
+            // TODO Use correct span here
+            Expr::And(lhs, rhs) | Expr::Or(lhs, rhs) => rhs.span(),
+        }
+    }
+
+    pub fn returning_avalue(&self) -> Result<AValue, ExprReturnValueError> {
+        match self {
+            Expr::Chain(chain) => Ok(chain.returning_avalue()),
+            Expr::Neg(neg) => neg.as_ref().returning_avalue(),
+            Expr::And(lhs, rhs) | Expr::Or(lhs, rhs) => {
+                let lhs = lhs.returning_avalue()?;
+                let rhs = rhs.returning_avalue()?;
+
+                if lhs == rhs {
+                    Ok(rhs)
+                } else {
+                    Err(ExprReturnValueError(lhs, rhs))
+                }
+            }
+        }
     }
 }
 
@@ -334,6 +388,7 @@ impl<T: Into<Type>> From<T> for RValue {
     }
 }
 
+// TODO Rename to AvalueChain
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AValueChain {
     pub avalues: Vec<AValue>,

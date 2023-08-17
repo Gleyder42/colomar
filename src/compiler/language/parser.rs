@@ -169,7 +169,7 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
 }
 
 fn expression() -> impl Parser<Token, Expr, Error = ParserError> {
-    let atom = chain().ident_chain().map(Expr::CallChain);
+    let atom = chain().ident_chain().map(Expr::Chain);
 
     let op = |c| just(Token::Ctrl(c));
     let dup_op = |c| op(c).repeated().exactly(2);
@@ -177,7 +177,7 @@ fn expression() -> impl Parser<Token, Expr, Error = ParserError> {
     let neg = op('!')
         .repeated()
         .then(atom)
-        .foldr(|_, rhs| Expr::Neg(Box::new(rhs)));
+        .foldr(|token, rhs| Expr::Neg(Box::new(rhs)));
 
     let and = neg
         .clone()
@@ -352,9 +352,7 @@ fn assigment() -> impl Parser<Token, Action, Error = ParserError> {
 }
 
 fn block() -> impl Parser<Token, Block, Error = ParserError> {
-    let cond = just(Token::Cond)
-        .ignore_then(chain().ident_chain())
-        .map(|it| it as Condition);
+    let cond = just(Token::Cond).ignore_then(expression());
 
     let action = choice((
         assigment(),
@@ -781,7 +779,7 @@ mod tests {
 
         fn assertion(expected: ExprTestData, actual: Expr) {
             match (expected, actual) {
-                (ExprTestData::Chain(expected), Expr::CallChain(actual)) => {
+                (ExprTestData::Chain(expected), Expr::Chain(actual)) => {
                     assert_call_chain(expected.idents.into_iter(), actual);
                 }
                 (

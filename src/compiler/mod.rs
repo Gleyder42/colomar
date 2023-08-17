@@ -92,3 +92,29 @@ impl Display for AssignMod {
 fn compiler_todo<T>(string: impl Into<Cow<'static, str>>, span: Span) -> QueryTrisult<T> {
     QueryTrisult::Err(vec![CompilerError::NotImplemented(string.into(), span)])
 }
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum Expr<T> {
+    Chain(T),
+    Neg(Box<Expr<T>>),
+    And(Box<Expr<T>>, Box<Expr<T>>),
+    Or(Box<Expr<T>>, Box<Expr<T>>),
+}
+
+impl<T> Expr<T> {
+    fn lhs(&self) -> Option<&Expr<T>> {
+        match self {
+            Expr::Chain(_) => None,
+            Expr::Neg(_) => None,
+            Expr::And(lhs, _) | Expr::Or(lhs, _) => Some(lhs.as_ref()),
+        }
+    }
+
+    fn rhs(&self) -> Option<&Expr<T>> {
+        match self {
+            Expr::Chain(_) => None,
+            Expr::Neg(_) => None,
+            Expr::And(_, rhs) | Expr::Or(_, rhs) => Some(rhs.as_ref()),
+        }
+    }
+}

@@ -32,11 +32,13 @@ pub(super) fn query_wst_call(
     };
 
     match action {
-        cir::Action::AvalueChain(avalue_chain) => query_by_avalue(avalue_chain, None),
+        cir::Action::AvalueChain(avalue_chain)
+        | cir::Action::Expr(cir::Expr::Chain(avalue_chain)) => query_by_avalue(avalue_chain, None),
         cir::Action::Assigment(left, right, assign_mod) => {
             let right = query_by_avalue(right, None);
             right.flat_map(|right| query_by_avalue(left, Some((right, assign_mod))))
         }
+        cir::Action::Expr(expr) => todo!("Expressions are not fully implemented yet"),
     }
 }
 

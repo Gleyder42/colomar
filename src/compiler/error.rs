@@ -1,5 +1,6 @@
 use crate::compiler::cir::{
-    CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId, Type,
+    AValue, CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId,
+    Type,
 };
 use crate::compiler::span::Span;
 use crate::compiler::trisult::Trisult;
@@ -43,6 +44,7 @@ pub enum CompilerError {
     DuplicateNamedArgument(Ident),
     CannotMixArguments(Span),
     CannotEvalAsConst,
+    WrongTypeInBinaryExpression(AValue, AValue),
 }
 
 impl CompilerError {
@@ -67,6 +69,7 @@ impl CompilerError {
             CompilerError::CannotMixArguments(_) => 16,
             CompilerError::DuplicateNamedArgument(_) => 17,
             CompilerError::CannotEvalAsConst => 18,
+            CompilerError::WrongTypeInBinaryExpression(_, _) => 19,
         }
     }
 }

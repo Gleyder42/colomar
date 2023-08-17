@@ -8,6 +8,12 @@ expected:
     idents: ["world"]
 ---
 code: |-
+  hello
+expected:
+  !Chain
+  idents: ["hello"]
+---
+code: |-
   !hello
 expected:
   !Neg

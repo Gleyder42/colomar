@@ -54,7 +54,7 @@ pub trait DefQuery: DeclQuery {
         &self,
         event_decl_id: EventDeclarationId,
         conditions: Conditions,
-    ) -> QueryTrisult<Vec<AValueChain>>;
+    ) -> QueryTrisult<Vec<cir::Expr>>;
 
     /// [rule::query_rule_actions]
     #[salsa::invoke(rule::query_rule_actions)]

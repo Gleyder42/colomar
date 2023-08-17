@@ -267,6 +267,7 @@ pub enum Nameholder {
     Event(EventDeclarationId),
 }
 
+// TODO Reduce this to 1
 pub type Nameholders = SmallVec<[Nameholder; 2]>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
