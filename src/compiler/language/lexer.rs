@@ -1,31 +1,11 @@
 extern crate core;
 
-use crate::compiler::span::{OffsetTable, SimpleSpanLocation, Span, SpanSourceId};
-use crate::compiler::{span, Text};
+use crate::compiler::span::{Span, SpanLocation, SpanSourceId};
+use crate::compiler::Text;
 use chumsky::prelude::*;
 
 use std::fmt::{Debug, Display, Formatter};
 use std::string::String;
-
-#[derive(Debug)]
-pub struct LexerTokens(Vec<(Token, Span)>);
-
-impl LexerTokens {
-    pub fn use_relative_spans(mut self) -> (Vec<(Token, Span)>, OffsetTable) {
-        let mut references: Vec<_> = self
-            .0
-            .iter_mut()
-            .map(|(_, span)| &mut span.location)
-            .collect();
-        const LEVEL: u16 = 1;
-        let table = span::encode_in_place(LEVEL, &mut references);
-        (self.0, table)
-    }
-
-    pub fn use_absolute_spans(self) -> Vec<(Token, Span)> {
-        self.0
-    }
-}
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
@@ -74,7 +54,9 @@ impl Display for Token {
     }
 }
 
-pub fn lexer(span_source_id: SpanSourceId) -> impl Parser<char, LexerTokens, Error = Simple<char>> {
+pub fn lexer(
+    span_source_id: SpanSourceId,
+) -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
     let num = text::int(10)
         .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
         .collect::<String>()
@@ -115,11 +97,13 @@ pub fn lexer(span_source_id: SpanSourceId) -> impl Parser<char, LexerTokens, Err
         .map_with_span(move |tok, span| {
             (
                 tok,
-                Span::new(span_source_id, SimpleSpanLocation::from(span)),
+                Span {
+                    location: SpanLocation::from(span),
+                    source: span_source_id,
+                },
             )
         })
         .repeated()
-        .map(LexerTokens)
         .then_ignore(end())
 }
 
@@ -147,10 +131,7 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id)
-            .parse(code)
-            .unwrap()
-            .use_absolute_spans();
+        let actual = lexer(span_source_id).parse(code).unwrap();
         let expected = vec![
             Token::Num("1".to_string().into()),
             Token::Num("5".to_string().into()),
@@ -167,10 +148,7 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id)
-            .parse(code)
-            .unwrap()
-            .use_absolute_spans();
+        let actual = lexer(span_source_id).parse(code).unwrap();
         let expected = vec![
             Token::String("Hello".to_string().into()),
             Token::String("Hello World".to_string().into()),
@@ -185,10 +163,7 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id)
-            .parse(code)
-            .unwrap()
-            .use_absolute_spans();
+        let actual = lexer(span_source_id).parse(code).unwrap();
         let expected = vec![
             Token::Rule,
             Token::Cond,

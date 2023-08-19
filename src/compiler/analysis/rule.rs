@@ -1,14 +1,10 @@
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::cir::{AValueChain, EventDeclarationId, Predicate, RValue, Type};
+use crate::compiler::cir::{AValueChain, EventDeclarationId, Predicate, RValue};
 use crate::compiler::cst::{Action, Actions, CallArgument, Conditions};
-use crate::compiler::error::CompilerError;
-use crate::compiler::trisult::Trisult;
 use crate::compiler::{cir, cst, QueryTrisult};
-use crate::query_error;
 
 use crate::compiler::analysis::interner::IntoInternId;
-use either::Either;
 use smallvec::smallvec;
 
 pub(super) fn query_rule_actions(

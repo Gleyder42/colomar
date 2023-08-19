@@ -1,5 +1,4 @@
-use crate::compiler::analysis::interner::Interner;
-use crate::compiler::span::{SimpleSpanLocation, Span, SpanLocation, Spanned, SpannedBool};
+use crate::compiler::span::{CopyRange, Span, Spanned, SpannedBool};
 use crate::compiler::{AssignMod, UseRestriction};
 use crate::compiler::{
     Ident, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN,
@@ -406,7 +405,7 @@ impl AValueChain {
     pub fn ghost_span(&self) -> Span {
         let start = self.span.location.start();
         let end = self.span.location.start() + 1;
-        Span::new(self.span.source, SimpleSpanLocation::from(start..end))
+        Span::new(self.span.source, CopyRange::from(start..end))
     }
 
     pub fn returning_avalue(&self) -> AValue {

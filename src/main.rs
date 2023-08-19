@@ -5,7 +5,7 @@ extern crate salsa;
 
 use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
-use crate::compiler::{cir, QueryTrisult};
+use crate::compiler::QueryTrisult;
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::error::SimpleReason;
 use chumsky::prelude::*;
@@ -22,10 +22,9 @@ use std::ops::Range;
 use std::path::Path;
 
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::printer::PrinterQuery;
 
-use crate::compiler::span::{OffsetTable, SimpleSpanLocation, SpanInterner};
+use crate::compiler::span::{CopyRange, SpanInterner};
 
 pub mod compiler;
 pub mod test_assert;
@@ -44,23 +43,20 @@ fn main() {
 
     let (tokens, _lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
 
-    let (ast, offset_table, parser_errors) = if let Some(tokens) = tokens {
-        let (tokens, table) = tokens.use_relative_spans();
-
+    let (ast, parser_errors) = if let Some(tokens) = tokens {
         let eoi = Span::new(
             span_source_id,
-            SimpleSpanLocation::from(tokens.len()..tokens.len() + 1),
+            CopyRange::from(tokens.len()..tokens.len() + 1),
         );
         let stream = Stream::from_iter(eoi, tokens.into_iter());
         let (ast, parser_errors) = parser().parse_recovery(stream);
-        (ast, Some(table), parser_errors)
+        (ast, parser_errors)
     } else {
-        (None, None, Vec::new())
+        (None, Vec::new())
     };
-    let offset_table = offset_table.unwrap_or(OffsetTable::default());
 
     for parser_error in parser_errors {
-        let whole_span = FatSpan::from_span(&db, &offset_table, parser_error.span());
+        let whole_span = FatSpan::from_span(&db, parser_error.span());
         let builder = Report::build(
             ReportKind::Error,
             whole_span.source.clone(),
@@ -79,7 +75,7 @@ fn main() {
                         )),
                 ),
             SimpleReason::Unclosed { delimiter, span } => {
-                let span = FatSpan::from_span(&db, &offset_table, *span);
+                let span = FatSpan::from_span(&db, *span);
 
                 builder
                     .with_message(format!("Unclosed delimiter {delimiter}"))
@@ -132,7 +128,7 @@ fn main() {
                     100.0 - (new_len as f32 / original_len as f32) * 100.0
                 );
 
-                print_errors(&mut source, &mut db, &offset_table, unique_errors);
+                print_errors(&mut source, &mut db, unique_errors);
             }
         }
     }
@@ -141,7 +137,6 @@ fn main() {
 fn print_errors(
     source: &mut String,
     db: &mut CompilerDatabase,
-    offset_table: &OffsetTable,
     unique_errors: HashSet<CompilerError>,
 ) {
     for analysis_error in unique_errors {
@@ -152,8 +147,8 @@ fn print_errors(
 
         match analysis_error {
             CompilerError::DuplicateIdent { first, second } => {
-                let first_span = FatSpan::from_span(db, &offset_table, first.span);
-                let second_span = FatSpan::from_span(db, &offset_table, second.span);
+                let first_span = FatSpan::from_span(db, first.span);
+                let second_span = FatSpan::from_span(db, second.span);
 
                 Report::<FatSpan>::build(
                     ERROR_KIND,
@@ -186,7 +181,7 @@ fn print_errors(
                 todo!()
             }
             CompilerError::CannotFindIdent(ident) => {
-                let span = FatSpan::from_span(db, &offset_table, ident.span);
+                let span = FatSpan::from_span(db, ident.span);
 
                 Report::build(
                     ERROR_KIND,
@@ -208,7 +203,7 @@ fn print_errors(
                 .unwrap();
             }
             CompilerError::NotA(type_name, actual_rvalue, occurrence) => {
-                let occurrence_span = FatSpan::from_span(db, &offset_table, occurrence.span);
+                let occurrence_span = FatSpan::from_span(db, occurrence.span);
 
                 Report::build(
                     ERROR_KIND,
@@ -226,7 +221,7 @@ fn print_errors(
                 .unwrap();
             }
             CompilerError::WrongType { actual, expected } => {
-                let actual_span = FatSpan::from_span(db, &offset_table, actual.span);
+                let actual_span = FatSpan::from_span(db, actual.span);
                 let report_builder = Report::build(
                     ERROR_KIND,
                     actual_span.source.clone(),
@@ -251,8 +246,7 @@ fn print_errors(
                         )),
                     ),
                     Either::Right(called_type) => {
-                        let called_type_span =
-                            FatSpan::from_span(db, &offset_table, called_type.span);
+                        let called_type_span = FatSpan::from_span(db, called_type.span);
 
                         report_builder.with_label(
                             Label::new(called_type_span.clone())
@@ -292,7 +286,7 @@ fn print_errors(
             CompilerError::InvalidNativeDefinition(_) => {}
             CompilerError::NoCaller => {}
             CompilerError::NotImplemented(reason, span) => {
-                let span = FatSpan::from_span(db, &offset_table, span);
+                let span = FatSpan::from_span(db, span);
                 Report::build(
                     COMPILER_ERROR,
                     span.source.clone(),
