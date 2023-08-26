@@ -54,25 +54,27 @@ impl Display for Token {
     }
 }
 
-pub fn lexer(
+pub type LexerExtra<'a> = extra::Err<Simple<'a, char>>;
+
+pub fn lexer<'src>(
     span_source_id: SpanSourceId,
-) -> impl Parser<char, Vec<(Token, Span)>, Error = Simple<char>> {
+) -> impl Parser<'src, &'src str, Vec<(Token, Span)>, LexerExtra<'src>> {
     let num = text::int(10)
-        .chain::<char, _, _>(just('.').chain(text::digits(10)).or_not().flatten())
-        .collect::<String>()
-        .map(Text::new)
+        .then(just('.').then(text::digits(10)).or_not())
+        .slice()
+        .from_str()
+        .unwrapped()
         .map(Token::Num);
 
     let string = just('"')
-        .ignore_then(filter(|c| *c != '"').repeated())
+        .ignore_then(any().filter(|c| *c != '"').repeated().collect::<String>())
         .then_ignore(just('"'))
-        .collect::<String>()
         .map(Text::new)
         .map(Token::String);
 
     let ctrl = one_of("(){},.:|=;+-/*&|!").map(Token::Ctrl);
 
-    let ident = text::ident().map(|ident: String| match ident.as_str() {
+    let ident = text::ident().map(|ident: &str| match ident {
         "rule" => Token::Rule,
         "cond" => Token::Cond,
         "native" => Token::Native,
@@ -90,7 +92,7 @@ pub fn lexer(
         _ => Token::Ident(Text::new(ident)),
     });
 
-    let token = choice((ident, num, string, ctrl)).recover_with(skip_then_retry_until([]));
+    let token = choice((ident, num, string, ctrl));
 
     token
         .padded()
@@ -104,6 +106,7 @@ pub fn lexer(
             )
         })
         .repeated()
+        .collect::<Vec<_>>()
         .then_ignore(end())
 }
 

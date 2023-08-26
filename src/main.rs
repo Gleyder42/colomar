@@ -7,9 +7,8 @@ use crate::compiler::language::lexer::lexer;
 use crate::compiler::language::parser::parser;
 use crate::compiler::QueryTrisult;
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
-use chumsky::error::SimpleReason;
+use chumsky::error::RichReason;
 use chumsky::prelude::*;
-use chumsky::Stream;
 use compiler::database::CompilerDatabase;
 use compiler::error::CompilerError;
 use compiler::span::{FatSpan, Span, SpanSourceId};
@@ -41,22 +40,24 @@ fn main() {
     let mut db = CompilerDatabase::default();
     let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
 
-    let (tokens, _lexer_errors) = lexer(span_source_id).parse_recovery(source.as_str());
+    let (tokens, _lexer_errors) = lexer(span_source_id)
+        .parse(source.as_str())
+        .into_output_errors();
 
     let (ast, parser_errors) = if let Some(tokens) = tokens {
         let eoi = Span::new(
             span_source_id,
             CopyRange::from(tokens.len()..tokens.len() + 1),
         );
-        let stream = Stream::from_iter(eoi, tokens.into_iter());
-        let (ast, parser_errors) = parser().parse_recovery(stream);
+        let stream = chumsky::input::Stream::from_iter(tokens.into_iter()).spanned(eoi);
+        let (ast, parser_errors) = parser().parse(stream).into_output_errors();
         (ast, parser_errors)
     } else {
         (None, Vec::new())
     };
 
     for parser_error in parser_errors {
-        let whole_span = FatSpan::from_span(&db, parser_error.span());
+        let whole_span = FatSpan::from_span(&db, *parser_error.span());
         let builder = Report::build(
             ReportKind::Error,
             whole_span.source.clone(),
@@ -64,29 +65,21 @@ fn main() {
         );
 
         let builder = match parser_error.reason() {
-            SimpleReason::Unexpected => builder
-                .with_message(format!("Unexpected token '{:?}'", parser_error.found()))
+            RichReason::ExpectedFound { found, expected } => builder
+                .with_message(format!("Unexpected token '{:?}'", found))
                 .with_label(
                     Label::new(whole_span.clone())
                         .with_color(Color::Red)
-                        .with_message(format!(
-                            "Expected: {:?}",
-                            parser_error.expected().collect::<Vec<_>>()
-                        )),
+                        .with_message(format!("Expected: {:?}", expected)),
                 ),
-            SimpleReason::Unclosed { delimiter, span } => {
-                let span = FatSpan::from_span(&db, *span);
+            RichReason::Custom(message) => {
+                let span = FatSpan::from_span(&db, *parser_error.span());
 
                 builder
-                    .with_message(format!("Unclosed delimiter {delimiter}"))
-                    .with_label(
-                        Label::new(whole_span.clone())
-                            .with_color(Color::Red)
-                            .with_message("Starts here"),
-                    )
+                    .with_message(message)
                     .with_label(Label::new(span).with_color(Color::Cyan))
             }
-            SimpleReason::Custom(_) => unimplemented!(),
+            RichReason::Many(_) => unimplemented!(),
         };
 
         builder

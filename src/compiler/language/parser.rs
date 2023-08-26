@@ -1,27 +1,35 @@
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{AssignMod, Ident, UseRestriction};
+use crate::compiler::{AssignMod, Ident, Text, UseRestriction};
+use chumsky::error::Error;
+use chumsky::input::{SpannedInput, Stream};
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
+use chumsky::util::Maybe;
 use smallvec::SmallVec;
 
-pub type ParserError = Simple<Token, Span>;
+pub type ParserInput = SpannedInput<Token, Span, Stream<std::vec::IntoIter<(Token, Span)>>>;
+pub type ParserExtra<'a> = extra::Err<Rich<'a, Token, Span>>;
 
-fn ident() -> impl Parser<Token, Ident, Error = ParserError> + Clone {
-    filter_map(|span, token| match token {
+fn ident<'src>() -> impl Parser<'src, ParserInput, Ident, ParserExtra<'src>> + Clone {
+    let ident = |name| Token::Ident(Text::from(name));
+
+    any().try_map(move |token, span| match token {
         Token::Ident(ident) => Ok(Ident { value: ident, span }),
-        _ => Err(ParserError::expected_input_found(
+        _ => Err(<Rich<_, _> as Error<ParserInput>>::expected_found(
+            vec![Some(Maybe::from(ident("ident")))],
+            Some(Maybe::from(token)),
             span,
-            Vec::new(),
-            Some(token),
         )),
     })
 }
 
-fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Error = ParserError> {
+fn declared_arguments<'src>(
+) -> impl Parser<'src, ParserInput, Spanned<Vec<DeclaredArgument>>, ParserExtra<'src>> {
     let types = ident()
         .separated_by(just(Token::Ctrl('|')))
+        .collect::<Vec<_>>()
         .map_with_span(|types, span| Types {
             values: types.into(),
             span,
@@ -36,6 +44,7 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
         .then(default_value)
         .map_with_span(|((name, types), default_value), span| (name, types, default_value, span))
         .separated_by(just(Token::Ctrl(',')))
+        .collect::<Vec<_>>()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
         .map(|arg_tuples| {
             arg_tuples
@@ -55,13 +64,13 @@ fn declared_arguments() -> impl Parser<Token, Spanned<Vec<DeclaredArgument>>, Er
         .map_with_span(Spanned::new)
 }
 
-fn native_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
+fn native_or_not<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
     just(Token::Native)
         .or_not()
         .map_with_span(Spanned::ignore_value)
 }
 
-fn event() -> impl Parser<Token, Event, Error = ParserError> {
+fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
     let by = just(Token::By)
         .ignore_then(ident())
         .then(chain().args())
@@ -77,14 +86,14 @@ fn event() -> impl Parser<Token, Event, Error = ParserError> {
         })
         .then(declared_arguments())
         .then(by)
-        .validate(|((a, b), c), span, emit| {
-            if a.is_native.is_some() && c.is_some() {
-                emit(Simple::custom(
+        .validate(|((event_decl, decl_args), by), span, emitter| {
+            if event_decl.is_native.is_some() && by.is_some() {
+                emitter.emit(Rich::custom(
                     span,
                     "native functions cannot have a by clause",
                 ));
             }
-            ((a, b), c)
+            ((event_decl, decl_args), by)
         })
         .then(block())
         .map_with_span(|(((declaration, arguments), by), block), span| Event {
@@ -99,10 +108,11 @@ fn event() -> impl Parser<Token, Event, Error = ParserError> {
         })
 }
 
-fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
+fn r#enum<'src>() -> impl Parser<'src, ParserInput, Enum, ParserExtra<'src>> {
     let constants = ident()
         .separated_by(just(Token::Ctrl(',')))
-        .allow_trailing();
+        .allow_trailing()
+        .collect::<Vec<_>>();
 
     native_or_not()
         .then_ignore(just(Token::Enum))
@@ -120,7 +130,7 @@ fn r#enum() -> impl Parser<Token, Enum, Error = ParserError> {
         })
 }
 
-fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
+fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDeclaration, ParserExtra<'src>> {
     let use_restriction_tokens = (
         just(Token::GetVar),
         just(Token::SetVar),
@@ -167,46 +177,44 @@ fn property() -> impl Parser<Token, PropertyDeclaration, Error = ParserError> {
         })
 }
 
-fn expression() -> impl Parser<Token, Expr, Error = ParserError> {
+fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>> {
     let atom = chain().ident_chain().map(Expr::Chain);
 
     let op = |c| just(Token::Ctrl(c));
-    let dup_op = |c| op(c).repeated().exactly(2);
+
+    const DUP: usize = 2;
+    let dup_op = |c| op(c).repeated().exactly(DUP).collect_exactly::<[_; DUP]>();
 
     let neg = op('!')
         .repeated()
-        .then(atom)
-        .foldr(|_, rhs| Expr::Neg(Box::new(rhs)));
+        .foldr(atom, |_, rhs| Expr::Neg(Box::new(rhs)));
 
-    let and = neg
-        .clone()
-        .then(
-            dup_op('&')
-                .to(Expr::And as fn(_, _) -> _)
-                .then(neg)
-                .repeated(),
-        )
-        .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
+    let and = neg.clone().foldl(
+        dup_op('&')
+            .to(Expr::And as fn(_, _) -> _)
+            .then(neg)
+            .repeated(),
+        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+    );
 
-    let or = and
-        .clone()
-        .then(
-            dup_op('|')
-                .to(Expr::Or as fn(_, _) -> _)
-                .then(and)
-                .repeated(),
-        )
-        .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
+    let or = and.clone().foldl(
+        dup_op('|')
+            .to(Expr::Or as fn(_, _) -> _)
+            .then(and)
+            .repeated(),
+        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+    );
+
     or
 }
 
-fn open_or_not() -> impl Parser<Token, SpannedBool, Error = ParserError> {
+fn open_or_not<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
     just(Token::Open)
         .or_not()
         .map_with_span(Spanned::ignore_value)
 }
 
-fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
+fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>> {
     let member_function = native_or_not()
         .then_ignore(just(Token::Fn))
         .then(ident())
@@ -239,6 +247,7 @@ fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
             choice((property, member_function))
                 .then_ignore(just(Token::Ctrl(';')))
                 .repeated()
+                .collect::<Vec<_>>()
                 .delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))),
         )
         .map_with_span(|(declaration, members), span| {
@@ -262,23 +271,23 @@ fn r#struct() -> impl Parser<Token, Struct, Error = ParserError> {
         })
 }
 
-struct IdentChainParserResult<'a> {
-    ident_chain: BoxedParser<'a, Token, CallChain, ParserError>,
-    args: BoxedParser<'a, Token, CallArguments, ParserError>,
+struct IdentChainParserResult<'src, 'a> {
+    ident_chain: Boxed<'src, 'a, ParserInput, CallChain, ParserExtra<'src>>,
+    args: Boxed<'src, 'a, ParserInput, CallArguments, ParserExtra<'src>>,
 }
 
-impl<'a> IdentChainParserResult<'a> {
-    fn ident_chain(self) -> BoxedParser<'a, Token, CallChain, ParserError> {
+impl<'src, 'a> IdentChainParserResult<'src, 'a> {
+    fn ident_chain(self) -> Boxed<'src, 'a, ParserInput, CallChain, ParserExtra<'src>> {
         self.ident_chain
     }
 
-    fn args(self) -> BoxedParser<'a, Token, CallArguments, ParserError> {
+    fn args(self) -> Boxed<'src, 'a, ParserInput, CallArguments, ParserExtra<'src>> {
         self.args
     }
 }
 
-fn chain<'a>() -> IdentChainParserResult<'a> {
-    let mut ident_chain = Recursive::<_, CallChain, _>::declare();
+fn chain<'src: 'a, 'a>() -> IdentChainParserResult<'src, 'a> {
+    let mut ident_chain = Recursive::declare();
 
     let arg_name_or_not = ident().then_ignore(just(Token::Ctrl('='))).or_not();
     let args = arg_name_or_not
@@ -289,13 +298,21 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
         })
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
+        .collect::<Vec<_>>()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
         .map_with_span(CallArguments::new);
 
-    let literal = filter_map(|span, token| match token {
+    let literal = any().try_map(|token, span| match token {
         Token::String(string) => Ok(Box::new(Call::String(string, span))),
         Token::Num(number) => Ok(Box::new(Call::Number(number, span))),
-        _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
+        _ => {
+            let literal = |func: fn(_) -> _, string| Some(Maybe::from(func(Text::from(string))));
+            let expected = vec![literal(Token::String, "string"), literal(Token::Num, "num")];
+            let found = Some(Maybe::from(token));
+
+            let rich = <Rich<_, _> as Error<ParserInput>>::expected_found(expected, found, span);
+            Err(rich)
+        }
     });
 
     ident_chain.define(
@@ -315,6 +332,7 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
             .or(literal)
             .separated_by(just(Token::Ctrl('.')))
             .at_least(1)
+            .collect()
             .map_with_span(CallChain::new),
     );
 
@@ -324,7 +342,7 @@ fn chain<'a>() -> IdentChainParserResult<'a> {
     }
 }
 
-fn assigment() -> impl Parser<Token, Action, Error = ParserError> {
+fn assigment<'src>() -> impl Parser<'src, ParserInput, Action, ParserExtra<'src>> {
     let ident_chain = || chain().ident_chain();
 
     let assign_mods = (
@@ -350,7 +368,7 @@ fn assigment() -> impl Parser<Token, Action, Error = ParserError> {
         .map(|((left, assign_mod), right)| Action::Assignment(left, right, assign_mod))
 }
 
-fn block() -> impl Parser<Token, Block, Error = ParserError> {
+fn block<'src>() -> impl Parser<'src, ParserInput, Block, ParserExtra<'src>> {
     let cond = just(Token::Cond).ignore_then(expression());
 
     let action = choice((
@@ -359,8 +377,14 @@ fn block() -> impl Parser<Token, Block, Error = ParserError> {
         property().map(Action::Property),
     ));
 
-    let conditions = cond.then_ignore(just(Token::Ctrl(';'))).repeated();
-    let actions = action.then_ignore(just(Token::Ctrl(';'))).repeated();
+    let conditions = cond
+        .then_ignore(just(Token::Ctrl(';')))
+        .repeated()
+        .collect::<Vec<_>>();
+    let actions = action
+        .then_ignore(just(Token::Ctrl(';')))
+        .repeated()
+        .collect::<Vec<_>>();
 
     conditions
         .then(actions)
@@ -372,10 +396,16 @@ fn block() -> impl Parser<Token, Block, Error = ParserError> {
         })
 }
 
-fn rule() -> impl Parser<Token, Rule, Error = ParserError> {
-    let rule_name = filter_map(|span, token| match token {
+fn rule<'src>() -> impl Parser<'src, ParserInput, Rule, ParserExtra<'src>> {
+    let rule_name = any().try_map(|token, span| match token {
         Token::String(string) => Ok(Spanned::new(string, span)),
-        _ => Err(Simple::expected_input_found(span, Vec::new(), Some(token))),
+        _ => {
+            let expected = vec![Some(Maybe::from(Token::String(Text::from("rule name"))))];
+            let found = Some(Maybe::from(token));
+
+            let error = <Rich<_, _> as Error<ParserInput>>::expected_found(expected, found, span);
+            Err(error)
+        }
     });
 
     just(Token::Rule)
@@ -392,7 +422,7 @@ fn rule() -> impl Parser<Token, Rule, Error = ParserError> {
         })
 }
 
-pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
+pub fn parser<'src>() -> impl Parser<'src, ParserInput, Ast, ParserExtra<'src>> {
     let rule_parser = rule().map(Root::Rule);
     let event_parser = event().map(Root::Event);
     let enum_parser = r#enum().map(Root::Enum);
@@ -400,6 +430,7 @@ pub fn parser() -> impl Parser<Token, Ast, Error = ParserError> {
 
     choice((rule_parser, event_parser, enum_parser, struct_parser))
         .repeated()
+        .collect::<Vec<_>>()
         .then_ignore(end())
         .map(Ast)
 }
@@ -412,12 +443,11 @@ mod tests {
     use crate::compiler::cst::{Call, DeclaredArgument, Rule};
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
-    use crate::compiler::language::parser::ParserError;
     use crate::compiler::span::{CopyRange, SpanInterner};
     use crate::compiler::span::{Span, SpanLocation, SpanSourceId, Spanned};
     use anyhow::anyhow;
     use chumsky::prelude::end;
-    use chumsky::{Parser, Stream};
+    use chumsky::Parser;
     use serde::Deserialize;
     use std::fmt::Debug;
     use std::fs;
@@ -554,39 +584,43 @@ mod tests {
         Ok(vec)
     }
 
-    fn parse_code<T>(
+    fn parse_code<'src, T>(
         span_source_id: SpanSourceId,
         code: &str,
-        parser: &impl Parser<Token, T, Error = ParserError>,
+        parser: &impl Parser<'src, ParserInput, T, ParserExtra<'src>>,
     ) -> anyhow::Result<T> {
         let tokens: Vec<_> = lex_code(span_source_id, code)?;
         let eoi = Span::new(
             span_source_id,
             SpanLocation::from(CopyRange::from(tokens.len()..tokens.len() + 1)),
         );
-        let stream = Stream::from_iter(eoi, tokens.into_iter());
+        let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
 
         parser
             .then_ignore(end())
             .parse(stream)
+            .into_result()
             .map_err(|_| anyhow!("Cannot parse '{code}'"))
     }
 
     fn lex_code(span_source_id: SpanSourceId, code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
-        lexer(span_source_id).parse(code).map_err(|errors| {
-            let error_message = errors
-                .into_iter()
-                .map(|it| it.to_string())
-                .collect::<Vec<String>>()
-                .join("\n");
-            anyhow!(error_message)
-        })
+        lexer(span_source_id)
+            .parse(code)
+            .into_result()
+            .map_err(|errors| {
+                let error_message = errors
+                    .into_iter()
+                    .map(|it| it.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                anyhow!(error_message)
+            })
     }
 
-    fn test_parser_result<Ex, Ac, F>(
+    fn test_parser_result<'src, Ex, Ac, F>(
         key: &ResKey,
         should_panic: bool,
-        parser: impl Parser<Token, Ac, Error = ParserError>,
+        parser: impl Parser<'src, ParserInput, Ac, ParserExtra<'src>>,
         assertion: F,
     ) where
         Ac: Debug,

@@ -1,8 +1,7 @@
+use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::Text;
-use chumsky::error::Simple;
 use chumsky::prelude::*;
-use chumsky::text::Character;
-use chumsky::Parser;
+use chumsky::text::Char;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -12,6 +11,12 @@ pub enum Token {
     Number(Text),
     Placeholder(Text),
     Ctrl(char),
+}
+
+impl From<Placeholder> for Token {
+    fn from(value: Placeholder) -> Self {
+        Token::Placeholder(value.0)
+    }
 }
 
 impl Display for Token {
@@ -28,14 +33,17 @@ impl Display for Token {
 
 const PLACEHOLDER_DELIMITER: char = '$';
 
-fn placeholder() -> impl Parser<char, Token, Error = Simple<char>> {
-    filter::<char, _, _>(|c| *c == PLACEHOLDER_DELIMITER)
+fn placeholder<'str>() -> impl Parser<'str, &'str str, Token> {
+    any()
+        .filter(|c: &char| *c == PLACEHOLDER_DELIMITER)
         .then(
-            filter::<char, _, _>(|c| c.is_ascii_alphanumeric() || *c == '_')
+            any()
+                .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
                 .repeated()
-                .at_least(1),
+                .at_least(1)
+                .collect::<Vec<_>>(),
         )
-        .then(filter::<char, _, _>(|c| *c == PLACEHOLDER_DELIMITER))
+        .then(any().filter(|c: &char| *c == PLACEHOLDER_DELIMITER))
         .map(|((first, mut mid), last)| {
             let mut combined = Vec::with_capacity(mid.len() + 2);
             combined.push(first);
@@ -45,13 +53,14 @@ fn placeholder() -> impl Parser<char, Token, Error = Simple<char>> {
         })
 }
 
-fn ident() -> impl Parser<char, Token, Error = Simple<char>> {
-    let valid_chars = filter::<char, _, _>(|c| {
-        c.is_ascii_alphanumeric() || c.is_inline_whitespace() || *c == '-'
-    })
-    .repeated();
+fn ident<'str>() -> impl Parser<'str, &'str str, Token> {
+    let valid_chars = any::<&'str str, _>()
+        .filter(|c| c.is_ascii_alphanumeric() || c.is_inline_whitespace() || *c == '-')
+        .repeated()
+        .collect::<Vec<_>>();
 
-    filter::<char, _, _>(|c| c.is_ascii_alphabetic())
+    any::<&'str str, _>()
+        .filter(|c| c.is_ascii_alphabetic())
         .then(valid_chars)
         .map(|(initial, mut following)| {
             let mut combined = Vec::with_capacity(following.len() + 1);
@@ -62,12 +71,13 @@ fn ident() -> impl Parser<char, Token, Error = Simple<char>> {
         })
 }
 
-pub fn lexer() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
+pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>> {
     let ctrl = one_of("(),").map(Token::Ctrl);
 
-    let token = choice((ident(), placeholder(), ctrl)).recover_with(skip_then_retry_until([]));
+    // TODO Add recover_with(skip_then_retry_until([]))
+    let token = choice((ident(), placeholder(), ctrl));
 
-    token.padded().repeated()
+    token.padded().repeated().collect::<Vec<_>>()
 }
 
 #[cfg(test)]
@@ -84,6 +94,7 @@ mod tests {
             let actual = placeholder()
                 .then_ignore(end())
                 .parse(code)
+                .into_result()
                 .expect(&format!("Cannot parse {code}"));
             assert_eq!(actual, Token::Placeholder(code.into()))
         }
@@ -94,7 +105,7 @@ mod tests {
         let placeholders = ["test", "$$", "$$$", "  ", ""];
 
         for code in placeholders {
-            let actual = placeholder().then_ignore(end()).parse(code);
+            let actual = placeholder().then_ignore(end()).parse(code).into_result();
 
             assert!(!actual.is_ok(), "'{}' was parsed, but should fail", code)
         }
@@ -116,6 +127,7 @@ mod tests {
             let actual = ident()
                 .then_ignore(end())
                 .parse(code)
+                .into_result()
                 .expect(&format!("Cannot parse {code}"));
             assert_eq!(actual, Token::Ident(code.into()))
         }
@@ -126,7 +138,7 @@ mod tests {
         let idents = ["- Global", " - Global", " ", "     ", "1.10", "20"];
 
         for code in idents {
-            let actual = ident().then_ignore(end()).parse(code);
+            let actual = ident().then_ignore(end()).parse(code).into_result();
 
             assert!(!actual.is_ok(), "'{}' was parsed, but should fail", code)
         }
@@ -138,6 +150,7 @@ mod tests {
         let actual = lexer()
             .then_ignore(end())
             .parse(code)
+            .into_result()
             .expect(&format!("Cannot parse {code}"));
 
         let expected = [

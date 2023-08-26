@@ -175,7 +175,8 @@ fn query_wscript_impl(
         .flat_map(|wscript| {
             let tokens: Result<Trisult<_, _>, _> = workshop::lexer::lexer()
                 .then_ignore(end())
-                .parse_recovery(wscript.as_str())
+                .parse(wscript.as_str())
+                .into_output_errors()
                 .try_into();
             let tokens = tokens
                 .unwrap()
@@ -184,7 +185,8 @@ fn query_wscript_impl(
             tokens.flat_map(|tokens| {
                 let trisult: Result<Trisult<_, _>, _> = workshop::parser::call()
                     .then_ignore(end())
-                    .parse_recovery(tokens)
+                    .parse(&tokens)
+                    .into_output_errors()
                     .try_into();
 
                 trisult

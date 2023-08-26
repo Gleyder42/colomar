@@ -1,4 +1,5 @@
 use crate::impl_intern_key;
+use chumsky::span::SimpleSpan;
 use smol_str::SmolStr;
 use std::fmt::Debug;
 use std::ops::Range;
@@ -97,6 +98,15 @@ impl From<Range<usize>> for CopyRange {
     }
 }
 
+impl From<SimpleSpan> for CopyRange {
+    fn from(value: SimpleSpan) -> Self {
+        CopyRange {
+            start: value.start as InnerSpan,
+            end: value.end as InnerSpan,
+        }
+    }
+}
+
 impl From<Range<InnerSpan>> for CopyRange {
     fn from(value: Range<InnerSpan>) -> Self {
         CopyRange {
@@ -189,7 +199,7 @@ impl ariadne::Span for FatSpan {
     }
 }
 
-impl chumsky::Span for CopyRange {
+impl chumsky::span::Span for CopyRange {
     type Context = ();
     type Offset = InnerSpan;
 
@@ -213,7 +223,7 @@ impl chumsky::Span for CopyRange {
     }
 }
 
-impl chumsky::Span for Span {
+impl chumsky::span::Span for Span {
     type Context = SpanSourceId;
     type Offset = InnerSpan;
 
