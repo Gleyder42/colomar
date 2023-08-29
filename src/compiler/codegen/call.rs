@@ -126,9 +126,7 @@ fn query_wst_call_by_rvalue(
 ) -> QueryTrisult<Option<wst::Call>> {
     match rvalue {
         RValue::Type(Type::Enum(_)) => QueryTrisult::Ok(None),
-        RValue::Function(_func_id) => {
-            todo!()
-        }
+        RValue::Function(_func_id) => compiler_todo("Functions are not implemented", span),
         RValue::Property(property_id) => {
             let property = db.lookup_intern_property_decl(property_id);
 
@@ -139,6 +137,12 @@ fn query_wst_call_by_rvalue(
                 (None, Some(_caller), Some(assigner)) => {
                     query_wst_call_by_assignment(db, replacement_map, property, assigner)
                 }
+                (None, Some(caller), None) => query_const_eval(db, caller.wst.unwrap())
+                    .map(|caller_name| {
+                        let call = wst::Call::Property(caller_name, property.name.into());
+                        call
+                    })
+                    .inner_into_some(),
                 _ => compiler_todo("Properties are not implemented", span),
             }
         }
@@ -363,6 +367,7 @@ pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisu
         wst::Call::Number(_) => query_error!(CompilerError::CannotEvalAsConst),
         wst::Call::Boolean(_) => query_error!(CompilerError::CannotEvalAsConst),
         wst::Call::Ident(ident) => QueryTrisult::Ok(ident),
+        wst::Call::Property(_, _) => query_error!(CompilerError::CannotEvalAsConst),
         wst::Call::Function(_) => query_error!(CompilerError::CannotEvalAsConst),
     }
 }

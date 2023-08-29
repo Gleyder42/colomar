@@ -165,6 +165,7 @@ pub enum Call {
     Number(Text),
     Ident(Ident),
     Boolean(bool),
+    Property(Ident, Ident),
     Function(Function),
 }
 
@@ -197,6 +198,7 @@ impl Display for Call {
                 false => "False".to_owned(),
             },
             Call::Function(it) => it.to_string(),
+            Call::Property(caller, name) => format!("{caller}.{name}"),
         };
         write!(f, "{}", string)
     }

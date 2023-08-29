@@ -3,9 +3,6 @@ me = "Event Player"
 [properties]
 isReloading = "Is Reloading($caller$)"
 damageDealt = "Set Damage Dealt($caller$, $value$)"
-a = "A"
-b = "B"
-c = "C"
 
 [functions]
 sendSmallMessage = "Small Message($caller$, $message$)"

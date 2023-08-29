@@ -21,9 +21,9 @@ open native struct Player {
     native getvar isReloading: bool;
     native setvar damageDealt: num;
 
-    native getvar a: bool;
-    native getvar b: bool;
-    native getvar c: bool;
+    var a: bool;
+    var b: bool;
+    var c: bool;
 
     native fn sendSmallMessage(message: string);
 
