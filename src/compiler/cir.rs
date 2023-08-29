@@ -179,6 +179,25 @@ pub struct CalledType {
     pub span: Span,
 }
 
+pub trait TypeComparison<Rhs> {
+    fn has_same_return_type(&self, rhs: &Rhs) -> bool;
+}
+
+impl TypeComparison<StructDeclarationId> for CalledType {
+    fn has_same_return_type(&self, rhs: &StructDeclarationId) -> bool {
+        match self.r#type {
+            Type::Struct(r#struct) => r#struct == *rhs,
+            _ => false,
+        }
+    }
+}
+
+impl TypeComparison<CalledType> for CalledType {
+    fn has_same_return_type(&self, rhs: &CalledType) -> bool {
+        self.r#type == rhs.r#type
+    }
+}
+
 impl PartialEq<StructDeclarationId> for CalledType {
     fn eq(&self, other: &StructDeclarationId) -> bool {
         match self.r#type {
@@ -349,24 +368,7 @@ impl Expr {
             // TODO Use correct span here
             Expr::Neg(neg) => neg.span(),
             // TODO Use correct span here
-            Expr::And(lhs, rhs) | Expr::Or(lhs, rhs) => rhs.span(),
-        }
-    }
-
-    pub fn returning_avalue(&self) -> Result<AValue, ExprReturnValueError> {
-        match self {
-            Expr::Chain(chain) => Ok(chain.returning_avalue()),
-            Expr::Neg(neg) => neg.as_ref().returning_avalue(),
-            Expr::And(lhs, rhs) | Expr::Or(lhs, rhs) => {
-                let lhs = lhs.returning_avalue()?;
-                let rhs = rhs.returning_avalue()?;
-
-                if lhs == rhs {
-                    Ok(rhs)
-                } else {
-                    Err(ExprReturnValueError(lhs, rhs))
-                }
-            }
+            Expr::And(_lhs, rhs) | Expr::Or(_lhs, rhs) => rhs.span(),
         }
     }
 }
@@ -443,6 +445,21 @@ impl AValue {
 pub enum CValue {
     String(Text, StructDeclarationId, Span),
     Number(Text, StructDeclarationId, Span),
+}
+
+impl CValue {
+    fn struct_decl_id(&self) -> StructDeclarationId {
+        match self {
+            CValue::String(_, id, _) => *id,
+            CValue::Number(_, id, _) => *id,
+        }
+    }
+}
+
+impl TypeComparison<CValue> for CValue {
+    fn has_same_return_type(&self, rhs: &CValue) -> bool {
+        self.struct_decl_id() == rhs.struct_decl_id()
+    }
 }
 
 impl CValue {

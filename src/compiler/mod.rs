@@ -56,6 +56,7 @@ pub enum UseRestriction {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Op {
+    And,
     Equals,
     NotEquals,
 }
@@ -65,6 +66,7 @@ impl Display for Op {
         match self {
             Op::Equals => write!(f, "=="),
             Op::NotEquals => write!(f, "!="),
+            Op::And => write!(f, "&&"),
         }
     }
 }

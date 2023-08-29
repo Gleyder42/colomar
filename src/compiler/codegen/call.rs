@@ -7,7 +7,7 @@ use crate::compiler::error::CompilerError;
 use crate::compiler::span::Span;
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::Ident;
-use crate::compiler::{cir, compiler_todo, wst, QueryTrisult};
+use crate::compiler::{cir, compiler_todo, wst, Op, QueryTrisult};
 use crate::query_error;
 use cir::{CalledArguments, FunctionDecl};
 use std::collections::{HashMap, HashSet};
@@ -38,7 +38,36 @@ pub(super) fn query_wst_call(
             let right = query_by_avalue(right, None);
             right.flat_map(|right| query_by_avalue(left, Some((right, assign_mod))))
         }
-        cir::Action::Expr(expr) => todo!("Expressions are not fully implemented yet"),
+        cir::Action::Expr(expr) => {
+            match expr {
+                cir::Expr::Neg(neg) => {
+                    // Recursive call
+                    let call = db.query_wst_call(caller.clone(), cir::Action::Expr(*neg));
+                    let negation = call.map(|call| wst::Condition {
+                        right: Box::new(call),
+                        op: Op::Equals,
+                        left: Box::new(wst::Call::Boolean(false)),
+                    });
+
+                    negation.map(wst::Call::from)
+                }
+                cir::Expr::And(lhs, rhs) | cir::Expr::Or(lhs, rhs) => {
+                    // Recursive call
+                    let lhs = db.query_wst_call(caller.clone(), cir::Action::Expr(*lhs));
+                    // Recursive call
+                    let rhs = db.query_wst_call(caller.clone(), cir::Action::Expr(*rhs));
+
+                    let and = lhs.and_require(rhs).map(|(lhs, rhs)| wst::Condition {
+                        right: Box::new(rhs),
+                        op: Op::And,
+                        left: Box::new(lhs),
+                    });
+
+                    and.map(wst::Call::from)
+                }
+                cir::Expr::Chain(_) => unreachable!("Chain should already be checked"),
+            }
+        }
     }
 }
 
@@ -332,6 +361,7 @@ pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisu
         wst::Call::Condition(_) => query_error!(CompilerError::CannotEvalAsConst),
         wst::Call::String(_) => query_error!(CompilerError::CannotEvalAsConst),
         wst::Call::Number(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::Boolean(_) => query_error!(CompilerError::CannotEvalAsConst),
         wst::Call::Ident(ident) => QueryTrisult::Ok(ident),
         wst::Call::Function(_) => query_error!(CompilerError::CannotEvalAsConst),
     }

@@ -178,34 +178,38 @@ fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDeclaration, Parse
 }
 
 fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>> {
-    let atom = chain().ident_chain().map(Expr::Chain);
+    recursive(|expr| {
+        let chain = chain().ident_chain().map(Expr::Chain);
 
-    let op = |c| just(Token::Ctrl(c));
+        let atom = chain.or(expr.delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')'))));
 
-    const DUP: usize = 2;
-    let dup_op = |c| op(c).repeated().exactly(DUP).collect_exactly::<[_; DUP]>();
+        let op = |c| just(Token::Ctrl(c));
 
-    let neg = op('!')
-        .repeated()
-        .foldr(atom, |_, rhs| Expr::Neg(Box::new(rhs)));
+        const DUP: usize = 2;
+        let dup_op = |c| op(c).repeated().exactly(DUP).collect_exactly::<[_; DUP]>();
 
-    let and = neg.clone().foldl(
-        dup_op('&')
-            .to(Expr::And as fn(_, _) -> _)
-            .then(neg)
-            .repeated(),
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-    );
+        let neg = op('!')
+            .repeated()
+            .foldr(atom, |_, rhs| Expr::Neg(Box::new(rhs)));
 
-    let or = and.clone().foldl(
-        dup_op('|')
-            .to(Expr::Or as fn(_, _) -> _)
-            .then(and)
-            .repeated(),
-        |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-    );
+        let and = neg.clone().foldl(
+            dup_op('&')
+                .to(Expr::And as fn(_, _) -> _)
+                .then(neg)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
 
-    or
+        let or = and.clone().foldl(
+            dup_op('|')
+                .to(Expr::Or as fn(_, _) -> _)
+                .then(and)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+
+        or
+    })
 }
 
 fn open_or_not<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {

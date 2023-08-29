@@ -21,6 +21,10 @@ open native struct Player {
     native getvar isReloading: bool;
     native setvar damageDealt: num;
 
+    native getvar a: bool;
+    native getvar b: bool;
+    native getvar c: bool;
+
     native fn sendSmallMessage(message: string);
 
     native fn heal(amount: num, player: Player);
@@ -31,7 +35,7 @@ native enum Hero {
 }
 
 rule "Hello World" OngoingEachPlayer() {
-    cond player.isReloading && player.isReloading;
+    cond (player.a && player.b) || player.c;
 
     player.counter += 1;
     player.counter -= 1;

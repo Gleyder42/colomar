@@ -91,6 +91,17 @@ pub trait DeclQuery: Interner {
 
     // Call
 
+    /// Impl: [call::checked_return_avalue]
+    #[salsa::invoke(call::checked_return_avalue)]
+    fn checked_return_avalue(&self, expr: cir::Expr) -> QueryTrisult<cir::AValue>;
+
+    /// Impl: [call::check_equal_return_avalue]
+    #[salsa::invoke(call::check_equal_return_avalue)]
+    fn check_equal_return_avalue(
+        &self,
+        lhs: cir::AValue,
+        rhs: cir::AValue,
+    ) -> QueryTrisult<cir::AValue>;
     /// Impl: [call::query_expr]
     #[salsa::invoke(call::query_expr)]
     fn query_expr(

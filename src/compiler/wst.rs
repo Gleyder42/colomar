@@ -164,6 +164,7 @@ pub enum Call {
     String(Text),
     Number(Text),
     Ident(Ident),
+    Boolean(bool),
     Function(Function),
 }
 
@@ -175,6 +176,13 @@ impl Call {
             panic!("Cannot unwrap {:?} as function", self)
         }
     }
+
+    pub fn is_condition(&self) -> bool {
+        match self {
+            Call::Condition(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl Display for Call {
@@ -184,6 +192,10 @@ impl Display for Call {
             Call::String(it) => format!("\"{}\"", it.to_string()),
             Call::Number(it) => it.to_string(),
             Call::Ident(it) => it.to_string(),
+            Call::Boolean(it) => match *it {
+                true => "True".to_owned(),
+                false => "False".to_owned(),
+            },
             Call::Function(it) => it.to_string(),
         };
         write!(f, "{}", string)
@@ -236,13 +248,21 @@ pub struct Condition {
 
 impl Display for Condition {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{left} {op} {right}",
-            left = self.left,
-            op = self.op,
-            right = self.right
-        )
+        if self.left.is_condition() {
+            write!(f, "({})", self.left)?;
+        } else {
+            write!(f, "{}", self.left)?;
+        }
+
+        write!(f, " {} ", self.op)?;
+
+        if self.right.is_condition() {
+            write!(f, "({})", self.right)?;
+        } else {
+            write!(f, "{}", self.right)?;
+        }
+
+        Ok(())
     }
 }
 
