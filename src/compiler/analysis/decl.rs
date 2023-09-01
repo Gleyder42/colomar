@@ -5,13 +5,14 @@ use crate::compiler::cir::{
     AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId,
     FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId, Type,
 };
-use crate::compiler::cst::Actions;
+use crate::compiler::cst::{Actions, Import, Path, TypeRoot};
 use crate::compiler::error::CompilerError;
 use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
 
 use crate::compiler::span::Spanned;
 use cir::DeclaredArgumentId;
 use cst::Ast;
+use hashlink::LinkedHashMap;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -29,11 +30,26 @@ use super::r#type as ttype;
 #[salsa::query_group(DeclDatabase)]
 pub trait DeclQuery: Interner {
     // Input
-
+    // TODO Rename to main_file
     #[salsa::input]
     fn input_content(&self) -> Ast;
 
+    #[salsa::input]
+    fn other_input_content(&self) -> LinkedHashMap<Path, Ast>;
+
     // Ast
+
+    /// Impl: [file::query_type_items]
+    #[salsa::invoke(file::query_type_items)]
+    fn query_type_items(&self) -> Vec<TypeRoot>;
+
+    /// Impl: [file::query_imports]
+    #[salsa::invoke(file::query_imports)]
+    fn query_imports(&self) -> Vec<Import>;
+
+    /// Impl: [file::query_action_items]
+    #[salsa::invoke(file::query_action_items)]
+    fn query_action_items(&self) -> Vec<cst::Root>;
 
     /// Queries a map containing declaration ids and definitions.
     /// If you want to get the definition by declaration id use [AstDefQuery::query_ast_event_def]

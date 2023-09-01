@@ -2,6 +2,7 @@ use crate::compiler::cir::{
     AValue, CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId,
     Type,
 };
+use crate::compiler::cst::Path;
 use crate::compiler::span::Span;
 use crate::compiler::trisult::Trisult;
 use crate::compiler::wst::partial::SaturateError;
@@ -45,6 +46,7 @@ pub enum CompilerError {
     CannotMixArguments(Span),
     CannotEvalAsConst,
     WrongTypeInBinaryExpression(AValue, AValue),
+    CannotFindFile(Path),
 }
 
 impl CompilerError {
@@ -70,6 +72,7 @@ impl CompilerError {
             CompilerError::DuplicateNamedArgument(_) => 17,
             CompilerError::CannotEvalAsConst => 18,
             CompilerError::WrongTypeInBinaryExpression(_, _) => 19,
+            CompilerError::CannotFindFile(_) => 20,
         }
     }
 }

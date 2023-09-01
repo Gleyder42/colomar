@@ -27,6 +27,7 @@ pub enum Token {
     String(Text),
     Num(Text),
     Ctrl(char),
+    Dctrl([char; 2]),
 }
 
 impl Display for Token {
@@ -50,6 +51,7 @@ impl Display for Token {
             Token::String(string) => write!(f, "{string}"),
             Token::Num(string) => write!(f, "{string}"),
             Token::Ctrl(ctrl) => write!(f, "{ctrl}"),
+            Token::Dctrl(ctrl) => write!(f, "{}{}", ctrl[0], ctrl[1]),
         }
     }
 }

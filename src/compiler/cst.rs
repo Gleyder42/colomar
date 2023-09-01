@@ -59,6 +59,14 @@ pub enum Root {
     Rule(Rule),
     Enum(Enum),
     Struct(Struct),
+    Import(Import),
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum TypeRoot {
+    Event(Event),
+    Enum(Enum),
+    Struct(Struct),
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -66,6 +74,17 @@ pub enum Action {
     CallChain(CallChain),
     Assignment(CallChain, CallChain, Option<AssignMod>),
     Property(PropertyDeclaration),
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct Path {
+    pub segments: Vec<Text>,
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct Import {
+    pub path: Path,
+    pub span: Span,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

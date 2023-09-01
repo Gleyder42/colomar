@@ -3,9 +3,11 @@ use crate::compiler::cir::{EventDeclarationId, StructDeclarationId};
 use crate::compiler::cst::Conditions;
 use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
+use hashlink::LinkedHashSet;
 
 use super::event;
 use super::im;
+use super::import;
 use super::r#struct as sstruct;
 use super::rule;
 
@@ -20,6 +22,12 @@ pub trait DefQuery: DeclQuery {
     /// [im::query_player_struct_def]
     #[salsa::invoke(im::query_player_struct_def)]
     fn query_player_struct_def(&self) -> cst::Struct;
+
+    // Import
+
+    /// [import::load_imports]
+    #[salsa::invoke(import::load_imports)]
+    fn load_imports(&self, imported: LinkedHashSet<cst::Path>) -> QueryTrisult<Vec<cst::Root>>;
 
     // Event
 

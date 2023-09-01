@@ -3,13 +3,14 @@ use crate::compiler::{cir, cst};
 use crate::compiler::{QueryTrisult, Text};
 
 pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
-    db.input_content()
+    db.query_action_items()
         .into_iter()
         .map(|root| match root {
             cst::Root::Event(event) => db.query_event(event).map(cir::Root::Event),
             cst::Root::Rule(rule) => db.query_rule_decl(rule).map(cir::Root::Rule),
             cst::Root::Enum(r#enum) => db.query_enum(r#enum).map(cir::Root::Enum),
             cst::Root::Struct(r#struct) => db.query_struct(r#struct).map(cir::Root::Struct),
+            cst::Root::Import(_) => unreachable!(),
         })
         .collect::<QueryTrisult<_>>()
         // TODO Decide how to handle this

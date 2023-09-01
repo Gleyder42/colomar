@@ -1,13 +1,15 @@
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
 use crate::compiler::{AssignMod, Ident, Text, UseRestriction};
+use chumsky::combinator::To;
+use chumsky::container::Container;
 use chumsky::error::Error;
 use chumsky::input::{SpannedInput, Stream};
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
 use chumsky::util::Maybe;
-use smallvec::SmallVec;
+use smallvec::{Array, SmallVec};
 
 pub type ParserInput = SpannedInput<Token, Span, Stream<std::vec::IntoIter<(Token, Span)>>>;
 pub type ParserExtra<'a> = extra::Err<Rich<'a, Token, Span>>;
@@ -177,6 +179,15 @@ fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDeclaration, Parse
         })
 }
 
+macro_rules! dup_op {
+    ($lit:literal) => {
+        just(Token::Ctrl($lit))
+            .repeated()
+            .exactly(2)
+            .collect_exactly::<[_; 2]>()
+    };
+}
+
 fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>> {
     recursive(|expr| {
         let chain = chain().ident_chain().map(Expr::Chain);
@@ -185,15 +196,12 @@ fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>>
 
         let op = |c| just(Token::Ctrl(c));
 
-        const DUP: usize = 2;
-        let dup_op = |c| op(c).repeated().exactly(DUP).collect_exactly::<[_; DUP]>();
-
         let neg = op('!')
             .repeated()
             .foldr(atom, |_, rhs| Expr::Neg(Box::new(rhs)));
 
         let and = neg.clone().foldl(
-            dup_op('&')
+            dup_op!('&')
                 .to(Expr::And as fn(_, _) -> _)
                 .then(neg)
                 .repeated(),
@@ -201,7 +209,7 @@ fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>>
         );
 
         let or = and.clone().foldl(
-            dup_op('|')
+            dup_op!('|')
                 .to(Expr::Or as fn(_, _) -> _)
                 .then(and)
                 .repeated(),
@@ -216,6 +224,23 @@ fn open_or_not<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtr
     just(Token::Open)
         .or_not()
         .map_with_span(Spanned::ignore_value)
+}
+
+fn path<'src>() -> impl Parser<'src, ParserInput, Path, ParserExtra<'src>> {
+    ident()
+        .separated_by(dup_op!(':'))
+        .collect::<Vec<_>>()
+        .map(|segments| Path {
+            segments: segments.into_iter().map(|it| it.value).collect(),
+        })
+}
+
+fn imports<'src>() -> impl Parser<'src, ParserInput, Vec<Import>, ParserExtra<'src>> {
+    path()
+        .then_ignore(just(Token::Ctrl(';')))
+        .map_with_span(|path, span| Import { path, span })
+        .repeated()
+        .collect::<Vec<_>>()
 }
 
 fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>> {

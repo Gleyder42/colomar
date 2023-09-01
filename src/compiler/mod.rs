@@ -33,7 +33,6 @@ pub const DECLARED_ARGUMENTS_LEN: usize = 4;
 pub const PROPERTY_DECLS_LEN: usize = 4;
 pub const FUNCTIONS_DECLS_LEN: usize = 6;
 pub const ENUM_CONSTANTS_LEN: usize = 8;
-
 pub const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

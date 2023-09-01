@@ -44,4 +44,4 @@ rule "Hello World" OngoingEachPlayer() {
     player.counter = 10;
     player.damageDealt = 150;
     player.sendSmallMessage("Hello World");
- }
+}

@@ -23,9 +23,9 @@ A rule consists of multiple elements.
 
 ```
 rule "Heal on kill" PlayerDealtFinalBlow(Team.Team1, HeroSlot.Slot1) { 
-    cond player.isReloading
+    cond player.isReloading;
         
-    player.heal(100)
+    player.heal(100);
 }
 
 ```
@@ -34,9 +34,9 @@ rule "Heal on kill" PlayerDealtFinalBlow(Team.Team1, HeroSlot.Slot1) {
 
 ```
 event PlayerWeaponReloading(heroSlot: HeroSlot) by OngoingEachPlayer(Team.All, hero) {
-    val player = by.player
+    val player = by.player;
     
-    cond player.isReloading
+    cond player.isReloading;
     self()
 }
 

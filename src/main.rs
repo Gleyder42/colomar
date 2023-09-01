@@ -306,6 +306,7 @@ fn print_errors(
             CompilerError::CannotMixArguments(_) => {}
             CompilerError::CannotEvalAsConst => {}
             CompilerError::WrongTypeInBinaryExpression(_, _) => {}
+            CompilerError::CannotFindFile(_) => {}
         }
     }
 }

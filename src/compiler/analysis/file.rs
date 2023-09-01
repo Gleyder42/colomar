@@ -1,6 +1,6 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::cir::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
-use crate::compiler::cst::{Definition, EventDefinition, Root, StructDefinition};
+use crate::compiler::cst::{Definition, EventDefinition, Import, Root, StructDefinition, TypeRoot};
 use crate::compiler::error::CompilerError;
 
 use crate::compiler::QueryTrisult;
@@ -37,29 +37,57 @@ pub(super) fn query_ast_struct_def(
         .into()
 }
 
-pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Definition> {
-    let map: HashMap<_, _> = db
-        .input_content()
+pub(super) fn query_imports(db: &dyn DeclQuery) -> Vec<Import> {
+    db.input_content()
         .into_iter()
         .filter_map(|root| match root {
-            Root::Event(event) => {
+            Root::Import(import) => Some(import),
+            _ => None,
+        })
+        .collect()
+}
+
+pub(super) fn query_action_items(db: &dyn DeclQuery) -> Vec<Root> {
+    db.input_content()
+        .into_iter()
+        .filter(|root| match root {
+            Root::Rule(_) | Root::Struct(_) | Root::Event(_) | Root::Enum(_) => true,
+            Root::Import(_) => false,
+        })
+        .collect()
+}
+
+pub(super) fn query_type_items(db: &dyn DeclQuery) -> Vec<TypeRoot> {
+    db.input_content()
+        .into_iter()
+        .filter_map(|root| match root {
+            Root::Event(event) => Some(TypeRoot::Event(event)),
+            Root::Enum(r#enum) => Some(TypeRoot::Enum(r#enum)),
+            Root::Struct(r#struct) => Some(TypeRoot::Struct(r#struct)),
+            _ => None,
+        })
+        .collect()
+}
+
+pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Definition> {
+    let map: HashMap<_, _> = db
+        .query_type_items()
+        .into_iter()
+        .filter_map(|root| match root {
+            TypeRoot::Event(event) => {
                 let event_decl_id = db.query_event_decl(event.declaration);
                 println!("Event {:?}", event_decl_id);
                 Some((DefKey::Event(event_decl_id), event.definition.into()))
             }
-            Root::Enum(r#enum) => {
+            TypeRoot::Enum(r#enum) => {
                 let enum_decl_id = db.query_enum_decl(r#enum.declaration);
                 println!("Enum {:?}", enum_decl_id);
                 Some((DefKey::Enum(enum_decl_id), r#enum.definition.into()))
             }
-            Root::Struct(r#struct) => {
+            TypeRoot::Struct(r#struct) => {
                 let struct_decl_id = db.query_struct_decl(r#struct.declaration);
                 println!("Struct {:?}", struct_decl_id);
                 Some((DefKey::Struct(struct_decl_id), r#struct.definition.into()))
-            }
-            Root::Rule(_) => {
-                /* Rules don't need to be queried */
-                None
             }
         })
         .collect();

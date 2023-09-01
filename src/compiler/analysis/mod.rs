@@ -7,6 +7,7 @@ pub mod event;
 pub mod file;
 pub mod function;
 pub mod im;
+pub mod import;
 pub mod interner;
 pub mod namespace;
 pub mod property;
