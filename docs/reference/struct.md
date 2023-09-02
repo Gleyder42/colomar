@@ -1,22 +1,17 @@
-# Structs
+# Struct
+
+Structs are used to group common properties and functions together.
 
 Member functions take self as a first parameter.
 They have access to private fields and functions.
 You can use extension methods to extend a closed class.
 Although you use `self` you don't have access to private fields or functions.
 
-```
+```text
 struct Zone {
-    val pos1: Vector
-    val pos2: Vector
     
-    fn is_inside(player: &Player): bool {
-        return true
-    }
-}
-
-fn Zone.is_not_inside(player: &Player): bool {
-    return !is_inside()
+    var a: Vector
+    var b: Vector
 }
 ```
 ### Open Structs

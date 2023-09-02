@@ -1,8 +1,7 @@
-me = "Event Player"
-
 [properties]
 isReloading = "Is Reloading($caller$)"
 damageDealt = "Set Damage Dealt($caller$, $value$)"
+eyePos = "Eye Position($caller$)"
 
 [functions]
 sendSmallMessage = "Small Message($caller$, $message$)"

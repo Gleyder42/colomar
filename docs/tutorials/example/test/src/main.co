@@ -20,6 +20,7 @@ open native struct Player {
 
     native getvar isReloading: bool;
     native setvar damageDealt: num;
+    native getvar eyePos: vector;
 
     var a: bool;
     var b: bool;
@@ -28,6 +29,17 @@ open native struct Player {
     native fn sendSmallMessage(message: string);
 
     native fn heal(amount: num, player: Player);
+
+}
+
+native struct vector {
+
+    native var x: num;
+    native var y: num;
+    native var z: num;
+    native val dummy: bool;
+
+    native fn new(x: num, y: num, z: num);
 }
 
 native enum Hero {

@@ -17,7 +17,6 @@ pub struct Event {
 
 #[derive(Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Struct {
-    pub me: String,
     pub properties: HashableMap<String, String>,
     pub functions: HashableMap<String, String>,
 }

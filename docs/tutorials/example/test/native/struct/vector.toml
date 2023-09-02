@@ -1,0 +1,7 @@
+[properties]
+x = "X Component Of($caller$)"
+y = "Y Component Of($caller$)"
+z = "Z Component Of($caller$)"
+
+[functions]
+new = "Vector($x$, $y$, $z$)"
