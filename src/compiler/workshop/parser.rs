@@ -85,7 +85,7 @@ mod tests {
     fn test_element_parser() {
         let code = "Small Message(Event Player, Is Reloading(Event Player))";
         let tokens = lexer().then_ignore(end()).parse(code).unwrap();
-        let actual_element = call().then_ignore(end()).parse((&tokens)).unwrap();
+        let actual_element = call().then_ignore(end()).parse(&tokens).unwrap();
 
         let expected_element = partial::Call::Function(partial::Function {
             name: Ident(Text::new("Small Message")),

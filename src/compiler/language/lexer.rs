@@ -144,7 +144,10 @@ mod tests {
             Token::Num("123.321".to_string().into()),
         ];
 
-        assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
+        assert_vec(
+            &actual.into_iter().map(|i| i.0).collect::<Vec<_>>(),
+            &expected,
+        );
     }
 
     #[test]
@@ -159,7 +162,10 @@ mod tests {
             Token::String("Hello World".to_string().into()),
         ];
 
-        assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
+        assert_vec(
+            &actual.into_iter().map(|i| i.0).collect::<Vec<_>>(),
+            &expected,
+        );
     }
 
     #[test]
@@ -186,6 +192,9 @@ mod tests {
             Token::Type,
         ];
 
-        assert_vec(&actual.into_iter().map(|i| i.0).collect(), &expected);
+        assert_vec(
+            &actual.into_iter().map(|i| i.0).collect::<Vec<_>>(),
+            &expected,
+        );
     }
 }

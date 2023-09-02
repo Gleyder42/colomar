@@ -1,7 +1,7 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::{Nameholder, Nameholders};
-use crate::compiler::cir::{AValueChain, CValue, ExprReturnValueError, TypeComparison};
+use crate::compiler::cir::{AValueChain, CValue, TypeComparison};
 use crate::compiler::cst::CallArgument;
 use crate::compiler::error::CompilerError;
 use crate::compiler::span::Spanned;
