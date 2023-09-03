@@ -57,7 +57,7 @@ pub(super) fn query_wst_call(
                     // Recursive call
                     let rhs = db.query_wst_call(caller.clone(), cir::Action::Expr(*rhs));
 
-                    let and = lhs.and_require(rhs).map(|(lhs, rhs)| wst::Condition {
+                    let and = lhs.and(rhs).map(|(lhs, rhs)| wst::Condition {
                         right: Box::new(rhs),
                         op: Op::And,
                         left: Box::new(lhs),
@@ -195,7 +195,7 @@ fn query_wst_call_by_function_call(
                 .map(|call| (arg.name, call))
         })
         .collect::<QueryTrisult<Vec<_>>>()
-        .and_require(wscript_function)
+        .and(wscript_function)
         .flat_map(|(args, wscript_function)| {
             // TODO Should the map be cloned here?
             let mut replacement_map = replacement_map.clone();

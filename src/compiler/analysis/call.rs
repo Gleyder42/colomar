@@ -21,13 +21,13 @@ pub(super) fn query_expr(
     let binary_op = |lhs: Lhs, rhs: Rhs, expr: fn(_, _) -> _| {
         let lhs = db.query_expr(inital_nameholders.clone(), enforce_bool, *lhs);
         let rhs = db.query_expr(inital_nameholders.clone(), enforce_bool, *rhs);
-        lhs.and_require(rhs).flat_map(|(lhs, rhs)| {
+        lhs.and(rhs).flat_map(|(lhs, rhs)| {
             let expr: cir::Expr = expr(Box::new(lhs), Box::new(rhs));
             // We can safely unwrap here, because we know the created expression will have lhs and rhs
             let lhs = db.checked_return_avalue(expr.lhs().cloned().unwrap());
             let rhs = db.checked_return_avalue(expr.rhs().cloned().unwrap());
 
-            lhs.and_require(rhs)
+            lhs.and(rhs)
                 .flat_map(|(lhs, rhs)| db.check_equal_return_avalue(lhs, rhs))
                 .map(|_| expr)
         })
@@ -67,7 +67,7 @@ pub(super) fn checked_return_avalue(
             let lhs = db.checked_return_avalue(*lhs);
             let rhs = db.checked_return_avalue(*rhs);
 
-            lhs.and_require(rhs)
+            lhs.and(rhs)
                 .flat_map(|(lhs, rhs)| db.check_equal_return_avalue(lhs, rhs))
         }
     }

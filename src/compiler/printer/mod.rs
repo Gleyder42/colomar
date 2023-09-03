@@ -42,7 +42,7 @@ fn query_workshop_output(db: &dyn PrinterQuery) -> QueryTrisult<String> {
             });
 
         rules
-            .and_require(variables)
+            .and(variables)
             .map(|(rules, variables)| [variables, rules].join("\n"))
     })
 }

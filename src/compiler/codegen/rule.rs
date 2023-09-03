@@ -53,15 +53,15 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
 
     let wscript_event_name = db.query_wscript_event_name_impl(event_decl.name.value);
 
-    args.and_require(query_event_wst_call(rule.actions).map_inner(|it| it.unwrap_function()))
-        .and_require(
+    args.and(query_event_wst_call(rule.actions).map_inner(|it| it.unwrap_function()))
+        .and(
             query_event_wst_call(conditions).map_inner(|it| wst::Condition {
                 left: Box::new(it),
                 op: Op::Equals,
                 right: Box::new(wst::Call::Ident("True".into())),
             }),
         )
-        .and_require(wscript_event_name)
+        .and(wscript_event_name)
         .map(
             |(((mut args, actions), conditions), event_name)| wst::Rule {
                 title: rule.title,

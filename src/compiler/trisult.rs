@@ -105,7 +105,7 @@ impl<T, E> Trisult<T, E> {
     where
         F: FnOnce(&T, W) -> Result<(), E>,
     {
-        self.and_require(with)
+        self.and(with)
             .flat_map(|(value, with)| match filter(&value, with) {
                 Ok(_) => Trisult::Ok(value),
                 Err(error) => Trisult::Par(value, vec![error]),
@@ -130,7 +130,7 @@ impl<T, E> Trisult<T, E> {
     }
 
     pub fn and_or<O>(self, other: Trisult<O, E>, default: O) -> Trisult<(T, O), E> {
-        self.and(
+        self.and_or_recover(
             |value, errors| Trisult::Par((value, default), errors),
             other,
         )
@@ -140,11 +140,11 @@ impl<T, E> Trisult<T, E> {
     ///
     /// # Notes
     /// * If this result or the other result is [Trisult::Err] the combined result will also be [Trisult::Err]
-    pub fn and_require<O>(self, other: Trisult<O, E>) -> Trisult<(T, O), E> {
-        self.and(|_value, errors| Trisult::Err(errors), other)
+    pub fn and<O>(self, other: Trisult<O, E>) -> Trisult<(T, O), E> {
+        self.and_or_recover(|_value, errors| Trisult::Err(errors), other)
     }
 
-    pub fn map_and_require<O, F>(self, func: F) -> Trisult<(T, O), E>
+    pub fn and_with<O, F>(self, func: F) -> Trisult<(T, O), E>
     where
         F: FnOnce(&T) -> Trisult<O, E>,
     {
@@ -156,7 +156,7 @@ impl<T, E> Trisult<T, E> {
     /// # Notes
     /// * If this result is [Trisult::Err] the combined result will also be [Trisult::Err]
     /// * If the other result is [Trisult::Err] the recovery function defines the combined result
-    fn and<O, F>(self, recovery: F, other: Trisult<O, E>) -> Trisult<(T, O), E>
+    fn and_or_recover<O, F>(self, recovery: F, other: Trisult<O, E>) -> Trisult<(T, O), E>
     where
         F: FnOnce(T, Vec<E>) -> Trisult<(T, O), E>,
     {
@@ -196,7 +196,7 @@ impl<T, E> Trisult<T, E> {
     /// none
     pub fn and_maybe<O>(self, option: Option<Trisult<O, E>>) -> Trisult<(T, Option<O>), E> {
         match option {
-            Some(result) => self.and(
+            Some(result) => self.and_or_recover(
                 |value, errors| Trisult::Par((value, None), errors),
                 result.map(|it| Some(it)),
             ),
@@ -212,17 +212,8 @@ impl<T, E> Trisult<T, E> {
     where
         F: FnOnce(Trisult<(T, H), E>) -> Trisult<T, E>,
     {
-        let trisult = self.and_require(helper);
+        let trisult = self.and(helper);
         func(trisult)
-    }
-
-    /// Maps this result's value [T] to another value [O].
-    pub fn map<U, F: FnOnce(T) -> U>(self, func: F) -> Trisult<U, E> {
-        match self {
-            Trisult::Ok(value) => Trisult::Ok(func(value)),
-            Trisult::Par(value, errors) => Trisult::Par(func(value), errors),
-            Trisult::Err(errors) => Trisult::Err(errors),
-        }
     }
 
     pub fn if_ok(self, func: impl FnOnce(T)) {
@@ -236,6 +227,15 @@ impl<T, E> Trisult<T, E> {
             let errors = validator(&t);
             Trisult::new(t, errors)
         })
+    }
+
+    /// Maps this result's value [T] to another value [O].
+    pub fn map<U, F: FnOnce(T) -> U>(self, func: F) -> Trisult<U, E> {
+        match self {
+            Trisult::Ok(value) => Trisult::Ok(func(value)),
+            Trisult::Par(value, errors) => Trisult::Par(func(value), errors),
+            Trisult::Err(errors) => Trisult::Err(errors),
+        }
     }
 
     /// Maps this result's value [T] to another value [O], but flattens the inner [Trisult].
