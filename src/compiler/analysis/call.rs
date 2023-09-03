@@ -107,7 +107,7 @@ pub(super) fn query_call_chain(
     );
     let span = call_chain.span;
 
-    QueryTrisult::from_iter(call_chain.value).fold_flat_map(
+    QueryTrisult::Ok(call_chain.value).fold_flat_map(
         (inital_nameholders.clone(), Vec::<cir::AValue>::new()),
         // func refers to the closure processing the call.
         // map_func refers to the closure unwrapping the value .

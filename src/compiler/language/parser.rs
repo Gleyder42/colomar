@@ -1,15 +1,13 @@
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
 use crate::compiler::{AssignMod, Ident, Text, UseRestriction};
-use chumsky::combinator::To;
-use chumsky::container::Container;
 use chumsky::error::Error;
 use chumsky::input::{SpannedInput, Stream};
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
 use chumsky::util::Maybe;
-use smallvec::{Array, SmallVec};
+use smallvec::SmallVec;
 
 pub type ParserInput = SpannedInput<Token, Span, Stream<std::vec::IntoIter<(Token, Span)>>>;
 pub type ParserExtra<'a> = extra::Err<Rich<'a, Token, Span>>;

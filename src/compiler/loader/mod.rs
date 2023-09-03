@@ -173,7 +173,7 @@ fn query_wscript_impl(
                 .into()
         })
         .flat_map(|wscript| {
-            let tokens: Result<Trisult<_, _>, _> = workshop::lexer::lexer()
+            let tokens: Result<Trisult<Vec<_>, _>, _> = workshop::lexer::lexer()
                 .then_ignore(end())
                 .parse(wscript.as_str())
                 .into_output_errors()

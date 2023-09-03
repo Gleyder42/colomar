@@ -31,10 +31,9 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
                                     CompilerError::CannotFindNativeDefinition(arg_name.into()),
                                 )
                             })
-                            .collect::<QueryTrisult<Vec<wst::Call>>>()
+                            .collect::<QueryTrisult<VecDeque<wst::Call>>>()
                     })
             })
-            .map(|it| it.into_iter().collect::<VecDeque<_>>()) // TODO Add trait converting into all containers
     });
 
     let query_event_wst_call = |chain: Vec<cir::Action>| -> QueryTrisult<Vec<wst::Call>> {

@@ -1,5 +1,3 @@
-use smallvec::{Array, SmallVec};
-
 use crate::compiler::span::{Span, Spanned};
 use std::fmt::Debug;
 
@@ -405,94 +403,38 @@ impl<T, E> From<Result<T, E>> for Trisult<T, E> {
     }
 }
 
-impl<T, E> FromIterator<Result<T, E>> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item = Result<T, E>>>(iter: I) -> Self {
-        let mut results = Vec::new();
-        let mut errors = Vec::new();
-
-        for result in iter {
-            match result {
-                Ok(value) => results.push(value),
-                Err(error) => errors.push(error),
-            }
-        }
-
-        from_vec_results(results, errors)
-    }
-}
-
-impl<T, A: Array<Item = T>, E> FromIterator<Trisult<T, E>> for Trisult<SmallVec<A>, E> {
-    fn from_iter<I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> Self {
-        let (results, errors) = from_iter_trisults(iter);
-
-        from_small_vec_results(results, errors)
-    }
-}
-
-impl<T, E> FromIterator<Trisult<T, E>> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> Self {
-        let (results, errors) = from_iter_trisults(iter);
-
-        from_vec_results(results, errors)
-    }
-}
-
-impl<T, E> FromIterator<T> for Trisult<Vec<T>, E> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let results: Vec<T> = iter.into_iter().collect();
-        from_vec_results(results, Vec::new())
-    }
-}
-
-fn from_iter_trisults<T, E, I: IntoIterator<Item = Trisult<T, E>>>(iter: I) -> (Vec<T>, Vec<E>) {
-    let mut results = Vec::new();
-    let mut errors = Vec::new();
-    for result in iter {
-        match result {
-            Trisult::Ok(value) => results.push(value),
-            Trisult::Par(value, mut result_errors) => {
-                results.push(value);
-                errors.append(&mut result_errors);
-            }
-            Trisult::Err(mut result_errors) => errors.append(&mut result_errors),
-        }
-    }
-    (results, errors)
-}
-
-impl<T, E> From<(Vec<T>, Vec<E>)> for Trisult<Vec<T>, E> {
-    fn from(value: (Vec<T>, Vec<E>)) -> Self {
-        from_vec_results(value.0, value.1)
-    }
-}
-
-impl<T: Array, E> From<(SmallVec<T>, Vec<E>)> for Trisult<SmallVec<T>, E> {
-    fn from(value: (SmallVec<T>, Vec<E>)) -> Self {
-        from_small_vec_results(value.0, value.1)
-    }
-}
-
-/// Creates a [Trisult] from a result and error [Vec].
-/// The result is
-/// * [Trisult::Ok], if no errors are found
-/// * [Trisult::Par], if errors are found.
-fn from_vec_results<T, E>(results: Vec<T>, errors: Vec<E>) -> Trisult<Vec<T>, E> {
-    match errors.is_empty() {
-        true => Trisult::Ok(results),
-        false => Trisult::Par(results, errors),
-    }
-}
-
-fn from_small_vec_results<T, A, E>(
-    results: impl Into<SmallVec<A>>,
-    errors: Vec<E>,
-) -> Trisult<SmallVec<A>, E>
+impl<R, T, E, C> FromIterator<R> for Trisult<C, E>
 where
-    A: Array<Item = T>,
+    R: Into<Trisult<T, E>>,
+    C: IntoIterator<Item = T> + FromIterator<T> + Extend<T> + Default,
 {
-    match errors.is_empty() {
-        true => Trisult::Ok(results.into()),
-        false => Trisult::Par(results.into(), errors),
+    fn from_iter<I: IntoIterator<Item = R>>(iter: I) -> Self {
+        let mut values = C::default();
+        let mut errors: Vec<E> = Vec::new();
+
+        for r in iter {
+            let result = r.into();
+            match result {
+                Trisult::Ok(value) => values.extend(Some(value)),
+                Trisult::Par(value, other_errors) => {
+                    values.extend(Some(value));
+                    errors.extend(other_errors);
+                }
+                Trisult::Err(other_errors) => errors.extend(other_errors),
+            };
+        }
+
+        Trisult::from((values, errors))
+    }
+}
+
+impl<T, E> From<(T, Vec<E>)> for Trisult<T, E> {
+    fn from(value: (T, Vec<E>)) -> Self {
+        if value.1.is_empty() {
+            Trisult::Ok(value.0)
+        } else {
+            Trisult::Par(value.0, value.1)
+        }
     }
 }
 

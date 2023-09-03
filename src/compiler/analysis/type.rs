@@ -3,7 +3,6 @@ use crate::compiler::{cir, cst, Ident};
 
 use std::collections::HashMap;
 
-// TODO Maybe add a projection query which excludes rule
 pub(super) fn query_type_map(db: &dyn DeclQuery) -> HashMap<Ident, cir::Type> {
     db.query_type_items()
         .into_iter()

@@ -1,6 +1,7 @@
 #![feature(result_flattening)]
 #![feature(map_try_insert)]
 
+extern crate core;
 extern crate salsa;
 
 use crate::compiler::language::lexer::lexer;
