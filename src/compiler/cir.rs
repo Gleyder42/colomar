@@ -397,6 +397,10 @@ pub struct AValueChain {
 }
 
 impl AValueChain {
+    pub fn is_constant(&self) -> bool {
+        self.avalues.iter().all(|avalue| avalue.is_constant())
+    }
+
     pub fn new(avalues: Vec<AValue>, span: Span) -> Self {
         debug_assert!(!avalues.is_empty(), "Tried to create an empty AValueChain");
         AValueChain { avalues, span }
@@ -431,6 +435,14 @@ impl From<AValue> for AValueChain {
 }
 
 impl AValue {
+    pub fn is_constant(&self) -> bool {
+        match self {
+            AValue::FunctionCall(_, _, _) => false,
+            AValue::RValue(_, _) => false,
+            AValue::CValue(_) => true,
+        }
+    }
+
     pub fn span(&self) -> Span {
         match self {
             AValue::FunctionCall(_, _, span) => *span,

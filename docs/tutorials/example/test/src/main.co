@@ -29,7 +29,6 @@ open native struct Player {
     native fn sendSmallMessage(message: string);
 
     native fn heal(amount: num, player: Player);
-
 }
 
 native struct vector {
@@ -37,7 +36,6 @@ native struct vector {
     native var x: num;
     native var y: num;
     native var z: num;
-    native val dummy: bool;
 
     native fn new(x: num, y: num, z: num);
 }

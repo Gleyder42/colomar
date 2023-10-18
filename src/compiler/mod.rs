@@ -1,3 +1,4 @@
+use crate::compiler::span::AbstractSpan;
 use crate::compiler::trisult::Trisult;
 use error::CompilerError;
 use hashlink::LinkedHashMap;

@@ -11,21 +11,16 @@ pub type SpanSource = SmolStr;
 pub type SpannedBool = Option<Spanned<()>>;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct OffsetParent {
+pub struct RelativeOffset {
     pub parent: Rc<AbstractOffset>,
     pub offset: u16,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct RelativeOffset {
-    pub parent: OffsetParent,
     pub length: u16,
 }
 
 impl RelativeOffset {
     pub fn absolute_offset(&self) -> CopyRange {
         let mut offset: u32 = 0;
-        let mut current = Some(self.parent.parent.as_ref());
+        let mut current = Some(self.parent.as_ref());
         loop {
             match current {
                 Some(parent) => {
@@ -51,7 +46,7 @@ impl AbstractOffset {
     fn parent(&self) -> Option<&AbstractOffset> {
         match self {
             AbstractOffset::Absolute(_) => None,
-            AbstractOffset::Relative(relative) => Some(relative.parent.parent.as_ref()),
+            AbstractOffset::Relative(relative) => Some(relative.parent.as_ref()),
         }
     }
 
@@ -120,6 +115,21 @@ impl From<Range<InnerSpan>> for CopyRange {
 pub struct Span {
     pub source: SpanSourceId,
     pub location: SpanLocation,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct AbstractSpan {
+    pub source: SpanSourceId,
+    pub location: AbstractOffset,
+}
+
+impl AbstractSpan {
+    fn absolute(span: Span) -> AbstractSpan {
+        AbstractSpan {
+            source: span.source,
+            location: AbstractOffset::Absolute(span.location),
+        }
+    }
 }
 
 impl Span {
