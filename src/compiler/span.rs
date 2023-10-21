@@ -1,14 +1,54 @@
 use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
 use smol_str::SmolStr;
+use std::borrow::Cow;
 use std::fmt::Debug;
-use std::ops::Range;
+use std::ops::{Deref, Range};
 use std::rc::Rc;
 
 pub type InnerSpan = u32;
 pub type SpanLocation = CopyRange;
 pub type SpanSource = SmolStr;
 pub type SpannedBool = Option<Spanned<()>>;
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct HierOffset {
+    pub parent: Option<Rc<HierOffset>>,
+    pub name: Cow<'static, str>,
+}
+
+impl HierOffset {
+    pub fn iter(&self) -> HierOffsetIter {
+        HierOffsetIter(Some(self))
+    }
+
+    pub fn as_string(&self) -> String {
+        self.iter()
+            .map(|it| match &it.name {
+                Cow::Borrowed(str) => str.to_string(),
+                Cow::Owned(string) => string.clone(),
+            })
+            .collect::<Vec<String>>()
+            .join("/")
+    }
+}
+
+struct HierOffsetIter<'a>(Option<&'a HierOffset>);
+
+impl<'a> Iterator for HierOffsetIter<'a> {
+    type Item = &'a HierOffset;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0 {
+            Some(offset) => {
+                let next = offset.parent.as_ref().map(|it| it.as_ref());
+                self.0 = next;
+                Some(offset)
+            }
+            None => None,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RelativeOffset {
@@ -270,3 +310,25 @@ impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
 pub struct SpanSourceId(salsa::InternId);
 
 impl_intern_key!(SpanSourceId);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::mem::size_of;
+
+    #[test]
+    fn test() {
+        let root = HierOffset {
+            parent: None,
+            name: Cow::Borrowed("Hello"),
+        };
+
+        let name = HierOffset {
+            parent: Some(Rc::new(root)),
+            name: Cow::Borrowed("World"),
+        };
+
+        println!("{}", size_of::<HierOffset>());
+        println!("{}", name.as_string());
+    }
+}
