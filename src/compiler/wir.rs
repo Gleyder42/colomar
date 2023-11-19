@@ -1,4 +1,4 @@
-use crate::compiler::{HashableMap, Op, Text};
+use crate::compiler::{HashableMap, Op, Text, Text2};
 use crate::impl_intern_key;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -18,10 +18,10 @@ pub enum Owscript {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct LiteralOwscript(pub Text);
+pub struct LiteralOwscript(pub Text2);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct PlaceholderOwscript(Text);
+pub struct PlaceholderOwscript(Text2);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct NativeFunc {
@@ -85,7 +85,7 @@ lazy_static! {
 }
 
 impl LiteralOwscript {
-    pub fn new(text: impl Into<Text>) -> Self {
+    pub fn new(text: impl Into<Text2>) -> Self {
         LiteralOwscript(text.into())
     }
 }
@@ -102,8 +102,8 @@ impl Owscript {
     }
 }
 
-impl From<Text> for LiteralOwscript {
-    fn from(value: Text) -> Self {
+impl From<Text2> for LiteralOwscript {
+    fn from(value: Text2) -> Self {
         LiteralOwscript(value)
     }
 }
@@ -118,9 +118,9 @@ impl From<String> for Owscript {
     }
 }
 
-impl From<LiteralOwscript> for Text {
+impl From<LiteralOwscript> for Text2 {
     fn from(value: LiteralOwscript) -> Self {
-        Text::from(value.0)
+        Text2::from(value.0)
     }
 }
 

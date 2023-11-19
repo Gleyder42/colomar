@@ -1,12 +1,10 @@
-use crate::compiler::span::{AbstractSpan, AbstractSpan2};
+use crate::compiler::span::StringId;
 use crate::compiler::trisult::Trisult;
 use error::CompilerError;
 use hashlink::LinkedHashMap;
-use smol_str::SmolStr;
 use span::Span;
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
-use std::rc::Rc;
 
 pub mod analysis;
 pub mod cir;
@@ -24,7 +22,9 @@ pub mod wir;
 pub mod workshop;
 pub mod wst;
 
-pub type Text = SmolStr;
+pub type Text2 = String;
+
+pub type Text = StringId;
 pub type HashableMap<K, V> = LinkedHashMap<K, V>;
 pub type QueryTrisult<T> = Trisult<T, CompilerError>;
 

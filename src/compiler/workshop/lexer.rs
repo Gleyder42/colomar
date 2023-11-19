@@ -1,15 +1,15 @@
 use crate::compiler::wst::partial::Placeholder;
-use crate::compiler::Text;
 use chumsky::prelude::*;
 use chumsky::text::Char;
+use smol_str::SmolStr;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
-    Ident(Text),
-    String(Text),
-    Number(Text),
-    Placeholder(Text),
+    Ident(SmolStr),
+    String(SmolStr),
+    Number(SmolStr),
+    Placeholder(SmolStr),
     Ctrl(char),
 }
 
@@ -66,8 +66,7 @@ fn ident<'str>() -> impl Parser<'str, &'str str, Token> {
             let mut combined = Vec::with_capacity(following.len() + 1);
             combined.push(initial);
             combined.append(&mut following);
-            let text: Text = combined.into_iter().collect();
-            Token::Ident(text)
+            Token::Ident(combined.into_iter().collect())
         })
 }
 

@@ -1,10 +1,10 @@
-use crate::compiler::Text;
+use crate::compiler::{Text, Text2};
 use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
 use smol_str::SmolStr;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Deref, Range};
+use std::ops::Range;
 use std::rc::Rc;
 
 pub type InnerSpan = u32;
@@ -14,14 +14,14 @@ pub type SpannedBool = Option<Spanned<()>>;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum SpanName {
-    Pointer(Rc<Text>),
+    Pointer(Text),
     Literal(&'static str),
 }
 
 impl SpanName {
     fn as_str(&self) -> &str {
         match self {
-            SpanName::Pointer(name) => name.as_str(),
+            SpanName::Pointer(name) => todo!(),
             SpanName::Literal(literal) => literal,
         }
     }
@@ -30,7 +30,7 @@ impl SpanName {
 impl Display for SpanName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            SpanName::Pointer(name) => write!(f, "{name}"),
+            SpanName::Pointer(name) => write!(f, "{name:?}"),
             SpanName::Literal(literal) => write!(f, "{literal}"),
         }
     }
@@ -52,7 +52,7 @@ impl AbstractSpan2 {
         todo!()
     }
 
-    pub fn from_name(name: Rc<Text>, span: Span) -> Self {
+    pub fn from_name(name: Text, span: Span) -> Self {
         let node = SpanNode {
             parent: None,
             name: SpanName::Pointer(name),
@@ -120,7 +120,7 @@ impl SpanNode {
     }
 }
 
-struct HierOffsetIter<'a>(Option<&'a SpanNode>);
+pub struct HierOffsetIter<'a>(Option<&'a SpanNode>);
 
 impl<'a> Iterator for HierOffsetIter<'a> {
     type Item = &'a SpanNode;
@@ -282,6 +282,12 @@ pub trait StringInterner {
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct StringId(salsa::InternId);
+
+impl StringId {
+    pub fn name(&self, interner: &(impl StringInterner + ?Sized)) -> Text2 {
+        interner.lookup_intern_string(*self)
+    }
+}
 
 impl_intern_key!(StringId);
 

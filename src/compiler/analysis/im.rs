@@ -1,6 +1,6 @@
 use crate::compiler::analysis::def::DefQuery;
+use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
-use crate::compiler::{QueryTrisult, Text};
 
 pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
     db.query_action_items()
@@ -20,14 +20,12 @@ pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
 }
 
 pub(super) fn query_player_struct_def(db: &dyn DefQuery) -> cst::Struct {
-    const PLAYER_STRUCT: Text = Text::new_inline("Player");
-
     let mut player_struct: Vec<_> = db
         .input_content()
         .into_iter()
         .flat_map(|root| {
             if let cst::Root::Struct(r#struct) = root {
-                if r#struct.declaration.name.value == PLAYER_STRUCT {
+                if db.lookup_intern_string(r#struct.declaration.name.value) == "Player" {
                     Some(r#struct)
                 } else {
                     None

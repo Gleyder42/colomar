@@ -27,7 +27,7 @@ pub enum CompilerError {
         expected: Either<Type, CalledTypes>,
     },
     CannotFindPrimitiveDeclaration(Text),
-    CannotFindNativeDefinition(Text),
+    CannotFindNativeDefinition(String),
     // TODO Add more information
     InvalidNativeDefinition(&'static str),
     NoCaller,

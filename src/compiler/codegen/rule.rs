@@ -18,17 +18,18 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
             .flat_map(|args| {
                 let arg_map: HashMap<_, _> = args
                     .into_iter()
-                    .map(|(ident, call)| (ident.value, call))
+                    // TODO Verify that .name(db) is correct here
+                    .map(|(ident, call)| (ident.value.name(db), call))
                     .collect();
 
-                db.query_wscript_event_impl(event_decl.name.value.clone())
+                db.query_wscript_event_impl(event_decl.name.value.name(db))
                     .flat_map(|event| {
                         event
                             .args
                             .into_iter()
                             .map(|arg_name| {
                                 arg_map.get(arg_name.as_str()).cloned().trisult_ok_or(
-                                    CompilerError::CannotFindNativeDefinition(arg_name.into()),
+                                    CompilerError::CannotFindNativeDefinition(arg_name),
                                 )
                             })
                             .collect::<QueryTrisult<VecDeque<wst::Call>>>()
@@ -51,7 +52,7 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
 
     let conditions = rule.conditions.into_iter().map(cir::Action::from).collect();
 
-    let wscript_event_name = db.query_wscript_event_name_impl(event_decl.name.value);
+    let wscript_event_name = db.query_wscript_event_name_impl(event_decl.name.value.name(db));
 
     args.and(query_event_wst_call(rule.actions).map_inner(|it| it.unwrap_function()))
         .and(

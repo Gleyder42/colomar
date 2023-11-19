@@ -1,7 +1,6 @@
 extern crate core;
 
-use crate::compiler::span::{Span, SpanLocation, SpanSourceId};
-use crate::compiler::Text;
+use crate::compiler::span::{Span, SpanLocation, SpanSourceId, StringId, StringInterner};
 use chumsky::prelude::*;
 
 use std::fmt::{Debug, Display, Formatter};
@@ -23,11 +22,11 @@ pub enum Token {
     Var,
     Fn,
     Type,
-    Ident(Text),
-    String(Text),
-    Num(Text),
+    Ident(StringId),
+    String(StringId),
+    Num(StringId),
     Ctrl(char),
-    Dctrl([char; 2]),
+    Dctrl([char; 2]), // Delete this maybe?
 }
 
 impl Display for Token {
@@ -47,9 +46,9 @@ impl Display for Token {
             Token::Type => write!(f, "type"),
             Token::Val => write!(f, "val"),
             Token::Var => write!(f, "var"),
-            Token::Ident(string) => write!(f, "{string}"),
-            Token::String(string) => write!(f, "{string}"),
-            Token::Num(string) => write!(f, "{string}"),
+            Token::Ident(string) => write!(f, "{string:?}"),
+            Token::String(string) => write!(f, "{string:?}"),
+            Token::Num(string) => write!(f, "{string:?}"),
             Token::Ctrl(ctrl) => write!(f, "{ctrl}"),
             Token::Dctrl(ctrl) => write!(f, "{}{}", ctrl[0], ctrl[1]),
         }
@@ -60,19 +59,17 @@ pub type LexerExtra<'a> = extra::Err<Simple<'a, char>>;
 
 pub fn lexer<'src>(
     span_source_id: SpanSourceId,
+    string_interner: &'src dyn StringInterner,
 ) -> impl Parser<'src, &'src str, Vec<(Token, Span)>, LexerExtra<'src>> {
     let num = text::int(10)
         .then(just('.').then(text::digits(10)).or_not())
         .slice()
-        .from_str()
-        .unwrapped()
-        .map(Token::Num);
+        .map(|it: &str| Token::Num(string_interner.intern_string(it.to_owned())));
 
     let string = just('"')
         .ignore_then(any().filter(|c| *c != '"').repeated().collect::<String>())
         .then_ignore(just('"'))
-        .map(Text::new)
-        .map(Token::String);
+        .map(|it| Token::String(string_interner.intern_string(it)));
 
     let ctrl = one_of("(){},.:|=;+-/*&|!").map(Token::Ctrl);
 
@@ -91,7 +88,7 @@ pub fn lexer<'src>(
         "type" => Token::Type,
         "val" => Token::Val,
         "var" => Token::Var,
-        _ => Token::Ident(Text::new(ident)),
+        _ => Token::Ident(string_interner.intern_string(ident.to_owned())),
     });
 
     let token = choice((ident, num, string, ctrl));

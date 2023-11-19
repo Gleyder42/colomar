@@ -41,7 +41,7 @@ fn main() {
     let mut db = CompilerDatabase::default();
     let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
 
-    let (tokens, _lexer_errors) = lexer(span_source_id)
+    let (tokens, _lexer_errors) = lexer(span_source_id, &db)
         .parse(source.as_str())
         .into_output_errors();
 
@@ -152,7 +152,7 @@ fn print_errors(
                 .with_code(error_code)
                 .with_message(format!(
                     "{} is already defined in the current scope",
-                    second.value.fg(Color::Cyan)
+                    second.value.name(db).fg(Color::Cyan)
                 ))
                 .with_label(
                     Label::new(first_span.clone())
@@ -185,7 +185,7 @@ fn print_errors(
                 .with_code(error_code)
                 .with_message(format!(
                     "Cannot find {} in the current scope",
-                    ident.value.fg(Color::Cyan)
+                    ident.value.name(db).fg(Color::Cyan)
                 ))
                 .with_label(
                     Label::new(span.clone())
@@ -205,10 +205,14 @@ fn print_errors(
                     occurrence_span.location.start() as usize,
                 )
                 .with_code(error_code)
-                .with_message(format!("{} is not a {}", actual_rvalue.value, type_name))
+                .with_message(format!(
+                    "{} is not a {}",
+                    actual_rvalue.value.name(db),
+                    type_name
+                ))
                 .with_label(
                     Label::new(occurrence_span.clone())
-                        .with_message(format!("Is of type {}", actual_rvalue.value)),
+                        .with_message(format!("Is of type {}", actual_rvalue.value.name(db))),
                 )
                 .finish()
                 .eprint(sources(vec![(occurrence_span.source.clone(), &source)]))
@@ -271,7 +275,10 @@ fn print_errors(
 
                 Report::<DummyType>::build(COMPILER_ERROR, (), 0)
                     .with_code(error_code)
-                    .with_message(format!("Cannot find {} primitive", name.fg(Color::Cyan)))
+                    .with_message(format!(
+                        "Cannot find {} primitive",
+                        name.name(db).fg(Color::Cyan)
+                    ))
                     .finish()
                     .print(Source::from(""))
                     .unwrap();

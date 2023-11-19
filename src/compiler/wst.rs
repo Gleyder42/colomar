@@ -1,15 +1,18 @@
 use crate::compiler;
-use crate::compiler::{Op, Text};
+use crate::compiler::span::StringInterner;
+use crate::compiler::{Op, Text, Text2};
+use smol_str::SmolStr;
 use std::fmt::{Display, Formatter};
 
 pub mod partial {
-    use crate::compiler::{wst, Op, Text};
+    use crate::compiler::{wst, Op};
+    use smol_str::SmolStr;
     use std::collections::HashMap;
 
     #[derive(Clone, Debug, Hash, Eq, PartialEq)]
-    pub struct Placeholder(pub Text);
+    pub struct Placeholder(pub SmolStr);
 
-    impl<T: Into<Text>> From<T> for Placeholder {
+    impl<T: Into<SmolStr>> From<T> for Placeholder {
         fn from(value: T) -> Self {
             Placeholder(value.into())
         }
@@ -65,8 +68,8 @@ pub mod partial {
                 Call::Condition(condition) => {
                     condition.saturate_with(replacer).map(wst::Call::Condition)
                 }
-                Call::String(string) => Ok(wst::Call::String(Text::from(string))),
-                Call::Number(number) => Ok(wst::Call::String(Text::from(number))),
+                Call::String(string) => Ok(wst::Call::String(string)),
+                Call::Number(number) => Ok(wst::Call::String(number)),
                 Call::Ident(ident) => Ok(wst::Call::Ident(ident)),
                 Call::Function(function) => {
                     function.saturate_with(replacer).map(wst::Call::Function)
@@ -119,7 +122,13 @@ pub mod partial {
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
-pub struct Ident(pub Text);
+pub struct Ident(pub SmolStr);
+
+impl Ident {
+    pub fn from_ident(ident: compiler::Ident, interner: &(impl StringInterner + ?Sized)) -> Self {
+        Self(interner.lookup_intern_string(ident.value).into())
+    }
+}
 
 impl Display for Ident {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -129,13 +138,7 @@ impl Display for Ident {
 
 impl<T: AsRef<str>> From<T> for Ident {
     fn from(value: T) -> Self {
-        Ident(Text::new(value))
-    }
-}
-
-impl From<compiler::Ident> for Ident {
-    fn from(value: compiler::Ident) -> Self {
-        Ident(value.value)
+        Ident(SmolStr::new(value))
     }
 }
 
@@ -161,8 +164,8 @@ impl Display for Variable {
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Call {
     Condition(Condition),
-    String(Text),
-    Number(Text),
+    String(Text2),
+    Number(Text2),
     Ident(Ident),
     Boolean(bool),
     Property(Ident, Ident),

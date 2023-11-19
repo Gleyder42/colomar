@@ -1,29 +1,19 @@
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{AssignMod, Ident, Text, UseRestriction};
-use chumsky::error::Error;
+use crate::compiler::{AssignMod, Ident, UseRestriction};
 use chumsky::input::{SpannedInput, Stream};
-use std::rc::Rc;
 
-use crate::compiler::span::{AbstractSpan2, Span, Spanned, SpannedBool};
+use crate::compiler::span::{Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
-use chumsky::util::Maybe;
 use smallvec::SmallVec;
 
 pub type ParserInput = SpannedInput<Token, Span, Stream<std::vec::IntoIter<(Token, Span)>>>;
 pub type ParserExtra<'a> = extra::Err<Rich<'a, Token, Span>>;
 
 fn ident<'src>() -> impl Parser<'src, ParserInput, Ident, ParserExtra<'src>> + Clone {
-    let ident = |name| Token::Ident(Text::from(name));
-
-    any().try_map(move |token, span| match token {
-        Token::Ident(ident) => Ok(Ident { value: ident, span }),
-        _ => Err(<Rich<_, _> as Error<ParserInput>>::expected_found(
-            vec![Some(Maybe::from(ident("ident")))],
-            Some(Maybe::from(token)),
-            span,
-        )),
-    })
+    select! {
+        Token::Ident(ident) = span => Ident { value: ident, span }
+    }
 }
 
 fn declared_arguments<'src>(
@@ -330,18 +320,10 @@ fn chain<'src: 'a, 'a>() -> IdentChainParserResult<'src, 'a> {
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
         .map_with_span(CallArguments::new);
 
-    let literal = any().try_map(|token, span| match token {
-        Token::String(string) => Ok(Box::new(Call::String(string, span))),
-        Token::Num(number) => Ok(Box::new(Call::Number(number, span))),
-        _ => {
-            let literal = |func: fn(_) -> _, string| Some(Maybe::from(func(Text::from(string))));
-            let expected = vec![literal(Token::String, "string"), literal(Token::Num, "num")];
-            let found = Some(Maybe::from(token));
-
-            let rich = <Rich<_, _> as Error<ParserInput>>::expected_found(expected, found, span);
-            Err(rich)
-        }
-    });
+    let literal = select! {
+        Token::String(string) = span => Box::new(Call::String(string, span)),
+        Token::Num(number) = span => Box::new(Call::Number(number, span)),
+    };
 
     ident_chain.define(
         ident()
@@ -425,16 +407,9 @@ fn block<'src>() -> impl Parser<'src, ParserInput, Block, ParserExtra<'src>> {
 }
 
 fn rule<'src>() -> impl Parser<'src, ParserInput, Rule, ParserExtra<'src>> {
-    let rule_name = any().try_map(|token, span| match token {
-        Token::String(string) => Ok(Spanned::new(string, span)),
-        _ => {
-            let expected = vec![Some(Maybe::from(Token::String(Text::from("rule name"))))];
-            let found = Some(Maybe::from(token));
-
-            let error = <Rich<_, _> as Error<ParserInput>>::expected_found(expected, found, span);
-            Err(error)
-        }
-    });
+    let rule_name = select! {
+        Token::String(string) = span => Spanned::new(string, span)
+    };
 
     just(Token::Rule)
         .ignore_then(rule_name)

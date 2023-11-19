@@ -139,7 +139,8 @@ fn query_wst_call_by_rvalue(
                 }
                 (None, Some(caller), None) => query_const_eval(db, caller.wst.unwrap())
                     .map(|caller_name| {
-                        let call = wst::Call::Property(caller_name, property.name.into());
+                        let call =
+                            wst::Call::Property(caller_name, Ident::from_ident(property.name, db));
                         call
                     })
                     .inner_into_some(),
@@ -150,17 +151,20 @@ fn query_wst_call_by_rvalue(
             let enum_constant = db.lookup_intern_enum_constant(enum_constant_id);
             let enum_decl = db.lookup_intern_enum_decl(enum_constant.r#enum);
 
-            db.query_wscript_enum_constant_impl(enum_decl.name.value, enum_constant.name.value)
-                .inner_into_some()
+            db.query_wscript_enum_constant_impl(
+                enum_decl.name.value.name(db),
+                enum_constant.name.value.name(db),
+            )
+            .inner_into_some()
         }
         _ => todo!(),
     }
 }
 
-fn query_wst_call_by_cvalue(_db: &dyn Codegen, cvalue: CValue) -> QueryTrisult<Option<wst::Call>> {
+fn query_wst_call_by_cvalue(db: &dyn Codegen, cvalue: CValue) -> QueryTrisult<Option<wst::Call>> {
     match cvalue {
         CValue::String(string, ..) => {
-            let string = wst::Call::String(string);
+            let string = wst::Call::String(string.name(db));
             let custom_string = wst::Function {
                 name: "Custom String".into(),
                 args: vec![string],
@@ -168,7 +172,7 @@ fn query_wst_call_by_cvalue(_db: &dyn Codegen, cvalue: CValue) -> QueryTrisult<O
             QueryTrisult::Ok(custom_string.into()).inner_into_some()
         }
         CValue::Number(number, ..) => {
-            let call = wst::Call::Number(number);
+            let call = wst::Call::Number(number.name(db));
 
             QueryTrisult::Ok(call).inner_into_some()
         }
@@ -185,7 +189,7 @@ fn query_wst_call_by_function_call(
 ) -> QueryTrisult<Option<wst::Call>> {
     let wscript_function: QueryTrisult<wst::partial::Call> = db.query_wscript_struct_function_impl(
         func_decl.instance.unwrap().name(db),
-        func_decl.name.value,
+        func_decl.name.value.name(db),
     );
 
     db.query_wst_call_from_args(func_decl.arguments, called_args)
@@ -201,7 +205,11 @@ fn query_wst_call_by_function_call(
             let mut replacement_map = replacement_map.clone();
 
             for (name, call) in args {
-                replacement_map.insert(Placeholder::from(format!("${}$", name.value)), call);
+                // TAssumes that .name(db) is correct here.
+                replacement_map.insert(
+                    Placeholder::from(format!("${}$", name.value.name(db))),
+                    call,
+                );
             }
 
             wscript_function
@@ -213,7 +221,7 @@ fn query_wst_call_by_function_call(
 }
 
 fn query_wst_call_by_assignment(
-    _db: &dyn Codegen,
+    db: &dyn Codegen,
     replacement_map: &ReplacementMap,
     property_decl: cir::PropertyDecl,
     (_call, assign_mod): Assigner,
@@ -222,7 +230,7 @@ fn query_wst_call_by_assignment(
     let mut replacement_map = replacement_map.clone();
     replacement_map.insert(
         Placeholder::from("$name$"),
-        wst::Call::Ident(Ident::from(property_decl.name)),
+        wst::Call::Ident(Ident::from_ident(property_decl.name, db)),
     );
 
     use wst::partial;
@@ -288,25 +296,31 @@ fn process_wscript(
     match r#type {
         Type::Enum(enum_id) => {
             let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_id);
-            db.query_wscript_enum_constant_impl(enum_decl.name.value, property_decl.name.value)
-                .inner_into_some()
+            db.query_wscript_enum_constant_impl(
+                enum_decl.name.value.name(db),
+                property_decl.name.value.name(db),
+            )
+            .inner_into_some()
         }
         Type::Struct(struct_id) => {
             let struct_decl: cir::StructDeclaration = db.lookup_intern_struct_decl(struct_id);
-            db.query_wscript_struct_property_impl(struct_decl.name.value, property_decl.name.value)
-                .flat_map(|partial_call| {
-                    partial_call
-                        .saturate(replacement_map)
-                        .map_err(CompilerError::PlaceholderError)
-                        .into()
-                })
-                .inner_into_some()
+            db.query_wscript_struct_property_impl(
+                struct_decl.name.value.name(db),
+                property_decl.name.value.name(db),
+            )
+            .flat_map(|partial_call| {
+                partial_call
+                    .saturate(replacement_map)
+                    .map_err(CompilerError::PlaceholderError)
+                    .into()
+            })
+            .inner_into_some()
         }
         Type::Event(event_id) => {
             let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(event_id);
             db.query_wscript_event_context_property_impl(
-                event_decl.name.value,
-                property_decl.name.value,
+                event_decl.name.value.name(db),
+                property_decl.name.value.name(db),
             )
             .inner_into_some()
         }

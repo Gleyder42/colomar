@@ -1,5 +1,6 @@
 use crate::compiler::cir::Type;
 use crate::compiler::codegen::Codegen;
+use crate::compiler::wst::Ident;
 use crate::compiler::{cir, cst, wst, QueryTrisult};
 
 pub(super) fn query_player_variables(db: &dyn Codegen) -> QueryTrisult<Vec<wst::Variable>> {
@@ -19,7 +20,7 @@ pub(super) fn query_player_variables(db: &dyn Codegen) -> QueryTrisult<Vec<wst::
                 .into_iter()
                 .enumerate()
                 .map(|(index, property)| wst::Variable {
-                    name: property.name.into(),
+                    name: Ident::from_ident(property.name, db),
                     index: index as u8,
                 })
                 .collect::<Vec<_>>()

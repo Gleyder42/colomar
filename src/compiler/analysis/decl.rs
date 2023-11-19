@@ -9,7 +9,7 @@ use crate::compiler::cst::{Actions, Import, Path, TypeRoot};
 use crate::compiler::error::CompilerError;
 use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
 
-use crate::compiler::span::Spanned;
+use crate::compiler::span::{Spanned, StringInterner};
 use cir::DeclaredArgumentId;
 use cst::Ast;
 use hashlink::LinkedHashMap;
@@ -28,7 +28,7 @@ use super::r#struct as sstruct;
 use super::r#type as ttype;
 
 #[salsa::query_group(DeclDatabase)]
-pub trait DeclQuery: Interner {
+pub trait DeclQuery: Interner + StringInterner {
     // Input
     // TODO Rename to main_file
     #[salsa::input]

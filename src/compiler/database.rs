@@ -5,6 +5,7 @@ use crate::compiler::codegen::CodegenDatabase;
 use crate::compiler::loader::WorkshopScriptLoaderDatabase;
 use crate::compiler::printer::PrinterDatabase;
 use crate::compiler::span::SpanInternerDatabase;
+use crate::compiler::span::StringInternerDatabase;
 
 #[salsa::database(
     DeclDatabase,
@@ -13,7 +14,8 @@ use crate::compiler::span::SpanInternerDatabase;
     InternerDatabase,
     WorkshopScriptLoaderDatabase,
     CodegenDatabase,
-    PrinterDatabase
+    PrinterDatabase,
+    StringInternerDatabase
 )]
 #[derive(Default)]
 pub struct CompilerDatabase {

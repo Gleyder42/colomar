@@ -47,10 +47,10 @@ fn query_workshop_output(db: &dyn PrinterQuery) -> QueryTrisult<String> {
     })
 }
 
-fn query_wst_rule_to_string(_db: &dyn PrinterQuery, rule: wst::Rule) -> String {
+fn query_wst_rule_to_string(db: &dyn PrinterQuery, rule: wst::Rule) -> String {
     format!(
         include_str!("workshop_rule_template.txt"),
-        rule = rule.title,
+        rule = rule.title.name(db),
         event = rule.event.name,
         team = rule.event.team,
         hero_slot = rule.event.hero_slot,

@@ -1,6 +1,6 @@
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{workshop, wst, HashableMap, QueryTrisult, Text};
+use crate::compiler::{workshop, wst, HashableMap, QueryTrisult, Text2};
 use chumsky::prelude::end;
 use chumsky::Parser;
 use serde::Deserialize;
@@ -14,42 +14,42 @@ pub trait WorkshopScriptLoader {
     #[salsa::input]
     fn input_wscript_impls(&self) -> Vec<wscript_impl::Element>;
 
-    fn query_wscript_struct_impls(&self) -> HashableMap<Text, wscript_impl::Struct>;
+    fn query_wscript_struct_impls(&self) -> HashableMap<Text2, wscript_impl::Struct>;
 
-    fn query_wscript_event_impls(&self) -> HashableMap<Text, wscript_impl::Event>;
+    fn query_wscript_event_impls(&self) -> HashableMap<Text2, wscript_impl::Event>;
 
-    fn query_wscript_enum_impls(&self) -> HashableMap<Text, wscript_impl::Enum>;
+    fn query_wscript_enum_impls(&self) -> HashableMap<Text2, wscript_impl::Enum>;
 
-    fn query_wscript_struct_impl(&self, name: Text) -> QueryTrisult<wscript_impl::Struct>;
+    fn query_wscript_struct_impl(&self, name: Text2) -> QueryTrisult<wscript_impl::Struct>;
 
-    fn query_wscript_event_impl(&self, name: Text) -> QueryTrisult<wscript_impl::Event>;
+    fn query_wscript_event_impl(&self, name: Text2) -> QueryTrisult<wscript_impl::Event>;
 
-    fn query_wscript_event_name_impl(&self, name: Text) -> QueryTrisult<String>;
+    fn query_wscript_event_name_impl(&self, name: Text2) -> QueryTrisult<String>;
 
-    fn query_wscript_enum_impl(&self, name: Text) -> QueryTrisult<wscript_impl::Enum>;
+    fn query_wscript_enum_impl(&self, name: Text2) -> QueryTrisult<wscript_impl::Enum>;
 
     fn query_wscript_enum_constant_impl(
         &self,
-        enum_name: Text,
-        constant_name: Text,
+        enum_name: Text2,
+        constant_name: Text2,
     ) -> QueryTrisult<wst::Call>;
 
     fn query_wscript_struct_property_impl(
         &self,
-        struct_name: Text,
-        property_name: Text,
+        struct_name: Text2,
+        property_name: Text2,
     ) -> QueryTrisult<wst::partial::Call>;
 
     fn query_wscript_struct_function_impl(
         &self,
-        struct_name: Text,
-        function_name: Text,
+        struct_name: Text2,
+        function_name: Text2,
     ) -> QueryTrisult<wst::partial::Call>;
 
     fn query_wscript_event_context_property_impl(
         &self,
-        event_name: Text,
-        property_name: Text,
+        event_name: Text2,
+        property_name: Text2,
     ) -> QueryTrisult<wst::Call>;
 }
 
@@ -94,8 +94,8 @@ pub fn read_impls(dir: &Path) -> Vec<wscript_impl::Element> {
 
 fn query_wscript_enum_constant_impl(
     db: &dyn WorkshopScriptLoader,
-    enum_name: Text,
-    constant_name: Text,
+    enum_name: Text2,
+    constant_name: Text2,
 ) -> QueryTrisult<wst::Call> {
     query_wscript_impl(
         || db.query_wscript_enum_impl(enum_name).map(|it| it.constants),
@@ -111,8 +111,8 @@ fn query_wscript_enum_constant_impl(
 
 fn query_wscript_struct_function_impl(
     db: &dyn WorkshopScriptLoader,
-    struct_name: Text,
-    function_name: Text,
+    struct_name: Text2,
+    function_name: Text2,
 ) -> QueryTrisult<wst::partial::Call> {
     query_wscript_impl(
         || {
@@ -125,8 +125,8 @@ fn query_wscript_struct_function_impl(
 
 fn query_wscript_struct_property_impl(
     db: &dyn WorkshopScriptLoader,
-    struct_name: Text,
-    property_name: Text,
+    struct_name: Text2,
+    property_name: Text2,
 ) -> QueryTrisult<wst::partial::Call> {
     query_wscript_impl(
         || {
@@ -139,8 +139,8 @@ fn query_wscript_struct_property_impl(
 
 fn query_wscript_event_context_property_impl(
     db: &dyn WorkshopScriptLoader,
-    enum_name: Text,
-    property_name: Text,
+    enum_name: Text2,
+    property_name: Text2,
 ) -> QueryTrisult<wst::Call> {
     query_wscript_impl(
         || db.query_wscript_event_impl(enum_name).map(|it| it.context),
@@ -156,14 +156,14 @@ fn query_wscript_event_context_property_impl(
 
 fn query_wscript_event_name_impl(
     db: &dyn WorkshopScriptLoader,
-    name: Text,
+    name: Text2,
 ) -> QueryTrisult<String> {
     db.query_wscript_event_impl(name).map(|r#event| event.name)
 }
 
 fn query_wscript_impl(
     query: impl FnOnce() -> QueryTrisult<HashableMap<String, String>>,
-    selection: Text,
+    selection: Text2,
 ) -> QueryTrisult<wst::partial::Call> {
     query()
         .flat_map(|map| {
@@ -198,12 +198,12 @@ fn query_wscript_impl(
 
 macro_rules! impl_wscript_queries {
     ($name:ident, $single_name:ident, $ele_name:ident, $wscript_impl:ty) => {
-        fn $name(db: &dyn WorkshopScriptLoader) -> HashableMap<Text, $wscript_impl> {
+        fn $name(db: &dyn WorkshopScriptLoader) -> HashableMap<Text2, $wscript_impl> {
             db.input_wscript_impls()
                 .into_iter()
                 .filter_map(|element| {
                     if let wscript_impl::Element::$ele_name(name, val) = element {
-                        Some((Text::from(name), val))
+                        Some((Text2::from(name), val))
                     } else {
                         None
                     }
@@ -211,7 +211,7 @@ macro_rules! impl_wscript_queries {
                 .collect()
         }
 
-        fn $single_name(db: &dyn WorkshopScriptLoader, name: Text) -> QueryTrisult<$wscript_impl> {
+        fn $single_name(db: &dyn WorkshopScriptLoader, name: Text2) -> QueryTrisult<$wscript_impl> {
             db.$name()
                 .get(&name)
                 .cloned()

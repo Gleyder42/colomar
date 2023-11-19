@@ -3,9 +3,9 @@ use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::{partial, Ident};
 use chumsky::error::Error;
 
-use crate::compiler::Text;
 use chumsky::prelude::*;
 use chumsky::util::Maybe;
+use smol_str::SmolStr;
 
 pub type ParserExtra<'a> = extra::Err<Rich<'a, Token>>;
 pub type ParserInput<'a> = &'a [Token];
@@ -17,29 +17,15 @@ enum Name {
 }
 
 fn ident<'src>() -> impl Parser<'src, &'src [Token], Ident, ParserExtra<'src>> + Clone {
-    any().try_map(|token, span| match token {
-        Token::Ident(text) => Ok(Ident(text)),
-        _ => {
-            let expected = vec![Some(Maybe::from(Token::Ident(Text::from("ident"))))];
-            let found = Some(Maybe::from(token));
-            let error = <Rich<_, _> as Error<ParserInput>>::expected_found(expected, found, span);
-            Err(error)
-        }
-    })
+    select! {
+        Token::Ident(text) => Ident(text)
+    }
 }
 
 fn placeholder<'src>() -> impl Parser<'src, &'src [Token], Placeholder, ParserExtra<'src>> + Clone {
-    any().try_map(|token, span| match token {
-        Token::Placeholder(text) => Ok(Placeholder(text)),
-        _ => {
-            let expected = vec![Some(Maybe::from(Token::Placeholder(Text::from(
-                "placeholder",
-            ))))];
-            let found = Some(Maybe::from(token));
-            let error = <Rich<_, _> as Error<ParserInput>>::expected_found(expected, found, span);
-            Err(error)
-        }
-    })
+    select! {
+        Token::Placeholder(text) => Placeholder(text)
+    }
 }
 
 pub fn call<'src>() -> impl Parser<'src, &'src [Token], partial::Call, ParserExtra<'src>> {
@@ -63,7 +49,7 @@ pub fn call<'src>() -> impl Parser<'src, &'src [Token], partial::Call, ParserExt
             (Name::Ident(ident), None) => Ok(partial::Call::Ident(ident)),
             (Name::Placeholder(placeholder), None) => Ok(partial::Call::Placeholder(placeholder)),
             (Name::Placeholder(placeholder), Some(_)) => {
-                let expected = vec![Some(Maybe::from(Token::Placeholder(Text::from(
+                let expected = vec![Some(Maybe::from(Token::Placeholder(SmolStr::from(
                     "placeholder",
                 ))))];
                 let found = Some(Maybe::from(Token::from(placeholder)));

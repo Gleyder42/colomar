@@ -1,8 +1,9 @@
 use crate::compiler::analysis::namespace::{Namespace, NamespaceId};
 use crate::compiler::cir::*;
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{Ident, Text};
+use crate::compiler::Ident;
 
+use crate::compiler::span::StringInterner;
 use std::rc::Rc;
 
 #[salsa::query_group(InternerDatabase)]
@@ -167,12 +168,12 @@ impl AValue {
 }
 
 impl Type {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
+    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
         match self {
-            Type::Enum(decl_id) => db.lookup_intern_enum_decl(*decl_id).name.value,
-            Type::Struct(decl_id) => db.lookup_intern_struct_decl(*decl_id).name.value,
-            Type::Event(decl_id) => db.lookup_intern_event_decl(*decl_id).name.value,
-            Type::Unit => Text::from("Unit"),
+            Type::Enum(decl_id) => db.lookup_intern_enum_decl(*decl_id).name.value.name(db),
+            Type::Struct(decl_id) => db.lookup_intern_struct_decl(*decl_id).name.value.name(db),
+            Type::Event(decl_id) => db.lookup_intern_event_decl(*decl_id).name.value.name(db),
+            Type::Unit => "Unit".to_owned(),
         }
     }
 
@@ -187,13 +188,13 @@ impl Type {
 }
 
 impl CalledType {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
+    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
         self.r#type.name(db)
     }
 }
 
 impl CalledTypes {
-    pub fn name(&self, db: &(impl Interner + ?Sized)) -> Text {
+    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
         self.types
             .iter()
             .map(|it| it.name(db))

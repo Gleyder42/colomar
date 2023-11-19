@@ -6,13 +6,13 @@ use crate::compiler::cir::{
 };
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{Ident, QueryTrisult, Text};
+use crate::compiler::{HashableMap, Ident, QueryTrisult, Text};
 use crate::{impl_intern_key, query_error};
 
 use salsa::InternId;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::rc::Rc;
 
 pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> QueryTrisult<NamespaceId> {
@@ -56,16 +56,16 @@ pub(super) fn query_event_namespace(
         })
 }
 
-pub(super) fn query_bool_name(_db: &dyn DeclQuery) -> Text {
-    Text::new("bool")
+pub(super) fn query_bool_name(db: &dyn DeclQuery) -> Text {
+    db.intern_string("bool".to_owned())
 }
 
-pub(super) fn query_string_name(_db: &dyn DeclQuery) -> Text {
-    Text::new("string")
+pub(super) fn query_string_name(db: &dyn DeclQuery) -> Text {
+    db.intern_string("string".to_owned())
 }
 
-pub(super) fn query_number_name(_db: &dyn DeclQuery) -> Text {
-    Text::new("num")
+pub(super) fn query_number_name(db: &dyn DeclQuery) -> Text {
+    db.intern_string("num".to_owned())
 }
 
 pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Text, Type>> {
@@ -287,10 +287,10 @@ pub struct NamespaceId(InternId);
 
 impl_intern_key!(NamespaceId);
 
-#[derive(Clone, Debug, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Namespace {
     parent: Vec<Rc<Namespace>>,
-    map: HashMap<Text, RValue>,
+    map: HashableMap<Text, RValue>,
 }
 
 pub fn empty_namespace(db: &(impl Interner + ?Sized)) -> NamespaceId {
@@ -300,7 +300,7 @@ pub fn empty_namespace(db: &(impl Interner + ?Sized)) -> NamespaceId {
 impl Namespace {
     fn new() -> Namespace {
         Namespace {
-            map: HashMap::new(),
+            map: HashableMap::new(),
             parent: Vec::new(),
         }
     }
@@ -364,25 +364,6 @@ impl Namespace {
                 .collect::<Vec<_>>()
                 .pop()
         }
-    }
-
-    fn sorted_map_entries(&self) -> Vec<(&Text, &RValue)> {
-        let mut content = self.map.iter().collect::<Vec<_>>();
-        content.sort_by_key(|it| it.0);
-        content
-    }
-}
-
-impl PartialEq for Namespace {
-    fn eq(&self, other: &Self) -> bool {
-        self.parent == other.parent && self.sorted_map_entries() == other.sorted_map_entries()
-    }
-}
-
-impl Hash for Namespace {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.parent.hash(state);
-        self.sorted_map_entries().hash(state)
     }
 }
 
