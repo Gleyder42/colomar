@@ -74,12 +74,12 @@ mod tests {
         let actual_element = call().then_ignore(end()).parse(&tokens).unwrap();
 
         let expected_element = partial::Call::Function(partial::Function {
-            name: Ident(Text::new("Small Message")),
+            name: Ident(SmolStr::new("Small Message")),
             args: vec![
-                partial::Call::Ident(Ident(Text::new("Event Player"))),
+                partial::Call::Ident(Ident(SmolStr::new("Event Player"))),
                 partial::Call::Function(partial::Function {
-                    name: Ident(Text::new("Is Reloading")),
-                    args: vec![partial::Call::Ident(Ident(Text::new("Event Player")))],
+                    name: Ident(SmolStr::new("Is Reloading")),
+                    args: vec![partial::Call::Ident(Ident(SmolStr::new("Event Player")))],
                 }),
             ],
         });
@@ -94,10 +94,10 @@ mod tests {
         let actual_element = call().then_ignore(end()).parse(&tokens).unwrap();
 
         let expected_element = partial::Call::Function(partial::Function {
-            name: Ident(Text::new("Set Damage Dealt")),
+            name: Ident(SmolStr::new("Set Damage Dealt")),
             args: vec![
-                partial::Call::Placeholder(Placeholder(Text::new("$caller$"))),
-                partial::Call::Placeholder(Placeholder(Text::new("$value$"))),
+                partial::Call::Placeholder(Placeholder(SmolStr::new("$caller$"))),
+                partial::Call::Placeholder(Placeholder(SmolStr::new("$value$"))),
             ],
         });
 

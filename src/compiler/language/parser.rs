@@ -443,10 +443,11 @@ mod tests {
     use super::*;
 
     use crate::assert_iterator;
+    use crate::compiler::analysis::interner::Interner;
     use crate::compiler::cst::{Call, DeclaredArgument, Rule};
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
-    use crate::compiler::span::{CopyRange, SpanInterner};
+    use crate::compiler::span::{CopyRange, SpanInterner, StringInterner};
     use crate::compiler::span::{Span, SpanLocation, SpanSourceId, Spanned};
     use anyhow::anyhow;
     use chumsky::prelude::end;
@@ -589,10 +590,11 @@ mod tests {
 
     fn parse_code<'src, T>(
         span_source_id: SpanSourceId,
+        interner: &(impl StringInterner + SpanInterner + ?Sized),
         code: &str,
         parser: &impl Parser<'src, ParserInput, T, ParserExtra<'src>>,
     ) -> anyhow::Result<T> {
-        let tokens: Vec<_> = lex_code(span_source_id, code)?;
+        let tokens: Vec<_> = lex_code(span_source_id, interner, code)?;
         let eoi = Span::new(
             span_source_id,
             SpanLocation::from(CopyRange::from(tokens.len()..tokens.len() + 1)),
@@ -606,8 +608,12 @@ mod tests {
             .map_err(|_| anyhow!("Cannot parse '{code}'"))
     }
 
-    fn lex_code(span_source_id: SpanSourceId, code: &str) -> anyhow::Result<Vec<(Token, Span)>> {
-        lexer(span_source_id)
+    fn lex_code(
+        span_source_id: SpanSourceId,
+        interner: &(impl StringInterner + ?Sized),
+        code: &str,
+    ) -> anyhow::Result<Vec<(Token, Span)>> {
+        lexer(span_source_id, interner)
             .parse(code)
             .into_result()
             .map_err(|errors| {
@@ -625,12 +631,12 @@ mod tests {
         should_panic: bool,
         parser: impl Parser<'src, ParserInput, Ac, ParserExtra<'src>>,
         assertion: F,
+        interner: &(impl StringInterner + SpanInterner + ?Sized),
     ) where
         Ac: Debug,
         Ex: for<'a> serde::Deserialize<'a>,
         F: Fn(Ex, Ac),
     {
-        let interner = TestDatabase::default();
         let path_buf = key.whole_path();
         let data = read_test_data(&path_buf).unwrap();
         let span_source_id = interner.intern_span_source(path_buf.to_string_lossy().into());
@@ -638,7 +644,7 @@ mod tests {
         let results = data
             .into_iter()
             .map(|test_data| {
-                let code = parse_code::<Ac>(span_source_id, &test_data.code, &parser);
+                let code = parse_code::<Ac>(span_source_id, interner, &test_data.code, &parser);
                 let code = match code {
                     Ok(code) => code,
                     Err(error) => return Err(error),
@@ -679,6 +685,7 @@ mod tests {
     fn assert_call_chain(
         expected: impl IntoIterator<Item = IdentTestData>,
         actual: impl IntoIterator<Item = Box<Call>>,
+        db: &impl StringInterner,
     ) {
         actual.into_iter()
             .zip(expected)
@@ -687,11 +694,11 @@ mod tests {
                     Call::IdentArguments { name: actual_ident, args: actual_args, .. } => {
                         match test_data {
                             IdentTestData::IdentWithArgs { ident: expected_ident, args: expected_args } => {
-                                assert_eq!(expected_ident, actual_ident.value, "Check if idents are equal");
+                                assert_eq!(expected_ident, actual_ident.value.name(db), "Check if idents are equal");
                                 expected_args.into_iter()
                                     .zip(actual_args)
                                     .for_each(|(expected, actual)| {
-                                        assert_call_chain(expected, actual.call_chain());
+                                        assert_call_chain(expected, actual.call_chain(), db);
                                     })
                             }
                             IdentTestData::Ident(expected) => {
@@ -702,7 +709,7 @@ mod tests {
                     Call::Ident(actual_ident) => {
                         match test_data {
                             IdentTestData::Ident(expected_ident) => {
-                                assert_eq!(expected_ident, actual_ident.value, "Check if idents are equal")
+                                assert_eq!(expected_ident, actual_ident.value.name(db), "Check if idents are equal")
                             }
                             IdentTestData::IdentWithArgs { ident: expected_ident, args: expected_args } => {
                                 panic!("The actual ident was {actual_ident:?} but expected was an ident {expected_ident:?} with args {expected_args:?}")
@@ -712,7 +719,7 @@ mod tests {
                     Call::String(actual_ident, _) | Call::Number(actual_ident, _) => {
                         match test_data {
                             IdentTestData::Ident(expected_ident) => {
-                                assert_eq!(expected_ident, actual_ident, "Check if idents are equal")
+                                assert_eq!(expected_ident, actual_ident.name(db), "Check if idents are equal")
                             }
                             IdentTestData::IdentWithArgs { ident: expected_ident, args: expected_args } => {
                                 panic!("The actual ident was {actual_ident:?} but expected was an ident {expected_ident:?} with args {expected_args:?}")
@@ -726,94 +733,113 @@ mod tests {
     #[test]
     fn test_valid_enum() {
         let key = ResKey::new(TEST_DIR, "enum", "valid");
+        let db = TestDatabase::default();
 
-        test_parser_result(&key, false, r#enum(), |expected: EnumTestData, actual| {
-            assert_eq!(expected.is_native, actual.declaration.is_native.is_some());
-            assert_eq!(
-                expected.constants,
-                actual
-                    .definition
-                    .constants
-                    .into_iter()
-                    .map(|it| it.value)
-                    .collect::<Vec<_>>()
-            );
-        })
+        test_parser_result(
+            &key,
+            false,
+            r#enum(),
+            |expected: EnumTestData, actual| {
+                assert_eq!(expected.is_native, actual.declaration.is_native.is_some());
+                assert_eq!(
+                    expected.constants,
+                    actual
+                        .definition
+                        .constants
+                        .into_iter()
+                        .map(|it| it.value.name(&db))
+                        .collect::<Vec<_>>()
+                );
+            },
+            &db,
+        )
     }
 
     #[test]
     fn test_invalid_enum() {
         let key = ResKey::new(TEST_DIR, "enum", "invalid");
+        let db = TestDatabase::default();
 
-        test_parser_result(&key, true, r#enum(), nothing::<EnumTestData, _>);
+        test_parser_result(&key, true, r#enum(), nothing::<EnumTestData, _>, &db);
     }
 
     #[test]
     fn test_valid_ident_chain() {
         let key = ResKey::new(TEST_DIR, "ident_chain", "valid");
+        let db = TestDatabase::default();
 
         test_parser_result(
             &key,
             false,
             chain().ident_chain(),
             |expected: CallChainTestData, actual| {
-                assert_call_chain(expected.idents, actual);
+                assert_call_chain(expected.idents, actual, &db);
             },
+            &db,
         );
     }
 
     #[test]
     fn test_invalid_ident_chain() {
         let key = ResKey::new(TEST_DIR, "ident_chain", "invalid");
+        let db = TestDatabase::default();
 
         test_parser_result(
             &key,
             true,
             chain().ident_chain(),
             nothing::<CallChainTestData, _>,
+            &db,
         );
     }
 
     #[test]
     fn test_valid_rule() {
         let key = ResKey::new(TEST_DIR, "rule", "valid");
+        let db = TestDatabase::default();
 
         test_parser_result(
             &key,
             false,
             rule(),
             |expected: RuleTestData, actual: Rule| {
-                assert_eq!(expected.name, actual.name.value);
-                assert_eq!(expected.event, actual.event.value);
+                assert_eq!(expected.name, actual.name.value.name(&db));
+                assert_eq!(expected.event, actual.event.value.name(&db));
                 expected
                     .args
                     .into_iter()
                     .zip(actual.arguments)
-                    .for_each(|(actual, expected)| assert_call_chain(actual, expected.call_chain()))
+                    .for_each(|(actual, expected)| {
+                        assert_call_chain(actual, expected.call_chain(), &db)
+                    })
             },
+            &db,
         );
     }
 
     #[test]
     fn test_invalid_decl_args() {
         let key = ResKey::new(TEST_DIR, "decl_args", "invalid");
+        let db = TestDatabase::default();
 
         test_parser_result(
             &key,
             true,
             declared_arguments(),
             nothing::<DeclArgsTestData, _>,
+            &db,
         )
     }
 
     #[test]
     fn test_valid_expr() {
         let key = ResKey::new(TEST_DIR, "expr", "valid");
+        let db = TestDatabase::default();
 
-        fn assertion(expected: ExprTestData, actual: Expr) {
+        fn assertion(expected: ExprTestData, actual: Expr, db: &impl StringInterner) {
             match (expected, actual) {
                 (ExprTestData::Chain(expected), Expr::Chain(actual)) => {
-                    assert_call_chain(expected.idents.into_iter(), actual);
+                    assert_call_chain(expected.idents.into_iter(), actual, db);
                 }
                 (
                     ExprTestData::And {
@@ -822,8 +848,8 @@ mod tests {
                     },
                     Expr::And(ac_lhs, ac_rhs),
                 ) => {
-                    assertion(*ex_lhs, *ac_lhs);
-                    assertion(*ex_rhs, *ac_rhs);
+                    assertion(*ex_lhs, *ac_lhs, db);
+                    assertion(*ex_rhs, *ac_rhs, db);
                 }
                 (
                     ExprTestData::Or {
@@ -832,11 +858,11 @@ mod tests {
                     },
                     Expr::Or(ac_lhs, ac_rhs),
                 ) => {
-                    assertion(*ex_lhs, *ac_lhs);
-                    assertion(*ex_rhs, *ac_rhs);
+                    assertion(*ex_lhs, *ac_lhs, db);
+                    assertion(*ex_rhs, *ac_rhs, db);
                 }
                 (ExprTestData::Neg { value: ex }, Expr::Neg(ac)) => {
-                    assertion(*ex, *ac);
+                    assertion(*ex, *ac, db);
                 }
                 (expected, actual) => {
                     assert!(
@@ -847,12 +873,19 @@ mod tests {
             }
         }
 
-        test_parser_result(&key, false, expression(), assertion);
+        test_parser_result(
+            &key,
+            false,
+            expression(),
+            |expected, actual| assertion(expected, actual, &db),
+            &db,
+        );
     }
 
     #[test]
     fn test_valid_decl_args() {
         let key = ResKey::new(TEST_DIR, "decl_args", "valid");
+        let db = TestDatabase::default();
 
         test_parser_result(
             &key,
@@ -864,22 +897,23 @@ mod tests {
                     .into_iter()
                     .zip(actual)
                     .for_each(|(expected, actual)| {
-                        assert_eq!(expected.name, actual.name.value);
+                        assert_eq!(expected.name, actual.name.value.name(&db));
 
                         let actual_types = actual
                             .types
                             .into_iter()
-                            .map(|it| it.value)
+                            .map(|it| it.value.name(&db))
                             .collect::<Vec<_>>();
 
                         assert_iterator!(expected.r#type, actual_types);
                         if let (Some(expected), Some(actual)) =
                             (expected.default, actual.default_value)
                         {
-                            assert_call_chain(expected.idents, actual)
+                            assert_call_chain(expected.idents, actual, &db)
                         }
                     })
             },
+            &db,
         )
     }
 }

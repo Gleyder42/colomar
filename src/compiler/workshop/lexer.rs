@@ -83,6 +83,7 @@ pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>> {
 mod tests {
     use super::*;
     use crate::assert_iterator;
+    use crate::compiler::Text2;
     use chumsky::prelude::end;
 
     #[test]
@@ -153,11 +154,11 @@ mod tests {
             .expect(&format!("Cannot parse {code}"));
 
         let expected = [
-            Token::Ident(Text::new("Is Reloading")),
+            Token::Ident(SmolStr::new("Is Reloading")),
             Token::Ctrl('('),
-            Token::Ident(Text::new("Event Player")),
+            Token::Ident(SmolStr::new("Event Player")),
             Token::Ctrl(','),
-            Token::Ident(Text::new("Event Player")),
+            Token::Ident(SmolStr::new("Event Player")),
             Token::Ctrl(')'),
         ];
 

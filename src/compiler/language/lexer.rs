@@ -59,7 +59,7 @@ pub type LexerExtra<'a> = extra::Err<Simple<'a, char>>;
 
 pub fn lexer<'src>(
     span_source_id: SpanSourceId,
-    string_interner: &'src dyn StringInterner,
+    string_interner: &'src (impl StringInterner + ?Sized),
 ) -> impl Parser<'src, &'src str, Vec<(Token, Span)>, LexerExtra<'src>> {
     let num = text::int(10)
         .then(just('.').then(text::digits(10)).or_not())
@@ -124,7 +124,7 @@ mod tests {
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
         let code = "hello test νρσ";
-        let _ = lexer(span_source_id).parse(code).unwrap();
+        let _ = lexer(span_source_id, &interner).parse(code).unwrap();
     }
 
     #[test]
@@ -133,12 +133,12 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id).parse(code).unwrap();
+        let actual = lexer(span_source_id, &interner).parse(code).unwrap();
         let expected = vec![
-            Token::Num("1".to_string().into()),
-            Token::Num("5".to_string().into()),
-            Token::Num("1.2".to_string().into()),
-            Token::Num("123.321".to_string().into()),
+            Token::Num(interner.intern_string("1".to_string())),
+            Token::Num(interner.intern_string("5".to_string())),
+            Token::Num(interner.intern_string("1.2".to_string())),
+            Token::Num(interner.intern_string("123.321".to_string())),
         ];
 
         assert_vec(
@@ -153,10 +153,10 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id).parse(code).unwrap();
+        let actual = lexer(span_source_id, &interner).parse(code).unwrap();
         let expected = vec![
-            Token::String("Hello".to_string().into()),
-            Token::String("Hello World".to_string().into()),
+            Token::String(interner.intern_string("Hello".to_string())),
+            Token::String(interner.intern_string("Hello World".to_string())),
         ];
 
         assert_vec(
@@ -171,7 +171,7 @@ mod tests {
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
-        let actual = lexer(span_source_id).parse(code).unwrap();
+        let actual = lexer(span_source_id, &interner).parse(code).unwrap();
         let expected = vec![
             Token::Rule,
             Token::Cond,

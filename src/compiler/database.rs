@@ -44,8 +44,13 @@ pub mod test {
     use crate::compiler::span::SpanInterner;
     use crate::compiler::span::SpanInternerDatabase;
     use crate::compiler::span::SpanSourceId;
+    use crate::compiler::span::StringInternerDatabase;
 
-    #[salsa::database(SpanInternerDatabase, TestDatabaseHelperDatabase)]
+    #[salsa::database(
+        SpanInternerDatabase,
+        TestDatabaseHelperDatabase,
+        StringInternerDatabase
+    )]
     #[derive(Default)]
     pub struct TestDatabase {
         storage: salsa::Storage<Self>,
