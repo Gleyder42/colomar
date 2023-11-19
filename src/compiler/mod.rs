@@ -1,4 +1,4 @@
-use crate::compiler::span::AbstractSpan;
+use crate::compiler::span::{AbstractSpan, AbstractSpan2};
 use crate::compiler::trisult::Trisult;
 use error::CompilerError;
 use hashlink::LinkedHashMap;
@@ -6,6 +6,7 @@ use smol_str::SmolStr;
 use span::Span;
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 
 pub mod analysis;
 pub mod cir;

@@ -1,8 +1,9 @@
+use crate::compiler::Text;
 use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
 use smol_str::SmolStr;
-use std::borrow::Cow;
-use std::fmt::Debug;
+use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, Range};
 use std::rc::Rc;
 
@@ -12,31 +13,117 @@ pub type SpanSource = SmolStr;
 pub type SpannedBool = Option<Spanned<()>>;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct HierOffset {
-    pub parent: Option<Rc<HierOffset>>,
-    pub name: Cow<'static, str>,
+pub enum SpanName {
+    Pointer(Rc<Text>),
+    Literal(&'static str),
 }
 
-impl HierOffset {
+impl SpanName {
+    fn as_str(&self) -> &str {
+        match self {
+            SpanName::Pointer(name) => name.as_str(),
+            SpanName::Literal(literal) => literal,
+        }
+    }
+}
+
+impl Display for SpanName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SpanName::Pointer(name) => write!(f, "{name}"),
+            SpanName::Literal(literal) => write!(f, "{literal}"),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct SpanNodeId(salsa::InternId);
+
+impl_intern_key!(SpanNodeId);
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum AbstractSpan2 {
+    Node(Rc<SpanNode>, Span),
+    Interned(SpanNodeId),
+}
+
+impl AbstractSpan2 {
+    pub fn from_literal(name: &'static str, span: Span) -> Self {
+        todo!()
+    }
+
+    pub fn from_name(name: Rc<Text>, span: Span) -> Self {
+        let node = SpanNode {
+            parent: None,
+            name: SpanName::Pointer(name),
+        };
+
+        AbstractSpan2::Node(Rc::new(node), span)
+    }
+}
+
+#[derive(Debug)]
+pub struct SpanNodeTable(HashMap<SpanNodeId, Span>);
+
+impl SpanNodeTable {
+    pub fn new() -> SpanNodeTable {
+        SpanNodeTable(HashMap::new())
+    }
+}
+
+impl Default for SpanNodeTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AbstractSpan2 {
+    pub fn intern(self, interner: &dyn SpanInterner, table: &mut SpanNodeTable) -> Self {
+        match self {
+            AbstractSpan2::Node(node, span) => {
+                let id = interner.intern_span_node(node);
+                table.0.insert(id, span);
+                AbstractSpan2::Interned(id)
+            }
+            interned @ AbstractSpan2::Interned(_) => interned,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct SpanNode {
+    pub parent: Option<Rc<SpanNode>>,
+    pub name: SpanName,
+}
+
+impl SpanNode {
+    pub fn prepend(&mut self, offset: Rc<SpanNode>) {
+        match &self.parent {
+            None => self.parent = Some(offset),
+            Some(parent) => panic!(
+                "'{}' already has a parent '{}'",
+                self.as_string(),
+                parent.name
+            ),
+        }
+    }
+
     pub fn iter(&self) -> HierOffsetIter {
         HierOffsetIter(Some(self))
     }
 
     pub fn as_string(&self) -> String {
         self.iter()
-            .map(|it| match &it.name {
-                Cow::Borrowed(str) => str.to_string(),
-                Cow::Owned(string) => string.clone(),
-            })
+            .map(|it| it.name.as_str().to_owned())
             .collect::<Vec<String>>()
             .join("/")
     }
 }
 
-struct HierOffsetIter<'a>(Option<&'a HierOffset>);
+struct HierOffsetIter<'a>(Option<&'a SpanNode>);
 
 impl<'a> Iterator for HierOffsetIter<'a> {
-    type Item = &'a HierOffset;
+    type Item = &'a SpanNode;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.0 {
@@ -182,7 +269,21 @@ impl Span {
 pub trait SpanInterner {
     #[salsa::interned]
     fn intern_span_source(&self, span_source: SpanSource) -> SpanSourceId;
+
+    #[salsa::interned]
+    fn intern_span_node(&self, node: Rc<SpanNode>) -> SpanNodeId;
 }
+
+#[salsa::query_group(StringInternerDatabase)]
+pub trait StringInterner {
+    #[salsa::interned]
+    fn intern_string(&self, string: String) -> StringId;
+}
+
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+pub struct StringId(salsa::InternId);
+
+impl_intern_key!(StringId);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct FatSpan {
@@ -314,21 +415,33 @@ impl_intern_key!(SpanSourceId);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::mem::size_of;
+
+    fn offset(name: &'static str) -> SpanNode {
+        SpanNode {
+            parent: None,
+            name: SpanName::Literal(name),
+        }
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_existing_parent() {
+        let func = offset("function");
+        let mut arg_name = offset("arg_name");
+        let arg_type = offset("arg_type");
+
+        arg_name.prepend(Rc::new(func));
+
+        arg_name.prepend(Rc::new(arg_type));
+    }
 
     #[test]
-    fn test() {
-        let root = HierOffset {
-            parent: None,
-            name: Cow::Borrowed("Hello"),
-        };
+    fn test_prepend_offset() {
+        let func = offset("function");
+        let mut arg_name = offset("arg_name");
 
-        let name = HierOffset {
-            parent: Some(Rc::new(root)),
-            name: Cow::Borrowed("World"),
-        };
+        arg_name.prepend(Rc::new(func));
 
-        println!("{}", size_of::<HierOffset>());
-        println!("{}", name.as_string());
+        assert_eq!(arg_name.as_string(), "arg_name/function");
     }
 }

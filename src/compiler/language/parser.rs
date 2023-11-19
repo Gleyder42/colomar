@@ -3,8 +3,9 @@ use crate::compiler::language::lexer::Token;
 use crate::compiler::{AssignMod, Ident, Text, UseRestriction};
 use chumsky::error::Error;
 use chumsky::input::{SpannedInput, Stream};
+use std::rc::Rc;
 
-use crate::compiler::span::{Span, Spanned, SpannedBool};
+use crate::compiler::span::{AbstractSpan2, Span, Spanned, SpannedBool};
 use chumsky::prelude::*;
 use chumsky::util::Maybe;
 use smallvec::SmallVec;
