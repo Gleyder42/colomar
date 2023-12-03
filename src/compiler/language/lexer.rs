@@ -22,6 +22,7 @@ pub enum Token {
     Var,
     Fn,
     Type,
+    Import,
     Ident(StringId),
     String(StringId),
     Num(StringId),
@@ -46,6 +47,7 @@ impl Display for Token {
             Token::Type => write!(f, "type"),
             Token::Val => write!(f, "val"),
             Token::Var => write!(f, "var"),
+            Token::Import => write!(f, "import"),
             Token::Ident(string) => write!(f, "{string:?}"),
             Token::String(string) => write!(f, "{string:?}"),
             Token::Num(string) => write!(f, "{string:?}"),
@@ -88,6 +90,7 @@ pub fn lexer<'src>(
         "type" => Token::Type,
         "val" => Token::Val,
         "var" => Token::Var,
+        "import" => Token::Import,
         _ => Token::Ident(string_interner.intern_string(ident.to_owned())),
     });
 

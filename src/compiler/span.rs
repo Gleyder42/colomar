@@ -1,197 +1,14 @@
-use crate::compiler::{Text, Text2};
+use crate::compiler::Text2;
 use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
 use smol_str::SmolStr;
-use std::collections::HashMap;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::ops::Range;
-use std::rc::Rc;
 
 pub type InnerSpan = u32;
 pub type SpanLocation = CopyRange;
 pub type SpanSource = SmolStr;
 pub type SpannedBool = Option<Spanned<()>>;
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum SpanName {
-    Pointer(Text),
-    Literal(&'static str),
-}
-
-impl SpanName {
-    fn as_str(&self) -> &str {
-        match self {
-            SpanName::Pointer(name) => todo!(),
-            SpanName::Literal(literal) => literal,
-        }
-    }
-}
-
-impl Display for SpanName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SpanName::Pointer(name) => write!(f, "{name:?}"),
-            SpanName::Literal(literal) => write!(f, "{literal}"),
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub struct SpanNodeId(salsa::InternId);
-
-impl_intern_key!(SpanNodeId);
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum AbstractSpan2 {
-    Node(Rc<SpanNode>, Span),
-    Interned(SpanNodeId),
-}
-
-impl AbstractSpan2 {
-    pub fn from_literal(name: &'static str, span: Span) -> Self {
-        todo!()
-    }
-
-    pub fn from_name(name: Text, span: Span) -> Self {
-        let node = SpanNode {
-            parent: None,
-            name: SpanName::Pointer(name),
-        };
-
-        AbstractSpan2::Node(Rc::new(node), span)
-    }
-}
-
-#[derive(Debug)]
-pub struct SpanNodeTable(HashMap<SpanNodeId, Span>);
-
-impl SpanNodeTable {
-    pub fn new() -> SpanNodeTable {
-        SpanNodeTable(HashMap::new())
-    }
-}
-
-impl Default for SpanNodeTable {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl AbstractSpan2 {
-    pub fn intern(self, interner: &dyn SpanInterner, table: &mut SpanNodeTable) -> Self {
-        match self {
-            AbstractSpan2::Node(node, span) => {
-                let id = interner.intern_span_node(node);
-                table.0.insert(id, span);
-                AbstractSpan2::Interned(id)
-            }
-            interned @ AbstractSpan2::Interned(_) => interned,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct SpanNode {
-    pub parent: Option<Rc<SpanNode>>,
-    pub name: SpanName,
-}
-
-impl SpanNode {
-    pub fn prepend(&mut self, offset: Rc<SpanNode>) {
-        match &self.parent {
-            None => self.parent = Some(offset),
-            Some(parent) => panic!(
-                "'{}' already has a parent '{}'",
-                self.as_string(),
-                parent.name
-            ),
-        }
-    }
-
-    pub fn iter(&self) -> HierOffsetIter {
-        HierOffsetIter(Some(self))
-    }
-
-    pub fn as_string(&self) -> String {
-        self.iter()
-            .map(|it| it.name.as_str().to_owned())
-            .collect::<Vec<String>>()
-            .join("/")
-    }
-}
-
-pub struct HierOffsetIter<'a>(Option<&'a SpanNode>);
-
-impl<'a> Iterator for HierOffsetIter<'a> {
-    type Item = &'a SpanNode;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.0 {
-            Some(offset) => {
-                let next = offset.parent.as_ref().map(|it| it.as_ref());
-                self.0 = next;
-                Some(offset)
-            }
-            None => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct RelativeOffset {
-    pub parent: Rc<AbstractOffset>,
-    pub offset: u16,
-    pub length: u16,
-}
-
-impl RelativeOffset {
-    pub fn absolute_offset(&self) -> CopyRange {
-        let mut offset: u32 = 0;
-        let mut current = Some(self.parent.as_ref());
-        loop {
-            match current {
-                Some(parent) => {
-                    offset += parent.length() as u32;
-                    current = parent.parent();
-                }
-                None => break,
-            }
-        }
-        let start = offset;
-        let end = start + self.length as u32;
-        CopyRange { start, end }
-    }
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum AbstractOffset {
-    Absolute(CopyRange),
-    Relative(RelativeOffset),
-}
-
-impl AbstractOffset {
-    fn parent(&self) -> Option<&AbstractOffset> {
-        match self {
-            AbstractOffset::Absolute(_) => None,
-            AbstractOffset::Relative(relative) => Some(relative.parent.as_ref()),
-        }
-    }
-
-    fn length(&self) -> u16 {
-        match self {
-            // TODO check for overflow
-            AbstractOffset::Absolute(range) => (range.end - range.start) as u16,
-            AbstractOffset::Relative(relative) => relative.length,
-        }
-    }
-
-    fn range(&self) -> CopyRange {
-        match self {
-            AbstractOffset::Absolute(range) => *range,
-            AbstractOffset::Relative(relative) => relative.absolute_offset(),
-        }
-    }
-}
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct CopyRange {
@@ -244,21 +61,6 @@ pub struct Span {
     pub location: SpanLocation,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct AbstractSpan {
-    pub source: SpanSourceId,
-    pub location: AbstractOffset,
-}
-
-impl AbstractSpan {
-    fn absolute(span: Span) -> AbstractSpan {
-        AbstractSpan {
-            source: span.source,
-            location: AbstractOffset::Absolute(span.location),
-        }
-    }
-}
-
 impl Span {
     pub fn new(source: SpanSourceId, location: SpanLocation) -> Self {
         Span { source, location }
@@ -269,9 +71,6 @@ impl Span {
 pub trait SpanInterner {
     #[salsa::interned]
     fn intern_span_source(&self, span_source: SpanSource) -> SpanSourceId;
-
-    #[salsa::interned]
-    fn intern_span_node(&self, node: Rc<SpanNode>) -> SpanNodeId;
 }
 
 #[salsa::query_group(StringInternerDatabase)]
@@ -417,37 +216,3 @@ impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
 pub struct SpanSourceId(salsa::InternId);
 
 impl_intern_key!(SpanSourceId);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn offset(name: &'static str) -> SpanNode {
-        SpanNode {
-            parent: None,
-            name: SpanName::Literal(name),
-        }
-    }
-
-    #[should_panic]
-    #[test]
-    fn test_existing_parent() {
-        let func = offset("function");
-        let mut arg_name = offset("arg_name");
-        let arg_type = offset("arg_type");
-
-        arg_name.prepend(Rc::new(func));
-
-        arg_name.prepend(Rc::new(arg_type));
-    }
-
-    #[test]
-    fn test_prepend_offset() {
-        let func = offset("function");
-        let mut arg_name = offset("arg_name");
-
-        arg_name.prepend(Rc::new(func));
-
-        assert_eq!(arg_name.as_string(), "arg_name/function");
-    }
-}

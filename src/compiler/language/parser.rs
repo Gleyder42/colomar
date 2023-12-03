@@ -217,19 +217,17 @@ fn open_or_not<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtr
 
 fn path<'src>() -> impl Parser<'src, ParserInput, Path, ParserExtra<'src>> {
     ident()
+        .map(|it| it.value)
         .separated_by(dup_op!(':'))
         .collect::<Vec<_>>()
-        .map(|segments| Path {
-            segments: segments.into_iter().map(|it| it.value).collect(),
-        })
+        .map(|segments| Path { segments })
 }
 
-fn imports<'src>() -> impl Parser<'src, ParserInput, Vec<Import>, ParserExtra<'src>> {
-    path()
+fn import<'src>() -> impl Parser<'src, ParserInput, Import, ParserExtra<'src>> {
+    just(Token::Import)
+        .ignore_then(path())
         .then_ignore(just(Token::Ctrl(';')))
         .map_with_span(|path, span| Import { path, span })
-        .repeated()
-        .collect::<Vec<_>>()
 }
 
 fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>> {
@@ -430,12 +428,19 @@ pub fn parser<'src>() -> impl Parser<'src, ParserInput, Ast, ParserExtra<'src>> 
     let event_parser = event().map(Root::Event);
     let enum_parser = r#enum().map(Root::Enum);
     let struct_parser = r#struct().map(Root::Struct);
+    let import_parser = import().map(Root::Import);
 
-    choice((rule_parser, event_parser, enum_parser, struct_parser))
-        .repeated()
-        .collect::<Vec<_>>()
-        .then_ignore(end())
-        .map(Ast)
+    choice((
+        rule_parser,
+        event_parser,
+        enum_parser,
+        struct_parser,
+        import_parser,
+    ))
+    .repeated()
+    .collect::<Vec<_>>()
+    .then_ignore(end())
+    .map(Ast)
 }
 
 #[cfg(test)]

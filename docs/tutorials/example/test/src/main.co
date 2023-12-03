@@ -1,3 +1,5 @@
+import std;
+
 native struct bool { }
 native struct string { }
 native struct num { }
