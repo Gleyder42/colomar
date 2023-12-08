@@ -105,6 +105,7 @@ impl IntoIterator for Types {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EventDeclaration {
+    pub visibility: Visibility,
     pub is_native: SpannedBool,
     pub name: Ident,
     pub span: Span,
@@ -154,6 +155,7 @@ pub struct FunctionDeclaration {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct StructDeclaration {
+    pub visibility: Visibility,
     pub is_open: SpannedBool,
     pub is_native: SpannedBool,
     pub name: Ident,
@@ -178,6 +180,13 @@ impl TryFrom<Definition> for StructDefinition {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Hash, Clone, Default)]
+pub enum Visibility {
+    Public,
+    #[default]
+    Private,
+}
+
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Struct {
     pub declaration: StructDeclaration,
@@ -187,6 +196,7 @@ pub struct Struct {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct EnumDeclaration {
+    pub visibility: Visibility,
     pub is_native: SpannedBool,
     pub name: Ident,
     pub span: Span,
@@ -227,6 +237,7 @@ pub struct DeclaredArgument {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Rule {
+    pub visibility: Visibility,
     pub name: Spanned<Text>,
     pub event: Ident,
     pub arguments: CallArguments,

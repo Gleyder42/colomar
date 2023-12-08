@@ -1,20 +1,20 @@
-native struct bool { }
-native struct string { }
-native struct num { }
+pub native struct bool { }
+pub native struct string { }
+pub native struct num { }
 
-native enum Team {
+pub native enum Team {
     Team1, Team2, All
 }
 
-native enum Slot {
+pub native enum Slot {
     Slot0, Slot1, All
 }
 
-native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Slot.All) {
+pub native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Slot.All) {
     native val player: Player;
 }
 
-open native struct Player {
+pub open native struct Player {
 
     var counter: num;
 
@@ -31,7 +31,7 @@ open native struct Player {
     native fn heal(amount: num, player: Player);
 }
 
-native struct vector {
+pub native struct vector {
 
     native var x: num;
     native var y: num;
@@ -40,6 +40,6 @@ native struct vector {
     native fn new(x: num, y: num, z: num);
 }
 
-native enum Hero {
+pub native enum Hero {
     Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
 }

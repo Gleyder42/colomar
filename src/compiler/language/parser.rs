@@ -67,10 +67,12 @@ fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
         .then(chain().args())
         .or_not();
 
-    native_or_not()
+    visibility()
+        .then(native_or_not())
         .then_ignore(just(Token::Event))
         .then(ident())
-        .map_with_span(|(is_native, name), span| EventDeclaration {
+        .map_with_span(|((visibility, is_native), name), span| EventDeclaration {
+            visibility,
             is_native,
             name,
             span,
@@ -99,16 +101,30 @@ fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
         })
 }
 
+fn visibility<'src>() -> impl Parser<'src, ParserInput, Visibility, ParserExtra<'src>> {
+    just(Token::Pub)
+        .or_not()
+        .map(|token| {
+            match token {
+                Some(Token::Pub) => Visibility::Public,
+                None => Visibility::Private,
+                Some(token) => panic!("Error while parsing visibility. Expected is `pub` or nothing, but somehow it was {token}.")
+            }
+        })
+}
+
 fn r#enum<'src>() -> impl Parser<'src, ParserInput, Enum, ParserExtra<'src>> {
     let constants = ident()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
         .collect::<Vec<_>>();
 
-    native_or_not()
+    visibility()
+        .then(native_or_not())
         .then_ignore(just(Token::Enum))
         .then(ident())
-        .map_with_span(|(is_native, name), span| EnumDeclaration {
+        .map_with_span(|((visibility, is_native), name), span| EnumDeclaration {
+            visibility,
             is_native,
             name,
             span,
@@ -249,16 +265,20 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
     let property = property().map(StructMember::Property);
     let member_function = member_function.map(StructMember::Function);
 
-    open_or_not()
+    visibility()
+        .then(open_or_not())
         .then(native_or_not())
         .then_ignore(just(Token::Struct))
         .then(ident())
-        .map_with_span(|((is_open, is_native), name), span| StructDeclaration {
-            is_open,
-            is_native,
-            name,
-            span,
-        })
+        .map_with_span(
+            |(((visibility, is_open), is_native), name), span| StructDeclaration {
+                visibility,
+                is_open,
+                is_native,
+                name,
+                span,
+            },
+        )
         .then(
             choice((property, member_function))
                 .then_ignore(just(Token::Ctrl(';')))
@@ -409,18 +429,22 @@ fn rule<'src>() -> impl Parser<'src, ParserInput, Rule, ParserExtra<'src>> {
         Token::String(string) = span => Spanned::new(string, span)
     };
 
-    just(Token::Rule)
-        .ignore_then(rule_name)
+    visibility()
+        .then_ignore(just(Token::Rule))
+        .then(rule_name)
         .then(ident())
         .then(chain().args())
         .then(block())
-        .map_with_span(|(((rule_name, ident), arguments), block), _span| Rule {
-            conditions: block.conditions,
-            actions: block.actions,
-            name: rule_name,
-            event: ident,
-            arguments,
-        })
+        .map_with_span(
+            |((((visibility, rule_name), ident), arguments), block), _span| Rule {
+                visibility,
+                conditions: block.conditions,
+                actions: block.actions,
+                name: rule_name,
+                event: ident,
+                arguments,
+            },
+        )
 }
 
 pub fn parser<'src>() -> impl Parser<'src, ParserInput, Ast, ParserExtra<'src>> {

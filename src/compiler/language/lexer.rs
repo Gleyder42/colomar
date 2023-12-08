@@ -3,7 +3,7 @@ extern crate core;
 use crate::compiler::span::{Span, SpanLocation, SpanSourceId, StringId, StringInterner};
 use chumsky::prelude::*;
 
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{write, Debug, Display, Formatter};
 use std::string::String;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -23,6 +23,7 @@ pub enum Token {
     Fn,
     Type,
     Import,
+    Pub,
     Ident(StringId),
     String(StringId),
     Num(StringId),
@@ -47,6 +48,7 @@ impl Display for Token {
             Token::Type => write!(f, "type"),
             Token::Val => write!(f, "val"),
             Token::Var => write!(f, "var"),
+            Token::Pub => write!(f, "pub"),
             Token::Import => write!(f, "import"),
             Token::Ident(string) => write!(f, "{string:?}"),
             Token::String(string) => write!(f, "{string:?}"),
@@ -86,6 +88,7 @@ pub fn lexer<'src>(
         "struct" => Token::Struct,
         "getvar" => Token::GetVar,
         "setvar" => Token::SetVar,
+        "pub" => Token::Pub,
         "fn" => Token::Fn,
         "type" => Token::Type,
         "val" => Token::Val,
@@ -170,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond native event enum by open struct getvar setvar val var fn type";
+        let code = "rule cond native event enum by open struct getvar setvar val var fn type pub";
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
@@ -190,6 +193,7 @@ mod tests {
             Token::Var,
             Token::Fn,
             Token::Type,
+            Token::Pub,
         ];
 
         assert_vec(
