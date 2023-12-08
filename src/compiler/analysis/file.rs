@@ -44,13 +44,13 @@ pub(super) fn query_main_file(db: &dyn DeclQuery) -> cst::Ast {
         .map(|import| db.query_secondary_file(import.path))
         .collect::<QueryTrisult<Vec<cst::Ast>>>()
         .map(|mut asts| {
-            asts.push(db.main_file());
-            asts.into_iter()
-                .reduce(|mut acc, mut element| {
-                    acc.0.append(&mut element.0);
-                    acc
-                })
-                .unwrap_or(cst::Ast(Vec::new()))
+            let amount = asts.iter().map(|it| it.0.len()).sum();
+            let mut elements = db.main_file().0;
+            elements.reserve(amount);
+            for mut ast in asts {
+                elements.append(&mut ast.0);
+            }
+            cst::Ast(elements)
         })
         .unwrap_ok()
 }
