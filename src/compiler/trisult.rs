@@ -1,5 +1,4 @@
 use crate::compiler::span::{Span, Spanned};
-use crate::compiler::trisult;
 use std::fmt::Debug;
 
 /// Trisult is similar to [Result] but has one more in-between state.
@@ -35,6 +34,14 @@ impl<T, E: Debug> Trisult<T, E> {
             Trisult::Ok(ok) => ok,
             Trisult::Par(_, _) => panic!("Trying to unwrap Ok, but was Par"),
             Trisult::Err(err) => panic!("Trying to unwrap Ok, but was Err {:?}", err),
+        }
+    }
+
+    pub fn expect_ok(self, message: &'static str) -> T {
+        match self {
+            Trisult::Ok(value) => value,
+            Trisult::Par(_, errors) => panic!("Expected Ok, but was Par {errors:?}"),
+            Trisult::Err(errors) => panic!("Expected Ok, but was Err {errors:?}"),
         }
     }
 }
@@ -511,14 +518,14 @@ impl<T> Errors<T> {
 macro_rules! tri {
     ($trisult:expr, $context:expr) => {
         match $trisult {
-            trisult::Trisult::Ok(value) => value,
-            trisult::Trisult::Par(value, errors) => {
+            $crate::compiler::trisult::Trisult::Ok(value) => value,
+            $crate::compiler::trisult::Trisult::Par(value, errors) => {
                 $context.append(errors);
                 value
             }
-            trisult::Trisult::Err(errors) => {
+            $crate::compiler::trisult::Trisult::Err(errors) => {
                 $context.append(errors);
-                return trisult::Trisult::Err($context.into());
+                return $crate::compiler::trisult::Trisult::Err($context.into());
             }
         }
     };

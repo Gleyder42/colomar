@@ -5,7 +5,6 @@ use crate::compiler::{
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
-use std::path::PathBuf;
 
 pub type Condition = Expr;
 
@@ -61,6 +60,18 @@ pub enum Root {
     Enum(Enum),
     Struct(Struct),
     Import(Import),
+}
+
+impl Root {
+    pub fn visibility(&self) -> Visibility {
+        match self {
+            Root::Event(event) => event.declaration.visibility,
+            Root::Rule(rule) => rule.visibility,
+            Root::Enum(r#enum) => r#enum.declaration.visibility,
+            Root::Struct(r#struct) => r#struct.declaration.visibility,
+            Root::Import(_) => Visibility::Private, // imports should not appear as public
+        }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -180,7 +191,7 @@ impl TryFrom<Definition> for StructDefinition {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Default)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Default)]
 pub enum Visibility {
     Public,
     #[default]

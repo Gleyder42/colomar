@@ -16,9 +16,7 @@ use compiler::span::{FatSpan, Span, SpanSourceId};
 use compiler::trisult::Trisult;
 use either::Either;
 use hashlink::LinkedHashMap;
-use notify::Watcher;
-use std::collections::HashSet;
-use std::ffi::OsStr;
+use std::collections::{HashMap, HashSet};
 use std::fs::DirEntry;
 use std::io::Read;
 use std::ops::Range;
@@ -34,21 +32,14 @@ pub mod compiler;
 pub mod test_assert;
 
 fn main() {
-    let path = Path::new("docs/tutorials/example/test/src/main.co");
     let mut db = CompilerDatabase::default();
 
-    let (mut source, ast, parser_errors) = parse_ast(path, &db);
-    print_parser_errors(&mut source, &db, parser_errors);
-
-    let mut map = LinkedHashMap::new();
+    let mut ast_map = LinkedHashMap::new();
+    let mut source_map = HashMap::new();
     let base_base = Path::new("docs/tutorials/example/test/src");
     for path in source_cache::read_files_to_string(&base_base).unwrap() {
-        if path.file_name().unwrap() == OsStr::new("main.co") {
-            continue;
-        }
-
-        let (mut source, ast, parser_errors) = parse_ast(&path, &db);
-        print_parser_errors(&mut source, &db, parser_errors);
+        let (source, ast, parser_errors) = parse_ast(&path, &db, &mut source_map);
+        print_parser_errors(source, &db, parser_errors);
 
         let result = path.strip_prefix(base_base).unwrap();
         let id = db.intern_string(result.file_stem().unwrap().to_string_lossy().into());
@@ -56,48 +47,50 @@ fn main() {
 
         match ast {
             Some(ast) => {
-                map.insert(cst::Path { segments }, ast);
+                ast_map.insert(cst::Path { segments }, ast);
             }
             None => {}
         };
     }
 
-    if let Some(ast) = ast {
-        db.set_main_file(ast);
-        db.set_secondary_files(dbg!(map));
+    let make_path = |name: &'static str, db: &CompilerDatabase| cst::Path {
+        segments: vec![db.intern_string(name.to_string())],
+    };
 
-        let impl_path = Path::new("docs/tutorials/example/test/native");
-        let elements = compiler::loader::read_impls(impl_path);
+    db.set_main_file_name(make_path("main", &db));
+    db.set_secondary_files(ast_map);
 
-        use crate::compiler::loader::WorkshopScriptLoader;
-        db.set_input_wscript_impls(elements);
+    let impl_path = Path::new("docs/tutorials/example/test/native");
+    let elements = compiler::loader::read_impls(impl_path);
 
-        let trisult = db.query_workshop_output();
-        match trisult {
-            Trisult::Ok(value) => {
-                println!("{value}")
-            }
-            QueryTrisult::Par(_, errors) | QueryTrisult::Err(errors) => {
-                // Due the nature of demand-driven compilation, the queries return duplicate errors,
-                // if an erroneous query is queried multiple times.
-                // However, the errors only seem to be duplicate, because they just miss context information
-                // which would distinct them.
-                // Filtering here while having the all errors in the result wastes space and computing power.
-                // The question is if this is negligible.
-                let original_len = errors.len();
-                let unique_errors = errors.into_iter().collect::<HashSet<_>>();
-                let new_len = unique_errors.len();
+    use crate::compiler::loader::WorkshopScriptLoader;
+    db.set_input_wscript_impls(elements);
 
-                println!("Errors: {:?}", unique_errors);
-                println!(
-                    "Reduced errors from {} to {}. \nReduced size by {}",
-                    original_len,
-                    new_len,
-                    100.0 - (new_len as f32 / original_len as f32) * 100.0
-                );
+    let trisult = db.query_workshop_output();
+    match trisult {
+        Trisult::Ok(value) => {
+            println!("{value}")
+        }
+        QueryTrisult::Par(_, errors) | QueryTrisult::Err(errors) => {
+            // Due the nature of demand-driven compilation, the queries return duplicate errors,
+            // if an erroneous query is queried multiple times.
+            // However, the errors only seem to be duplicate, because they just miss context information
+            // which would distinct them.
+            // Filtering here while having the all errors in the result wastes space and computing power.
+            // The question is if this is negligible.
+            let original_len = errors.len();
+            let unique_errors = errors.into_iter().collect::<HashSet<_>>();
+            let new_len = unique_errors.len();
 
-                print_errors(&mut source, &mut db, unique_errors);
-            }
+            println!("Errors: {:?}", unique_errors);
+            println!(
+                "Reduced errors from {} to {}. \nReduced size by {}",
+                original_len,
+                new_len,
+                100.0 - (new_len as f32 / original_len as f32) * 100.0
+            );
+
+            print_errors(&source_map, &mut db, unique_errors);
         }
     }
 }
@@ -105,7 +98,8 @@ fn main() {
 fn parse_ast<'a>(
     path: &'a Path,
     db: &'a CompilerDatabase,
-) -> (String, Option<cst::Ast>, Vec<Rich<'a, Token, Span>>) {
+    source_map: &'a mut HashMap<SpanSourceId, String>,
+) -> (&'a String, Option<cst::Ast>, Vec<Rich<'a, Token, Span>>) {
     let mut file = fs::File::open(path).expect("Cannot read from file");
 
     let mut source = String::new();
@@ -117,6 +111,9 @@ fn parse_ast<'a>(
     let (tokens, _lexer_errors) = lexer(span_source_id, db)
         .parse(source.as_str())
         .into_output_errors();
+
+    source_map.insert(span_source_id, source);
+    let source = source_map.get(&span_source_id).unwrap();
 
     if let Some(tokens) = tokens {
         let eoi = Span::new(
@@ -170,7 +167,7 @@ fn print_parser_errors(
 }
 
 fn print_errors(
-    source: &mut String,
+    source_map: &HashMap<SpanSourceId, String>,
     db: &mut CompilerDatabase,
     unique_errors: HashSet<CompilerError>,
 ) {
@@ -184,6 +181,9 @@ fn print_errors(
             CompilerError::DuplicateIdent { first, second } => {
                 let first_span = FatSpan::from_span(db, first.span);
                 let second_span = FatSpan::from_span(db, second.span);
+
+                let first_source = source_map.get(&first.span.source).unwrap();
+                let second_source = source_map.get(&second.span.source).unwrap();
 
                 Report::<FatSpan>::build(
                     ERROR_KIND,
@@ -207,8 +207,8 @@ fn print_errors(
                 )
                 .finish()
                 .eprint(sources(vec![
-                    (first_span.source.clone(), &source),
-                    (second_span.source.clone(), &source),
+                    (first_span.source.clone(), first_source),
+                    (second_span.source.clone(), second_source),
                 ]))
                 .unwrap();
             }
@@ -217,6 +217,7 @@ fn print_errors(
             }
             CompilerError::CannotFindIdent(ident) => {
                 let span = FatSpan::from_span(db, ident.span);
+                let source = source_map.get(&ident.span.source).unwrap();
 
                 Report::build(
                     ERROR_KIND,
@@ -239,6 +240,7 @@ fn print_errors(
             }
             CompilerError::NotA(type_name, actual_rvalue, occurrence) => {
                 let occurrence_span = FatSpan::from_span(db, occurrence.span);
+                let source = source_map.get(&occurrence.span.source).unwrap();
 
                 Report::build(
                     ERROR_KIND,
@@ -261,6 +263,8 @@ fn print_errors(
             }
             CompilerError::WrongType { actual, expected } => {
                 let actual_span = FatSpan::from_span(db, actual.span);
+                let actual_source = source_map.get(&actual.span.source).unwrap();
+
                 let report_builder = Report::build(
                     ERROR_KIND,
                     actual_span.source.clone(),
@@ -301,7 +305,7 @@ fn print_errors(
                 report_builder
                     .finish()
                     .eprint(sources(vec![
-                        (actual_span.source.clone(), &source),
+                        (actual_span.source.clone(), &actual_source),
                         // TODO Add expected span
                     ]))
                     .unwrap();
@@ -328,7 +332,9 @@ fn print_errors(
             CompilerError::InvalidNativeDefinition(_) => {}
             CompilerError::NoCaller => {}
             CompilerError::NotImplemented(reason, span) => {
+                let source = source_map.get(&span.source).unwrap();
                 let span = FatSpan::from_span(db, span);
+
                 Report::build(
                     COMPILER_ERROR,
                     span.source.clone(),

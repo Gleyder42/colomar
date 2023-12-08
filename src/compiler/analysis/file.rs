@@ -1,10 +1,13 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::cir::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
-use crate::compiler::cst::{Definition, EventDefinition, Import, Root, StructDefinition, TypeRoot};
+use crate::compiler::cst::{
+    Definition, EventDefinition, Root, StructDefinition, TypeRoot, Visibility,
+};
 use crate::compiler::error::CompilerError;
 
-use crate::compiler::trisult::IntoTrisult;
+use crate::compiler::trisult::{Errors, IntoTrisult};
 use crate::compiler::{cst, QueryTrisult};
+use crate::tri;
 use either::Either;
 use std::collections::HashMap;
 
@@ -39,30 +42,8 @@ pub(super) fn query_ast_struct_def(
 }
 
 pub(super) fn query_main_file(db: &dyn DeclQuery) -> cst::Ast {
-    db.query_main_imports()
-        .into_iter()
-        .map(|import| db.query_secondary_file(import.path))
-        .collect::<QueryTrisult<Vec<cst::Ast>>>()
-        .map(|mut asts| {
-            let amount = asts.iter().map(|it| it.0.len()).sum();
-            let mut elements = db.main_file().0;
-            elements.reserve(amount);
-            for mut ast in asts {
-                elements.append(&mut ast.0);
-            }
-            cst::Ast(elements)
-        })
-        .unwrap_ok()
-}
-
-pub(super) fn query_main_imports(db: &dyn DeclQuery) -> Vec<Import> {
-    db.main_file()
-        .into_iter()
-        .filter_map(|root| match root {
-            Root::Import(import) => Some(import),
-            _ => None,
-        })
-        .collect()
+    db.query_file(db.main_file_name(), false)
+        .expect_ok("There should always be a main file present")
 }
 
 pub(super) fn query_action_items(db: &dyn DeclQuery) -> Vec<Root> {
@@ -73,6 +54,48 @@ pub(super) fn query_action_items(db: &dyn DeclQuery) -> Vec<Root> {
             Root::Import(_) => false,
         })
         .collect()
+}
+
+pub(super) fn query_file(
+    db: &dyn DeclQuery,
+    path: cst::Path,
+    include_only_public: bool,
+) -> QueryTrisult<cst::Ast> {
+    let mut errors = Errors::default();
+    let mut ast: cst::Ast = tri!(db.query_secondary_file(path), errors);
+
+    let import_indices: Vec<_> = ast
+        .0
+        .iter()
+        .enumerate()
+        .filter_map(|(index, element)| match element {
+            Root::Import(_) => Some(index),
+            _ => None,
+        })
+        .collect();
+
+    let imports: QueryTrisult<Vec<cst::Ast>> = import_indices
+        .into_iter()
+        .filter_map(|index| match ast.0.swap_remove(index) {
+            Root::Import(import) => Some(import),
+            _ => None,
+        })
+        .map(|import| db.query_file(import.path, true))
+        .collect();
+    let imported_asts = tri!(imports, errors);
+    let element_count = imported_asts.iter().map(|ast| ast.0.len()).sum();
+
+    if include_only_public {
+        ast.0
+            .retain(|element| element.visibility() == Visibility::Public);
+    }
+
+    ast.0.reserve_exact(element_count);
+    for mut imported in imported_asts {
+        ast.0.append(&mut imported.0);
+    }
+
+    errors.value(ast)
 }
 
 pub(super) fn query_secondary_file(db: &dyn DeclQuery, path: cst::Path) -> QueryTrisult<cst::Ast> {
