@@ -27,6 +27,9 @@ impl salsa::Database for CompilerDatabase {}
 #[macro_export]
 macro_rules! impl_intern_key {
     ($name:ident) => {
+        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+        pub struct $name(salsa::InternId);
+
         impl $crate::salsa::InternKey for $name {
             fn from_intern_id(v: $crate::salsa::InternId) -> Self {
                 $name(v)

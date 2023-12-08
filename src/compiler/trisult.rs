@@ -40,8 +40,8 @@ impl<T, E: Debug> Trisult<T, E> {
     pub fn expect_ok(self, message: &'static str) -> T {
         match self {
             Trisult::Ok(value) => value,
-            Trisult::Par(_, errors) => panic!("Expected Ok, but was Par {errors:?}"),
-            Trisult::Err(errors) => panic!("Expected Ok, but was Err {errors:?}"),
+            Trisult::Par(_, errors) => panic!("Expected Ok, but was Par {errors:?}: {message}"),
+            Trisult::Err(errors) => panic!("Expected Ok, but was Err {errors:?}: {message}"),
         }
     }
 }
@@ -453,7 +453,7 @@ macro_rules! query_error {
     };
 }
 
-trait ErrorHolder<T> {
+pub trait ErrorHolder<T> {
     fn consume(self) -> Vec<T>;
 }
 

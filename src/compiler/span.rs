@@ -79,9 +79,6 @@ pub trait StringInterner {
     fn intern_string(&self, string: String) -> StringId;
 }
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-pub struct StringId(salsa::InternId);
-
 impl StringId {
     pub fn name(&self, interner: &(impl StringInterner + ?Sized)) -> Text2 {
         interner.lookup_intern_string(*self)
@@ -211,8 +208,5 @@ impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
         self.value.into_iter()
     }
 }
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct SpanSourceId(salsa::InternId);
 
 impl_intern_key!(SpanSourceId);

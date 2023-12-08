@@ -73,9 +73,6 @@ pub struct FunctionDecl {
     pub return_type: Type,
 }
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct FunctionDeclId(salsa::InternId);
-
 impl_intern_key!(FunctionDeclId);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -86,9 +83,6 @@ pub struct PropertyDecl {
     pub desc: Spanned<UseRestriction>,
     pub r#type: Type,
 }
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct PropertyDeclId(salsa::InternId);
 
 impl_intern_key!(PropertyDeclId);
 
@@ -111,9 +105,6 @@ pub struct StructDefinition {
     pub properties: PropertyDeclIds,
 }
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct StructDeclarationId(salsa::InternId);
-
 impl_intern_key!(StructDeclarationId);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -121,12 +112,6 @@ pub struct EnumDeclaration {
     pub name: Ident,
     pub is_native: SpannedBool,
 }
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct EnumDeclarationId(salsa::InternId);
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct EnumConstantId(salsa::InternId);
 
 impl_intern_key!(EnumDeclarationId);
 
@@ -261,9 +246,6 @@ impl Display for CalledTypes {
     }
 }
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct CalledArgumentId(salsa::InternId);
-
 impl_intern_key!(CalledArgumentId);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -282,12 +264,6 @@ pub struct DeclaredArgument {
     pub types: CalledTypes,
     pub default_value: Option<AValueChain>,
 }
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct DeclaredArgumentId(salsa::InternId);
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct EventDeclarationId(salsa::InternId);
 
 impl_intern_key!(DeclaredArgumentId);
 impl_intern_key!(EventDeclarationId);

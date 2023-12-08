@@ -9,7 +9,6 @@ use crate::compiler::trisult::Trisult;
 use crate::compiler::{HashableMap, Ident, QueryTrisult, Text};
 use crate::{impl_intern_key, query_error};
 
-use salsa::InternId;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -281,9 +280,6 @@ impl From<EnumNameholder> for Nameholder {
         Nameholder::Enum(value)
     }
 }
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct NamespaceId(InternId);
 
 impl_intern_key!(NamespaceId);
 

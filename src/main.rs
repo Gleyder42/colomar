@@ -17,11 +17,10 @@ use compiler::trisult::Trisult;
 use either::Either;
 use hashlink::LinkedHashMap;
 use std::collections::{HashMap, HashSet};
-use std::fs::DirEntry;
+use std::fs;
 use std::io::Read;
 use std::ops::Range;
 use std::path::Path;
-use std::{fs, io};
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::printer::PrinterQuery;
@@ -363,34 +362,5 @@ fn print_errors(
             CompilerError::WrongTypeInBinaryExpression(_, _) => {}
             CompilerError::CannotFindFile(_) => {}
         }
-    }
-}
-
-fn visit_dirs(dir: &Path, cb: &dyn Fn(&DirEntry)) -> io::Result<()> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                visit_dirs(&path, cb)?;
-            } else {
-                cb(&entry);
-            }
-        }
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs::File;
-
-    #[test]
-    fn test_changed() -> io::Result<()> {
-        let a = File::create("a.co")?;
-        let b = File::create("b.co")?;
-        let c = File::create("c.co")?;
-        Ok(())
     }
 }

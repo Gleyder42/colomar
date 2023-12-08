@@ -29,17 +29,11 @@ pub struct NativeFunc {
     pub default_args: HashableMap<String, Call>,
 }
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct NativeFuncId(salsa::InternId);
-
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct NativeEvent {
     event_name: LiteralOwscript,
     default_args: Option<[LiteralOwscript; 2]>,
 }
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct NativeEventId(salsa::InternId);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct CallNativeEvent {
