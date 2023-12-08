@@ -1,51 +1,5 @@
 import std;
 
-native struct bool { }
-native struct string { }
-native struct num { }
-
-native enum Team {
-    Team1, Team2, All
-}
-
-native enum Slot {
-    Slot0, Slot1, All
-}
-
-native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Slot.All) {
-    native val player: Player;
-}
-
-open native struct Player {
-
-    var counter: num;
-
-    native getvar isReloading: bool;
-    native setvar damageDealt: num;
-    native getvar eyePos: vector;
-
-    var a: bool;
-    var b: bool;
-    var c: bool;
-
-    native fn sendSmallMessage(message: string);
-
-    native fn heal(amount: num, player: Player);
-}
-
-native struct vector {
-
-    native var x: num;
-    native var y: num;
-    native var z: num;
-
-    native fn new(x: num, y: num, z: num);
-}
-
-native enum Hero {
-    Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
-}
-
 rule "Hello World" OngoingEachPlayer() {
     cond (player.a && player.b) || player.c;
 

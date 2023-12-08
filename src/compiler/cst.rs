@@ -5,6 +5,7 @@ use crate::compiler::{
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
+use std::path::PathBuf;
 
 pub type Condition = Expr;
 

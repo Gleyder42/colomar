@@ -448,7 +448,6 @@ mod tests {
     use super::*;
 
     use crate::assert_iterator;
-    use crate::compiler::analysis::interner::Interner;
     use crate::compiler::cst::{Call, DeclaredArgument, Rule};
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};

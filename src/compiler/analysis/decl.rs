@@ -5,7 +5,7 @@ use crate::compiler::cir::{
     AValueChain, CalledArguments, DeclaredArgumentIds, EnumDeclarationId, EventDeclarationId,
     FunctionDeclIds, PropertyDeclIds, PropertyDecls, StructDeclarationId, Type,
 };
-use crate::compiler::cst::{Actions, Import, Path, TypeRoot};
+use crate::compiler::cst::{Actions, Import, TypeRoot};
 use crate::compiler::error::CompilerError;
 use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
 
@@ -32,10 +32,18 @@ pub trait DeclQuery: Interner + StringInterner {
     // Input
     // TODO Rename to main_file
     #[salsa::input]
-    fn input_content(&self) -> Ast;
+    fn main_file(&self) -> Ast;
 
     #[salsa::input]
-    fn other_input_content(&self) -> LinkedHashMap<Path, Ast>;
+    fn secondary_files(&self) -> LinkedHashMap<cst::Path, Ast>;
+
+    /// Impl [file::query_secondary_file]
+    #[salsa::invoke(file::query_secondary_file)]
+    fn query_secondary_file(&self, path: cst::Path) -> QueryTrisult<Ast>;
+
+    /// Impl [file::query_main_file]
+    #[salsa::invoke(file::query_main_file)]
+    fn query_main_file(&self) -> Ast;
 
     // Ast
 
@@ -43,9 +51,9 @@ pub trait DeclQuery: Interner + StringInterner {
     #[salsa::invoke(file::query_type_items)]
     fn query_type_items(&self) -> Vec<TypeRoot>;
 
-    /// Impl: [file::query_imports]
-    #[salsa::invoke(file::query_imports)]
-    fn query_imports(&self) -> Vec<Import>;
+    /// Impl: [file::query_main_imports]
+    #[salsa::invoke(file::query_main_imports)]
+    fn query_main_imports(&self) -> Vec<Import>;
 
     /// Impl: [file::query_action_items]
     #[salsa::invoke(file::query_action_items)]

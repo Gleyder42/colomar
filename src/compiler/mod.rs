@@ -16,6 +16,7 @@ pub mod error;
 pub mod language;
 pub mod loader;
 pub mod printer;
+pub mod source_cache;
 pub mod span;
 pub mod trisult;
 pub mod wir;

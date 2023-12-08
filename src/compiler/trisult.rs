@@ -1,4 +1,5 @@
 use crate::compiler::span::{Span, Spanned};
+use crate::compiler::trisult;
 use std::fmt::Debug;
 
 /// Trisult is similar to [Result] but has one more in-between state.
@@ -443,4 +444,103 @@ macro_rules! query_error {
     ($($x:expr),+ $(,)?) => {
         $crate::compiler::trisult::Trisult::Err(vec![$($x),+])
     };
+}
+
+trait ErrorHolder<T> {
+    fn consume(self) -> Vec<T>;
+}
+
+pub struct Errors<T> {
+    vec: Vec<T>,
+}
+
+impl<E> Errors<E> {
+    pub fn new() -> Self {
+        Self { vec: Vec::new() }
+    }
+
+    pub fn value<T>(self, value: T) -> Trisult<T, E> {
+        if self.vec.is_empty() {
+            Trisult::Ok(value)
+        } else {
+            Trisult::Par(value, self.vec)
+        }
+    }
+
+    pub fn fail<T>(mut self, error: E) -> Trisult<T, E> {
+        self.vec.push(error);
+        Trisult::Err(self.vec)
+    }
+}
+
+impl<T> Default for Errors<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> Into<Vec<T>> for Errors<T> {
+    fn into(self) -> Vec<T> {
+        self.vec
+    }
+}
+
+impl<T> ErrorHolder<T> for Vec<T> {
+    fn consume(self) -> Vec<T> {
+        self
+    }
+}
+
+impl<T> ErrorHolder<T> for Errors<T> {
+    fn consume(self) -> Vec<T> {
+        self.vec
+    }
+}
+
+impl<T> Errors<T> {
+    pub fn append(&mut self, context: impl ErrorHolder<T>) {
+        if self.vec.is_empty() {
+            self.vec = context.consume();
+        } else {
+            self.vec.append(&mut context.consume())
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! tri {
+    ($trisult:expr, $context:expr) => {
+        match $trisult {
+            trisult::Trisult::Ok(value) => value,
+            trisult::Trisult::Par(value, errors) => {
+                $context.append(errors);
+                value
+            }
+            trisult::Trisult::Err(errors) => {
+                $context.append(errors);
+                return trisult::Trisult::Err($context.into());
+            }
+        }
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_function() -> Trisult<i32, &'static str> {
+        let mut errors = Errors::default();
+        let trisult = Trisult::Ok(10);
+
+        let value = tri!(trisult, errors);
+
+        let b = tri!(Trisult::Ok(10), errors);
+
+        let a = value + b;
+
+        errors.value(a)
+    }
+
+    #[test]
+    fn test_with_context() {}
 }

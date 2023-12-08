@@ -21,7 +21,7 @@ pub(super) fn query_enum_ast(
 }
 
 pub(super) fn query_enum_ast_map(db: &dyn DeclQuery) -> HashMap<EnumDeclarationId, cst::Enum> {
-    db.input_content()
+    db.query_main_file()
         .into_iter()
         .filter_map(|it| {
             if let cst::Root::Enum(r#enum) = it {

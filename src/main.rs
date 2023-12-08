@@ -4,9 +4,9 @@
 extern crate core;
 extern crate salsa;
 
-use crate::compiler::language::lexer::lexer;
+use crate::compiler::language::lexer::{lexer, Token};
 use crate::compiler::language::parser::parser;
-use crate::compiler::QueryTrisult;
+use crate::compiler::{cst, source_cache, QueryTrisult};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::error::RichReason;
 use chumsky::prelude::*;
@@ -15,82 +15,56 @@ use compiler::error::CompilerError;
 use compiler::span::{FatSpan, Span, SpanSourceId};
 use compiler::trisult::Trisult;
 use either::Either;
+use hashlink::LinkedHashMap;
+use notify::Watcher;
 use std::collections::HashSet;
-use std::fs;
+use std::ffi::OsStr;
+use std::fs::DirEntry;
 use std::io::Read;
 use std::ops::Range;
 use std::path::Path;
+use std::{fs, io};
 
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::printer::PrinterQuery;
 
-use crate::compiler::span::{CopyRange, SpanInterner};
+use crate::compiler::span::{CopyRange, SpanInterner, StringInterner};
 
 pub mod compiler;
 pub mod test_assert;
 
 fn main() {
-    let filepath = format!("docs/tutorials/example/test/src/main.co");
-    let path = Path::new(&filepath);
-    let mut file = fs::File::open(path).expect("Cannot read from file");
-
-    let mut source = String::new();
-    file.read_to_string(&mut source)
-        .expect("Cannot read file content");
-
+    let path = Path::new("docs/tutorials/example/test/src/main.co");
     let mut db = CompilerDatabase::default();
-    let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
 
-    let (tokens, _lexer_errors) = lexer(span_source_id, &db)
-        .parse(source.as_str())
-        .into_output_errors();
+    let (mut source, ast, parser_errors) = parse_ast(path, &db);
+    print_parser_errors(&mut source, &db, parser_errors);
 
-    let (ast, parser_errors) = if let Some(tokens) = tokens {
-        let eoi = Span::new(
-            span_source_id,
-            CopyRange::from(tokens.len()..tokens.len() + 1),
-        );
-        let stream = chumsky::input::Stream::from_iter(tokens.into_iter()).spanned(eoi);
-        let (ast, parser_errors) = parser().parse(stream).into_output_errors();
-        (ast, parser_errors)
-    } else {
-        (None, Vec::new())
-    };
+    let mut map = LinkedHashMap::new();
+    let base_base = Path::new("docs/tutorials/example/test/src");
+    for path in source_cache::read_files_to_string(&base_base).unwrap() {
+        if path.file_name().unwrap() == OsStr::new("main.co") {
+            continue;
+        }
 
-    for parser_error in parser_errors {
-        let whole_span = FatSpan::from_span(&db, *parser_error.span());
-        let builder = Report::build(
-            ReportKind::Error,
-            whole_span.source.clone(),
-            whole_span.location.start() as usize,
-        );
+        let (mut source, ast, parser_errors) = parse_ast(&path, &db);
+        print_parser_errors(&mut source, &db, parser_errors);
 
-        let builder = match parser_error.reason() {
-            RichReason::ExpectedFound { found, expected } => builder
-                .with_message(format!("Unexpected token '{:?}'", found))
-                .with_label(
-                    Label::new(whole_span.clone())
-                        .with_color(Color::Red)
-                        .with_message(format!("Expected: {:?}", expected)),
-                ),
-            RichReason::Custom(message) => {
-                let span = FatSpan::from_span(&db, *parser_error.span());
+        let result = path.strip_prefix(base_base).unwrap();
+        let id = db.intern_string(result.file_stem().unwrap().to_string_lossy().into());
+        let segments = vec![id];
 
-                builder
-                    .with_message(message)
-                    .with_label(Label::new(span).with_color(Color::Cyan))
+        match ast {
+            Some(ast) => {
+                map.insert(cst::Path { segments }, ast);
             }
-            RichReason::Many(_) => unimplemented!(),
+            None => {}
         };
-
-        builder
-            .finish()
-            .eprint(sources(vec![(whole_span.source.clone(), &source)]))
-            .unwrap();
     }
 
     if let Some(ast) = ast {
-        db.set_input_content(ast);
+        db.set_main_file(ast);
+        db.set_secondary_files(dbg!(map));
 
         let impl_path = Path::new("docs/tutorials/example/test/native");
         let elements = compiler::loader::read_impls(impl_path);
@@ -125,6 +99,73 @@ fn main() {
                 print_errors(&mut source, &mut db, unique_errors);
             }
         }
+    }
+}
+
+fn parse_ast<'a>(
+    path: &'a Path,
+    db: &'a CompilerDatabase,
+) -> (String, Option<cst::Ast>, Vec<Rich<'a, Token, Span>>) {
+    let mut file = fs::File::open(path).expect("Cannot read from file");
+
+    let mut source = String::new();
+    file.read_to_string(&mut source)
+        .expect("Cannot read file content");
+
+    let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
+
+    let (tokens, _lexer_errors) = lexer(span_source_id, db)
+        .parse(source.as_str())
+        .into_output_errors();
+
+    if let Some(tokens) = tokens {
+        let eoi = Span::new(
+            span_source_id,
+            CopyRange::from(tokens.len()..tokens.len() + 1),
+        );
+        let stream = chumsky::input::Stream::from_iter(tokens.into_iter()).spanned(eoi);
+        let (ast, parser_errors) = parser().parse(stream).into_output_errors();
+        (source, ast, parser_errors)
+    } else {
+        (source, None, Vec::new())
+    }
+}
+
+fn print_parser_errors(
+    source: &String,
+    db: &CompilerDatabase,
+    parser_errors: Vec<Rich<Token, Span>>,
+) {
+    for parser_error in parser_errors {
+        let whole_span = FatSpan::from_span(db, *parser_error.span());
+        let builder = Report::build(
+            ReportKind::Error,
+            whole_span.source.clone(),
+            whole_span.location.start() as usize,
+        );
+
+        let builder = match parser_error.reason() {
+            RichReason::ExpectedFound { found, expected } => builder
+                .with_message(format!("Unexpected token '{:?}'", found))
+                .with_label(
+                    Label::new(whole_span.clone())
+                        .with_color(Color::Red)
+                        .with_message(format!("Expected: {:?}", expected)),
+                ),
+            RichReason::Custom(message) => {
+                let span = FatSpan::from_span(db, *parser_error.span());
+
+                builder
+                    .with_message(message)
+                    .with_label(Label::new(span).with_color(Color::Cyan))
+            }
+            RichReason::Many(_) => unimplemented!(),
+        };
+
+        builder
+            .finish()
+            .eprint(sources(vec![(whole_span.source.clone(), source)]))
+            .unwrap();
     }
 }
 
@@ -316,5 +357,34 @@ fn print_errors(
             CompilerError::WrongTypeInBinaryExpression(_, _) => {}
             CompilerError::CannotFindFile(_) => {}
         }
+    }
+}
+
+fn visit_dirs(dir: &Path, cb: &dyn Fn(&DirEntry)) -> io::Result<()> {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                visit_dirs(&path, cb)?;
+            } else {
+                cb(&entry);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+
+    #[test]
+    fn test_changed() -> io::Result<()> {
+        let a = File::create("a.co")?;
+        let b = File::create("b.co")?;
+        let c = File::create("c.co")?;
+        Ok(())
     }
 }

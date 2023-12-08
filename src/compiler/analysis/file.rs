@@ -3,7 +3,8 @@ use crate::compiler::cir::{EnumDeclarationId, EventDeclarationId, StructDeclarat
 use crate::compiler::cst::{Definition, EventDefinition, Import, Root, StructDefinition, TypeRoot};
 use crate::compiler::error::CompilerError;
 
-use crate::compiler::QueryTrisult;
+use crate::compiler::trisult::IntoTrisult;
+use crate::compiler::{cst, QueryTrisult};
 use either::Either;
 use std::collections::HashMap;
 
@@ -37,8 +38,25 @@ pub(super) fn query_ast_struct_def(
         .into()
 }
 
-pub(super) fn query_imports(db: &dyn DeclQuery) -> Vec<Import> {
-    db.input_content()
+pub(super) fn query_main_file(db: &dyn DeclQuery) -> cst::Ast {
+    db.query_main_imports()
+        .into_iter()
+        .map(|import| db.query_secondary_file(import.path))
+        .collect::<QueryTrisult<Vec<cst::Ast>>>()
+        .map(|mut asts| {
+            asts.push(db.main_file());
+            asts.into_iter()
+                .reduce(|mut acc, mut element| {
+                    acc.0.append(&mut element.0);
+                    acc
+                })
+                .unwrap_or(cst::Ast(Vec::new()))
+        })
+        .unwrap_ok()
+}
+
+pub(super) fn query_main_imports(db: &dyn DeclQuery) -> Vec<Import> {
+    db.main_file()
         .into_iter()
         .filter_map(|root| match root {
             Root::Import(import) => Some(import),
@@ -48,7 +66,7 @@ pub(super) fn query_imports(db: &dyn DeclQuery) -> Vec<Import> {
 }
 
 pub(super) fn query_action_items(db: &dyn DeclQuery) -> Vec<Root> {
-    db.input_content()
+    db.query_main_file()
         .into_iter()
         .filter(|root| match root {
             Root::Rule(_) | Root::Struct(_) | Root::Event(_) | Root::Enum(_) => true,
@@ -57,8 +75,14 @@ pub(super) fn query_action_items(db: &dyn DeclQuery) -> Vec<Root> {
         .collect()
 }
 
+pub(super) fn query_secondary_file(db: &dyn DeclQuery, path: cst::Path) -> QueryTrisult<cst::Ast> {
+    db.secondary_files()
+        .remove(&path)
+        .trisult_ok_or(CompilerError::CannotFindFile(path))
+}
+
 pub(super) fn query_type_items(db: &dyn DeclQuery) -> Vec<TypeRoot> {
-    db.input_content()
+    db.query_main_file()
         .into_iter()
         .filter_map(|root| match root {
             Root::Event(event) => Some(TypeRoot::Event(event)),

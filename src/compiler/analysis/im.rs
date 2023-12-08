@@ -21,7 +21,7 @@ pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
 
 pub(super) fn query_player_struct_def(db: &dyn DefQuery) -> cst::Struct {
     let mut player_struct: Vec<_> = db
-        .input_content()
+        .query_main_file()
         .into_iter()
         .flat_map(|root| {
             if let cst::Root::Struct(r#struct) = root {
