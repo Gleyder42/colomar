@@ -1,5 +1,0 @@
-import std;
-
-rule "Hello World" OngoingEachPlayer() {
-
-}
