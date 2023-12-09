@@ -145,6 +145,17 @@ impl From<EventDeclId> for Type {
     }
 }
 
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Enum(_) => write!(f, "Enum"),
+            Type::Struct(_) => write!(f, "Struct"),
+            Type::Event(_) => write!(f, "Event"),
+            Type::Unit => write!(f, "Unit"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Predicate(pub Expr);
 
@@ -152,25 +163,6 @@ pub struct Predicate(pub Expr);
 pub struct CalledType {
     pub r#type: Type,
     pub span: Span,
-}
-
-pub trait TypeComparison<Rhs> {
-    fn has_same_return_type(&self, rhs: &Rhs) -> bool;
-}
-
-impl TypeComparison<StructDeclId> for CalledType {
-    fn has_same_return_type(&self, rhs: &StructDeclId) -> bool {
-        match self.r#type {
-            Type::Struct(r#struct) => r#struct == *rhs,
-            _ => false,
-        }
-    }
-}
-
-impl TypeComparison<CalledType> for CalledType {
-    fn has_same_return_type(&self, rhs: &CalledType) -> bool {
-        self.r#type == rhs.r#type
-    }
 }
 
 impl PartialEq<StructDeclId> for CalledType {
@@ -184,19 +176,27 @@ impl PartialEq<StructDeclId> for CalledType {
     }
 }
 
+impl TypeComparison<CalledType> for CalledType {
+    fn has_same_return_type(&self, rhs: &CalledType) -> bool {
+        self.r#type == rhs.r#type
+    }
+}
+
+pub trait TypeComparison<Rhs> {
+    fn has_same_return_type(&self, rhs: &Rhs) -> bool;
+}
+
 impl Display for CalledType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.r#type)
     }
 }
 
-impl Display for Type {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Type::Enum(_) => write!(f, "Enum"),
-            Type::Struct(_) => write!(f, "Struct"),
-            Type::Event(_) => write!(f, "Event"),
-            Type::Unit => write!(f, "Unit"),
+impl TypeComparison<StructDeclId> for CalledType {
+    fn has_same_return_type(&self, rhs: &StructDeclId) -> bool {
+        match self.r#type {
+            Type::Struct(r#struct) => r#struct == *rhs,
+            _ => false,
         }
     }
 }
@@ -350,6 +350,14 @@ impl<T: Into<Type>> From<T> for RValue {
     }
 }
 
+/// Represents a value which is known at runtime time or compile time
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AValue {
+    FunctionCall(FunctionDeclId, CalledArgIds, Span),
+    RValue(RValue, Span),
+    CValue(CValue),
+}
+
 // TODO Rename to AvalueChain
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AValueChain {
@@ -378,14 +386,6 @@ impl AValueChain {
     pub fn returning_avalue(&self) -> AValue {
         self.avalues.last().unwrap().clone()
     }
-}
-
-/// Represents a value which is known at runtime time or compile time
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum AValue {
-    FunctionCall(FunctionDeclId, CalledArgIds, Span),
-    RValue(RValue, Span),
-    CValue(CValue),
 }
 
 impl From<AValue> for AValueChain {
@@ -427,15 +427,7 @@ impl CValue {
             CValue::Number(_, id, _) => *id,
         }
     }
-}
 
-impl TypeComparison<CValue> for CValue {
-    fn has_same_return_type(&self, rhs: &CValue) -> bool {
-        self.struct_decl_id() == rhs.struct_decl_id()
-    }
-}
-
-impl CValue {
     pub fn span(&self) -> Span {
         match self {
             CValue::String(_, _, span) | CValue::Number(_, _, span) => *span,
@@ -447,5 +439,11 @@ impl CValue {
             CValue::String(_, struct_decl_id, _) => Type::Struct(*struct_decl_id),
             CValue::Number(_, struct_decl_id, _) => Type::Struct(*struct_decl_id),
         }
+    }
+}
+
+impl TypeComparison<CValue> for CValue {
+    fn has_same_return_type(&self, rhs: &CValue) -> bool {
+        self.struct_decl_id() == rhs.struct_decl_id()
     }
 }

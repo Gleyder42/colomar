@@ -7,7 +7,6 @@ use crate::compiler::{
 use smallvec::SmallVec;
 
 pub type Condition = Expr;
-
 pub type Conditions = SmallVec<[Condition; CONDITIONS_LEN]>;
 pub type Actions = SmallVec<[Action; ACTIONS_LEN]>;
 pub type DeclArgs = SmallVec<[DeclArg; DECL_ARGS_LEN]>;
