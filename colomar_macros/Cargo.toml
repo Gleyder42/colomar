@@ -1,0 +1,15 @@
+[package]
+name = "colomar_macros"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.33"
+proc-macro2 = "1.0.70"
+syn = "2.0.39"
+
+[dev-dependencies]
+salsa = "0.17.0-pre.2" # Analysis and compiler

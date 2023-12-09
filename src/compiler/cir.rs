@@ -4,7 +4,7 @@ use crate::compiler::{
     Ident, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
-use crate::impl_intern_key;
+use colomar_macros::Interned;
 use hashlink::LinkedHashSet;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
@@ -64,7 +64,7 @@ impl Root {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct FunctionDecl {
     pub instance: Option<Type>,
     pub is_native: SpannedBool,
@@ -73,9 +73,7 @@ pub struct FunctionDecl {
     pub return_type: Type,
 }
 
-impl_intern_key!(FunctionDeclId);
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct PropertyDecl {
     pub instance: Option<Type>,
     pub is_native: SpannedBool,
@@ -84,15 +82,13 @@ pub struct PropertyDecl {
     pub r#type: Type,
 }
 
-impl_intern_key!(PropertyDeclId);
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Struct {
     pub decl: StructDeclarationId,
     pub def: StructDefinition,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct StructDeclaration {
     pub is_open: SpannedBool,
     pub is_native: SpannedBool,
@@ -105,24 +101,18 @@ pub struct StructDefinition {
     pub properties: PropertyDeclIds,
 }
 
-impl_intern_key!(StructDeclarationId);
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct EnumDeclaration {
     pub name: Ident,
     pub is_native: SpannedBool,
 }
-
-impl_intern_key!(EnumDeclarationId);
-
-impl_intern_key!(EnumConstantId);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EnumDefinition {
     pub constants: EnumConstantIds,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct EnumConstant {
     pub name: Ident,
     pub r#enum: EnumDeclarationId,
@@ -246,9 +236,7 @@ impl Display for CalledTypes {
     }
 }
 
-impl_intern_key!(CalledArgumentId);
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct CalledArgument {
     /// The [DeclaredArgumentId] has not necessarily the same type as the value.
     /// It may be therefore not the 'correct' declared argument, rather the argument which was
@@ -257,7 +245,7 @@ pub struct CalledArgument {
     pub value: AValueChain,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct DeclaredArgument {
     pub name: Ident,
     pub position: usize,
@@ -265,10 +253,7 @@ pub struct DeclaredArgument {
     pub default_value: Option<AValueChain>,
 }
 
-impl_intern_key!(DeclaredArgumentId);
-impl_intern_key!(EventDeclarationId);
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct EventDeclaration {
     pub name: Ident,
     pub span: Span,

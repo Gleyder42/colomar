@@ -7,8 +7,9 @@ use crate::compiler::cir::{
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{HashableMap, Ident, QueryTrisult, Text};
-use crate::{impl_intern_key, query_error};
+use crate::query_error;
 
+use colomar_macros::Interned;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -281,9 +282,7 @@ impl From<EnumNameholder> for Nameholder {
     }
 }
 
-impl_intern_key!(NamespaceId);
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct Namespace {
     parent: Vec<Rc<Namespace>>,
     map: HashableMap<Text, RValue>,

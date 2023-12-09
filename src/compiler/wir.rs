@@ -1,5 +1,5 @@
 use crate::compiler::{HashableMap, Op, Text, Text2};
-use crate::impl_intern_key;
+use colomar_macros::Interned;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::hash::Hash;
@@ -23,13 +23,13 @@ pub struct LiteralOwscript(pub Text2);
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct PlaceholderOwscript(Text2);
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct NativeFunc {
     pub script: PlaceholderOwscript,
     pub default_args: HashableMap<String, Call>,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct NativeEvent {
     event_name: LiteralOwscript,
     default_args: Option<[LiteralOwscript; 2]>,
@@ -69,10 +69,6 @@ pub enum Call {
     Number(Text),
     Boolean(bool),
 }
-
-impl_intern_key!(NativeFuncId);
-
-impl_intern_key!(NativeEventId);
 
 lazy_static! {
     static ref TEMPLATE_REGEX: Regex = Regex::new(r"\$\w*\$").unwrap();
