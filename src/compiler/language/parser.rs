@@ -16,8 +16,8 @@ fn ident<'src>() -> impl Parser<'src, ParserInput, Ident, ParserExtra<'src>> + C
     }
 }
 
-fn declared_arguments<'src>(
-) -> impl Parser<'src, ParserInput, Spanned<Vec<DeclaredArgument>>, ParserExtra<'src>> {
+fn declared_arg<'src>() -> impl Parser<'src, ParserInput, Spanned<Vec<DeclArg>>, ParserExtra<'src>>
+{
     let types = ident()
         .separated_by(just(Token::Ctrl('|')))
         .collect::<Vec<_>>()
@@ -41,15 +41,13 @@ fn declared_arguments<'src>(
             arg_tuples
                 .into_iter()
                 .enumerate()
-                .map(
-                    |(position, (name, types, default_value, span))| DeclaredArgument {
-                        position,
-                        name,
-                        types,
-                        default_value,
-                        span,
-                    },
-                )
+                .map(|(position, (name, types, default_value, span))| DeclArg {
+                    position,
+                    name,
+                    types,
+                    default_value,
+                    span,
+                })
                 .collect::<Vec<_>>()
         })
         .map_with_span(Spanned::new)
@@ -71,13 +69,13 @@ fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
         .then(native_or_not())
         .then_ignore(just(Token::Event))
         .then(ident())
-        .map_with_span(|((visibility, is_native), name), span| EventDeclaration {
+        .map_with_span(|((visibility, is_native), name), span| EventDecl {
             visibility,
             is_native,
             name,
             span,
         })
-        .then(declared_arguments())
+        .then(declared_arg())
         .then(by)
         .validate(|((event_decl, decl_args), by), span, emitter| {
             if event_decl.is_native.is_some() && by.is_some() {
@@ -89,13 +87,13 @@ fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
             ((event_decl, decl_args), by)
         })
         .then(block())
-        .map_with_span(|(((declaration, arguments), by), block), span| Event {
-            declaration,
-            definition: EventDefinition {
+        .map_with_span(|(((decl, args), by), block), span| Event {
+            decl,
+            def: EventDef {
                 actions: block.actions,
                 conditions: block.conditions,
                 by,
-                arguments: arguments.inner_into(),
+                args: args.inner_into(),
             },
             span,
         })
@@ -123,21 +121,21 @@ fn r#enum<'src>() -> impl Parser<'src, ParserInput, Enum, ParserExtra<'src>> {
         .then(native_or_not())
         .then_ignore(just(Token::Enum))
         .then(ident())
-        .map_with_span(|((visibility, is_native), name), span| EnumDeclaration {
+        .map_with_span(|((visibility, is_native), name), span| EnumDecl {
             visibility,
             is_native,
             name,
             span,
         })
         .then(constants.delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))))
-        .map_with_span(|(declaration, constants), span| Enum {
-            declaration,
-            definition: EnumDefinition { constants },
+        .map_with_span(|(decl, constants), span| Enum {
+            decl,
+            def: EnumDef { constants },
             span,
         })
 }
 
-fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDeclaration, ParserExtra<'src>> {
+fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDecl, ParserExtra<'src>> {
     let use_restriction_tokens = (
         just(Token::GetVar),
         just(Token::SetVar),
@@ -175,7 +173,7 @@ fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDeclaration, Parse
                     property_type
                 ),
             };
-            PropertyDeclaration {
+            PropertyDecl {
                 name,
                 is_native,
                 use_restriction,
@@ -250,16 +248,16 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
     let member_function = native_or_not()
         .then_ignore(just(Token::Fn))
         .then(ident())
-        .then(declared_arguments())
-        .map(|((is_native, name), arguments)| FunctionDeclaration {
+        .then(declared_arg())
+        .map(|((is_native, name), args)| FunctionDecl {
             name,
             is_native,
-            arguments: arguments.inner_into(),
+            args: args.inner_into(),
         });
 
     enum StructMember {
-        Property(PropertyDeclaration),
-        Function(FunctionDeclaration),
+        Property(PropertyDecl),
+        Function(FunctionDecl),
     }
 
     let property = property().map(StructMember::Property);
@@ -281,7 +279,7 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
     struct_start
         .then(ident())
         .map_with_span(
-            |(((visibility, is_open), is_native), name), span| StructDeclaration {
+            |(((visibility, is_open), is_native), name), span| StructDecl {
                 visibility,
                 is_open,
                 is_native,
@@ -296,7 +294,7 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))),
         )
-        .map_with_span(|(declaration, members), span| {
+        .map_with_span(|(decl, members), span| {
             let mut functions: FunctionDecls = SmallVec::new();
             let mut properties: PropertyDecls = SmallVec::new();
             for member in members {
@@ -307,8 +305,8 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
             }
 
             Struct {
-                declaration,
-                definition: StructDefinition {
+                decl,
+                def: StructDef {
                     properties,
                     functions,
                 },
@@ -319,7 +317,7 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
 
 struct IdentChainParserResult<'src, 'a> {
     ident_chain: Boxed<'src, 'a, ParserInput, CallChain, ParserExtra<'src>>,
-    args: Boxed<'src, 'a, ParserInput, CallArguments, ParserExtra<'src>>,
+    args: Boxed<'src, 'a, ParserInput, CallArgs, ParserExtra<'src>>,
 }
 
 impl<'src, 'a> IdentChainParserResult<'src, 'a> {
@@ -327,7 +325,7 @@ impl<'src, 'a> IdentChainParserResult<'src, 'a> {
         self.ident_chain
     }
 
-    fn args(self) -> Boxed<'src, 'a, ParserInput, CallArguments, ParserExtra<'src>> {
+    fn args(self) -> Boxed<'src, 'a, ParserInput, CallArgs, ParserExtra<'src>> {
         self.args
     }
 }
@@ -339,14 +337,14 @@ fn chain<'src: 'a, 'a>() -> IdentChainParserResult<'src, 'a> {
     let args = arg_name_or_not
         .then(ident_chain.clone())
         .map_with_span(|(named, call_chain), span| match named {
-            Some(name) => CallArgument::Named(name, call_chain, span),
-            None => CallArgument::Pos(call_chain),
+            Some(name) => CallArg::Named(name, call_chain, span),
+            None => CallArg::Pos(call_chain),
         })
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
-        .map_with_span(CallArguments::new);
+        .map_with_span(CallArgs::new);
 
     let literal = select! {
         Token::String(string) = span => Box::new(Call::String(string, span)),
@@ -356,11 +354,11 @@ fn chain<'src: 'a, 'a>() -> IdentChainParserResult<'src, 'a> {
     ident_chain.define(
         ident()
             .then(args.clone().or_not())
-            .map_with_span(|(ident, arguments), span| {
-                let call = match arguments {
-                    Some(arguments) => Call::IdentArguments {
+            .map_with_span(|(ident, args), span| {
+                let call = match args {
+                    Some(args) => Call::IdentArgs {
                         name: ident,
-                        args: arguments,
+                        args,
                         span,
                     },
                     None => Call::Ident(ident),
@@ -446,13 +444,13 @@ fn rule<'src>() -> impl Parser<'src, ParserInput, Rule, ParserExtra<'src>> {
         .then(chain().args())
         .then(block())
         .map_with_span(
-            |((((visibility, rule_name), ident), arguments), block), _span| Rule {
+            |((((visibility, rule_name), ident), args), block), _span| Rule {
                 visibility,
                 conditions: block.conditions,
                 actions: block.actions,
                 name: rule_name,
                 event: ident,
-                arguments,
+                args,
             },
         )
 }
@@ -482,7 +480,7 @@ mod tests {
     use super::*;
 
     use crate::assert_iterator;
-    use crate::compiler::cst::{Call, DeclaredArgument, Rule};
+    use crate::compiler::cst::{Call, DeclArg, Rule};
     use crate::compiler::database::test::TestDatabase;
     use crate::compiler::language::lexer::{lexer, Token};
     use crate::compiler::span::{CopyRange, SpanInterner, StringInterner};
@@ -729,7 +727,7 @@ mod tests {
             .zip(expected)
             .for_each(|(call, test_data)| {
                 match *call {
-                    Call::IdentArguments { name: actual_ident, args: actual_args, .. } => {
+                    Call::IdentArgs { name: actual_ident, args: actual_args, .. } => {
                         match test_data {
                             IdentTestData::IdentWithArgs { ident: expected_ident, args: expected_args } => {
                                 assert_eq!(expected_ident, actual_ident.value.name(db), "Check if idents are equal");
@@ -778,11 +776,11 @@ mod tests {
             false,
             r#enum(),
             |expected: EnumTestData, actual| {
-                assert_eq!(expected.is_native, actual.declaration.is_native.is_some());
+                assert_eq!(expected.is_native, actual.decl.is_native.is_some());
                 assert_eq!(
                     expected.constants,
                     actual
-                        .definition
+                        .def
                         .constants
                         .into_iter()
                         .map(|it| it.value.name(&db))
@@ -846,7 +844,7 @@ mod tests {
                 expected
                     .args
                     .into_iter()
-                    .zip(actual.arguments)
+                    .zip(actual.args)
                     .for_each(|(actual, expected)| {
                         assert_call_chain(actual, expected.call_chain(), &db)
                     })
@@ -863,7 +861,7 @@ mod tests {
         test_parser_result(
             &key,
             true,
-            declared_arguments(),
+            declared_arg(),
             nothing::<DeclArgsTestData, _>,
             &db,
         )
@@ -928,8 +926,8 @@ mod tests {
         test_parser_result(
             &key,
             false,
-            declared_arguments(),
-            |expected: DeclArgsTestData, actual: Spanned<Vec<DeclaredArgument>>| {
+            declared_arg(),
+            |expected: DeclArgsTestData, actual: Spanned<Vec<DeclArg>>| {
                 expected
                     .args
                     .into_iter()

@@ -6,9 +6,9 @@ use crate::compiler::{cir, wst, Op, QueryTrisult};
 use std::collections::{HashMap, VecDeque};
 
 pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<wst::Rule> {
-    let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(rule.event);
+    let event_decl: cir::EventDecl = db.lookup_intern_event_decl(rule.event);
     let args = db.query_event_def_by_id(rule.event).flat_map(|event_def| {
-        db.query_wst_call_from_args(event_def.arguments, rule.arguments)
+        db.query_wst_call_from_args(event_def.args, rule.args)
             .into_iter()
             .map(|arg| {
                 db.query_wst_call(None, cir::Action::from(arg.value))
@@ -28,9 +28,10 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
                             .args
                             .into_iter()
                             .map(|arg_name| {
-                                arg_map.get(arg_name.as_str()).cloned().trisult_ok_or(
-                                    CompilerError::CannotFindNativeDefinition(arg_name),
-                                )
+                                arg_map
+                                    .get(arg_name.as_str())
+                                    .cloned()
+                                    .trisult_ok_or(CompilerError::CannotFindNativeDef(arg_name))
                             })
                             .collect::<QueryTrisult<VecDeque<wst::Call>>>()
                     })

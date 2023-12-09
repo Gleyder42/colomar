@@ -31,12 +31,12 @@ pub type QueryTrisult<T> = Trisult<T, CompilerError>;
 
 pub const CONDITIONS_LEN: usize = 6;
 pub const ACTIONS_LEN: usize = 8;
-pub const DECLARED_ARGUMENTS_LEN: usize = 4;
+pub const DECL_ARGS_LEN: usize = 4;
 // TODO Give this a more generic name
 pub const PROPERTY_DECLS_LEN: usize = 4;
 pub const FUNCTIONS_DECLS_LEN: usize = 6;
 pub const ENUM_CONSTANTS_LEN: usize = 8;
-pub const CALLED_ARGUMENTS_LEN: usize = DECLARED_ARGUMENTS_LEN;
+pub const CALLED_ARGS_LEN: usize = DECL_ARGS_LEN;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {

@@ -1,8 +1,8 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::{Interner, IntoInternId};
 use crate::compiler::cir::{
-    EnumConstant, EnumConstantId, EnumDeclarationId, EnumDefinition, EventDeclarationId,
-    FunctionDecl, PropertyDecl, RValue, StructDeclarationId, Type,
+    EnumConstant, EnumConstantId, EnumDeclId, EnumDef, EventDeclId, FunctionDecl, PropertyDecl,
+    RValue, StructDeclId, Type,
 };
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
@@ -28,16 +28,16 @@ pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> QueryTrisult<Namespace
 
 pub(super) fn query_enum_namespace(
     db: &dyn DeclQuery,
-    r#enum: EnumDeclarationId,
+    r#enum: EnumDeclId,
 ) -> QueryTrisult<NamespaceId> {
     db.query_enum_def(r#enum)
-        .map(|r#enum| Rc::new(Namespace::from_enum_definition(db, r#enum.definition)))
+        .map(|r#enum| Rc::new(Namespace::from_enum_def(db, r#enum.def)))
         .intern(db)
 }
 
 pub(super) fn query_event_namespace(
     db: &dyn DeclQuery,
-    event_decl: EventDeclarationId,
+    event_decl: EventDeclId,
 ) -> QueryTrisult<NamespaceId> {
     db.query_event_context_variables(event_decl)
         .flat_map(|properties| {
@@ -86,7 +86,7 @@ pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Text,
         })
 }
 
-fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {
+fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclId {
     match r#type {
         Type::Struct(struct_decl_id) => *struct_decl_id,
         Type::Enum(_) => panic!("Cannot get struct decl id of type Enum"),
@@ -95,42 +95,40 @@ fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclarationId {
     }
 }
 
-pub(super) fn query_number_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarationId> {
+pub(super) fn query_number_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclId> {
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_number_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(CompilerError::CannotFindPrimitiveDeclaration(
+            .ok_or(CompilerError::CannotFindPrimitiveDecl(
                 db.query_number_name(),
             ))
             .into()
     })
 }
 
-pub(super) fn query_string_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarationId> {
+pub(super) fn query_string_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclId> {
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_string_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(CompilerError::CannotFindPrimitiveDeclaration(
+            .ok_or(CompilerError::CannotFindPrimitiveDecl(
                 db.query_string_name(),
             ))
             .into()
     })
 }
 
-pub(super) fn query_bool_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclarationId> {
+pub(super) fn query_bool_type(db: &dyn DeclQuery) -> QueryTrisult<StructDeclId> {
     db.query_primitives().flat_map(|map| {
         map.get(&db.query_bool_name())
             .map(struct_decl_id_or_panic)
-            .ok_or(CompilerError::CannotFindPrimitiveDeclaration(
-                db.query_bool_name(),
-            ))
+            .ok_or(CompilerError::CannotFindPrimitiveDecl(db.query_bool_name()))
             .into()
     })
 }
 
 pub(super) fn query_struct_namespace(
     db: &dyn DeclQuery,
-    struct_decl_id: StructDeclarationId,
+    struct_decl_id: StructDeclId,
 ) -> QueryTrisult<NamespaceId> {
     db.query_ast_struct_def(struct_decl_id)
         .flat_map(|struct_def| {
@@ -242,7 +240,7 @@ pub(super) fn query_namespaced_event(
     db: &dyn DeclQuery,
     nameholders: Nameholders,
     ident: Ident,
-) -> QueryTrisult<EventDeclarationId> {
+) -> QueryTrisult<EventDeclId> {
     db.query_namespaced_type(nameholders, ident.clone())
         .flat_map(|r#type| match r#type {
             Type::Event(event) => Trisult::Ok(event),
@@ -263,8 +261,8 @@ pub enum Nameholder {
     Root,
     Empty,
     Enum(EnumNameholder),
-    Struct(StructDeclarationId),
-    Event(EventDeclarationId),
+    Struct(StructDeclId),
+    Event(EventDeclId),
 }
 
 // TODO Reduce this to 1
@@ -272,7 +270,7 @@ pub type Nameholders = SmallVec<[Nameholder; 2]>;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum EnumNameholder {
-    ByEnum(EnumDeclarationId),
+    ByEnum(EnumDeclId),
     ByConstant(EnumConstantId),
 }
 
@@ -300,11 +298,8 @@ impl Namespace {
         }
     }
 
-    pub fn from_enum_definition(
-        db: &(impl Interner + ?Sized),
-        definition: EnumDefinition,
-    ) -> Namespace {
-        let map = definition
+    pub fn from_enum_def(db: &(impl Interner + ?Sized), def: EnumDef) -> Namespace {
+        let map = def
             .constants
             .into_iter()
             .map::<(_, EnumConstant), _>(|enum_constant_id| {

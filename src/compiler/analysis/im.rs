@@ -25,7 +25,7 @@ pub(super) fn query_player_struct_def(db: &dyn DefQuery) -> cst::Struct {
         .into_iter()
         .flat_map(|root| {
             if let cst::Root::Struct(r#struct) = root {
-                if db.lookup_intern_string(r#struct.declaration.name.value) == "Player" {
+                if db.lookup_intern_string(r#struct.decl.name.value) == "Player" {
                     Some(r#struct)
                 } else {
                     None

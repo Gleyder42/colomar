@@ -168,7 +168,7 @@ fn query_wscript_impl(
     query()
         .flat_map(|map| {
             map.get(selection.as_str())
-                .ok_or(CompilerError::CannotFindNativeDefinition(selection))
+                .ok_or(CompilerError::CannotFindNativeDef(selection))
                 .cloned()
                 .into()
         })
@@ -215,7 +215,9 @@ macro_rules! impl_wscript_queries {
             db.$name()
                 .get(&name)
                 .cloned()
-                .ok_or(crate::compiler::error::CompilerError::CannotFindNativeDefinition(name))
+                .ok_or(crate::compiler::error::CompilerError::CannotFindNativeDef(
+                    name,
+                ))
                 .into()
         }
     };

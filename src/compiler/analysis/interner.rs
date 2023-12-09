@@ -9,16 +9,16 @@ use std::rc::Rc;
 #[salsa::query_group(InternerDatabase)]
 pub trait Interner {
     #[salsa::interned]
-    fn intern_struct_decl(&self, decl: StructDeclaration) -> StructDeclarationId;
+    fn intern_struct_decl(&self, decl: StructDecl) -> StructDeclId;
 
     #[salsa::interned]
-    fn intern_event_decl(&self, decl: EventDeclaration) -> EventDeclarationId;
+    fn intern_event_decl(&self, decl: EventDecl) -> EventDeclId;
 
     #[salsa::interned]
-    fn intern_enum_decl(&self, decl: EnumDeclaration) -> EnumDeclarationId;
+    fn intern_enum_decl(&self, decl: EnumDecl) -> EnumDeclId;
 
     #[salsa::interned]
-    fn intern_decl_arg(&self, decl: DeclaredArgument) -> DeclaredArgumentId;
+    fn intern_decl_arg(&self, decl: DeclArg) -> DeclArgId;
 
     #[salsa::interned]
     fn intern_enum_constant(&self, enum_constant: EnumConstant) -> EnumConstantId;
@@ -33,7 +33,7 @@ pub trait Interner {
     fn intern_namespace(&self, namespace: Rc<Namespace>) -> NamespaceId;
 
     #[salsa::interned]
-    fn intern_called_argument(&self, called_argument: CalledArgument) -> CalledArgumentId;
+    fn intern_called_arg(&self, called_arg: CalledArg) -> CalledArgId;
 }
 
 pub trait IntoInternId {
@@ -58,18 +58,18 @@ impl IntoInternId for PropertyDecl {
     }
 }
 
-impl IntoInternId for StructDeclaration {
-    type Interned = StructDeclarationId;
+impl IntoInternId for StructDecl {
+    type Interned = StructDeclId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> StructDeclarationId {
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> StructDeclId {
         db.intern_struct_decl(self)
     }
 }
 
-impl IntoInternId for EnumDeclaration {
-    type Interned = EnumDeclarationId;
+impl IntoInternId for EnumDecl {
+    type Interned = EnumDeclId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> EnumDeclarationId {
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> EnumDeclId {
         db.intern_enum_decl(self)
     }
 }
@@ -82,27 +82,27 @@ impl IntoInternId for EnumConstant {
     }
 }
 
-impl IntoInternId for EventDeclaration {
-    type Interned = EventDeclarationId;
+impl IntoInternId for EventDecl {
+    type Interned = EventDeclId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> EventDeclarationId {
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> EventDeclId {
         db.intern_event_decl(self)
     }
 }
 
-impl IntoInternId for DeclaredArgument {
-    type Interned = DeclaredArgumentId;
+impl IntoInternId for DeclArg {
+    type Interned = DeclArgId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> DeclaredArgumentId {
+    fn intern<T: Interner + ?Sized>(self, db: &T) -> DeclArgId {
         db.intern_decl_arg(self)
     }
 }
 
-impl IntoInternId for CalledArgument {
-    type Interned = CalledArgumentId;
+impl IntoInternId for CalledArg {
+    type Interned = CalledArgId;
 
     fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
-        db.intern_called_argument(self)
+        db.intern_called_arg(self)
     }
 }
 

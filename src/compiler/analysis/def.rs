@@ -1,5 +1,5 @@
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::cir::{EventDeclarationId, StructDeclarationId};
+use crate::compiler::cir::{EventDeclId, StructDeclId};
 use crate::compiler::cst::Conditions;
 use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst};
@@ -33,18 +33,15 @@ pub trait DefQuery: DeclQuery {
 
     /// [event::query_event_def_by_id]
     #[salsa::invoke(event::query_event_def_by_id)]
-    fn query_event_def_by_id(
-        &self,
-        event_decl_id: EventDeclarationId,
-    ) -> QueryTrisult<cir::EventDefinition>;
+    fn query_event_def_by_id(&self, event_decl_id: EventDeclId) -> QueryTrisult<cir::EventDef>;
 
     /// [event::query_event_def]
     #[salsa::invoke(event::query_event_def)]
     fn query_event_def(
         &self,
-        event_decl_id: EventDeclarationId,
-        event_def: cst::EventDefinition,
-    ) -> QueryTrisult<cir::EventDefinition>;
+        event_decl_id: EventDeclId,
+        event_def: cst::EventDef,
+    ) -> QueryTrisult<cir::EventDef>;
 
     /// [event::query_event]
     #[salsa::invoke(event::query_event)]
@@ -60,7 +57,7 @@ pub trait DefQuery: DeclQuery {
     #[salsa::invoke(rule::query_rule_cond)]
     fn query_rule_cond(
         &self,
-        event_decl_id: EventDeclarationId,
+        event_decl_id: EventDeclId,
         conditions: Conditions,
     ) -> QueryTrisult<Vec<cir::Expr>>;
 
@@ -68,7 +65,7 @@ pub trait DefQuery: DeclQuery {
     #[salsa::invoke(rule::query_rule_actions)]
     fn query_rule_actions(
         &self,
-        event_decl_id: EventDeclarationId,
+        event_decl_id: EventDeclId,
         actions: cst::Actions,
     ) -> QueryTrisult<cir::Actions>;
 
@@ -82,7 +79,7 @@ pub trait DefQuery: DeclQuery {
     #[salsa::invoke(sstruct::query_struct_def)]
     fn query_struct_def(
         &self,
-        struct_decl_id: StructDeclarationId,
-        struct_dec: cst::StructDefinition,
-    ) -> QueryTrisult<cir::StructDefinition>;
+        struct_decl_id: StructDeclId,
+        struct_dec: cst::StructDef,
+    ) -> QueryTrisult<cir::StructDef>;
 }

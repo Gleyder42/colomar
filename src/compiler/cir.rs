@@ -1,7 +1,7 @@
 use crate::compiler::span::{CopyRange, Span, Spanned, SpannedBool};
 use crate::compiler::{AssignMod, UseRestriction};
 use crate::compiler::{
-    Ident, Text, CALLED_ARGUMENTS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN, ENUM_CONSTANTS_LEN,
+    Ident, Text, CALLED_ARGS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN, ENUM_CONSTANTS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use colomar_macros::Interned;
@@ -10,13 +10,13 @@ use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
-pub type DeclaredArgumentIds = SmallVec<[DeclaredArgumentId; DECLARED_ARGUMENTS_LEN]>;
+pub type DeclArgIds = SmallVec<[DeclArgId; DECL_ARGS_LEN]>;
 pub type FunctionDeclIds = SmallVec<[FunctionDeclId; FUNCTIONS_DECLS_LEN]>;
 pub type PropertyDecls = SmallVec<[PropertyDecl; PROPERTY_DECLS_LEN]>;
 pub type PropertyDeclIds = SmallVec<[PropertyDeclId; PROPERTY_DECLS_LEN]>;
 pub type EnumConstantIds = SmallVec<[EnumConstantId; ENUM_CONSTANTS_LEN]>;
-pub type CalledArguments = SmallVec<[CalledArgument; CALLED_ARGUMENTS_LEN]>;
-pub type CalledArgumentIds = SmallVec<[CalledArgumentId; CALLED_ARGUMENTS_LEN]>;
+pub type CalledArgs = SmallVec<[CalledArg; CALLED_ARGS_LEN]>;
+pub type CalledArgIds = SmallVec<[CalledArgId; CALLED_ARGS_LEN]>;
 pub type Predicates = SmallVec<[Predicate; CONDITIONS_LEN]>;
 
 pub type EnumConstants = SmallVec<[EnumConstant; ENUM_CONSTANTS_LEN]>;
@@ -69,7 +69,7 @@ pub struct FunctionDecl {
     pub instance: Option<Type>,
     pub is_native: SpannedBool,
     pub name: Ident,
-    pub arguments: DeclaredArgumentIds,
+    pub args: DeclArgIds,
     pub return_type: Type,
 }
 
@@ -84,63 +84,63 @@ pub struct PropertyDecl {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Struct {
-    pub decl: StructDeclarationId,
-    pub def: StructDefinition,
+    pub decl: StructDeclId,
+    pub def: StructDef,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
-pub struct StructDeclaration {
+pub struct StructDecl {
     pub is_open: SpannedBool,
     pub is_native: SpannedBool,
     pub name: Ident,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct StructDefinition {
+pub struct StructDef {
     pub functions: FunctionDeclIds,
     pub properties: PropertyDeclIds,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
-pub struct EnumDeclaration {
+pub struct EnumDecl {
     pub name: Ident,
     pub is_native: SpannedBool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct EnumDefinition {
+pub struct EnumDef {
     pub constants: EnumConstantIds,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct EnumConstant {
     pub name: Ident,
-    pub r#enum: EnumDeclarationId,
+    pub r#enum: EnumDeclId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Enum {
-    pub declaration: EnumDeclarationId,
-    pub definition: EnumDefinition,
+    pub decl: EnumDeclId,
+    pub def: EnumDef,
     pub span: Span,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
-    Enum(EnumDeclarationId),
-    Struct(StructDeclarationId),
-    Event(EventDeclarationId),
+    Enum(EnumDeclId),
+    Struct(StructDeclId),
+    Event(EventDeclId),
     Unit,
 }
 
-impl From<StructDeclarationId> for Type {
-    fn from(value: StructDeclarationId) -> Self {
+impl From<StructDeclId> for Type {
+    fn from(value: StructDeclId) -> Self {
         Type::Struct(value)
     }
 }
 
-impl From<EventDeclarationId> for Type {
-    fn from(value: EventDeclarationId) -> Self {
+impl From<EventDeclId> for Type {
+    fn from(value: EventDeclId) -> Self {
         Type::Event(value)
     }
 }
@@ -158,8 +158,8 @@ pub trait TypeComparison<Rhs> {
     fn has_same_return_type(&self, rhs: &Rhs) -> bool;
 }
 
-impl TypeComparison<StructDeclarationId> for CalledType {
-    fn has_same_return_type(&self, rhs: &StructDeclarationId) -> bool {
+impl TypeComparison<StructDeclId> for CalledType {
+    fn has_same_return_type(&self, rhs: &StructDeclId) -> bool {
         match self.r#type {
             Type::Struct(r#struct) => r#struct == *rhs,
             _ => false,
@@ -173,8 +173,8 @@ impl TypeComparison<CalledType> for CalledType {
     }
 }
 
-impl PartialEq<StructDeclarationId> for CalledType {
-    fn eq(&self, other: &StructDeclarationId) -> bool {
+impl PartialEq<StructDeclId> for CalledType {
+    fn eq(&self, other: &StructDeclId) -> bool {
         match self.r#type {
             Type::Enum(_) => false,
             Type::Struct(id) => id == *other,
@@ -237,16 +237,16 @@ impl Display for CalledTypes {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
-pub struct CalledArgument {
-    /// The [DeclaredArgumentId] has not necessarily the same type as the value.
+pub struct CalledArg {
+    /// The [DeclArgId] has not necessarily the same type as the value.
     /// It may be therefore not the 'correct' declared argument, rather the argument which was
     /// inputted by the user
-    pub declared: DeclaredArgumentId,
+    pub declared: DeclArgId,
     pub value: AValueChain,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
-pub struct DeclaredArgument {
+pub struct DeclArg {
     pub name: Ident,
     pub position: usize,
     pub types: CalledTypes,
@@ -254,20 +254,20 @@ pub struct DeclaredArgument {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
-pub struct EventDeclaration {
+pub struct EventDecl {
     pub name: Ident,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Event {
-    pub declaration: EventDeclarationId,
-    pub definition: EventDefinition,
+    pub decl: EventDeclId,
+    pub def: EventDef,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct EventDefinition {
-    pub arguments: DeclaredArgumentIds,
+pub struct EventDef {
+    pub args: DeclArgIds,
     pub properties: PropertyDecls,
 }
 
@@ -276,8 +276,8 @@ pub type Actions = Vec<Action>;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rule {
     pub title: Text,
-    pub event: EventDeclarationId,
-    pub arguments: CalledArguments,
+    pub event: EventDeclId,
+    pub args: CalledArgs,
     pub conditions: Predicates,
     pub actions: Actions,
 }
@@ -383,7 +383,7 @@ impl AValueChain {
 /// Represents a value which is known at runtime time or compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AValue {
-    FunctionCall(FunctionDeclId, CalledArgumentIds, Span),
+    FunctionCall(FunctionDeclId, CalledArgIds, Span),
     RValue(RValue, Span),
     CValue(CValue),
 }
@@ -416,12 +416,12 @@ impl AValue {
 /// Represent a value which is known at compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CValue {
-    String(Text, StructDeclarationId, Span),
-    Number(Text, StructDeclarationId, Span),
+    String(Text, StructDeclId, Span),
+    Number(Text, StructDeclId, Span),
 }
 
 impl CValue {
-    fn struct_decl_id(&self) -> StructDeclarationId {
+    fn struct_decl_id(&self) -> StructDeclId {
         match self {
             CValue::String(_, id, _) => *id,
             CValue::Number(_, id, _) => *id,

@@ -2,7 +2,7 @@ use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::IntoInternId;
 use crate::compiler::analysis::namespace::{Nameholder, Nameholders};
 use crate::compiler::cir::{AValueChain, CValue, TypeComparison};
-use crate::compiler::cst::CallArgument;
+use crate::compiler::cst::CallArg;
 use crate::compiler::error::CompilerError;
 use crate::compiler::span::Spanned;
 use crate::compiler::QueryTrisult;
@@ -90,7 +90,7 @@ pub(super) fn check_equal_return_avalue(
             // TODO Add info
             QueryTrisult::Par(
                 rhs.clone(),
-                vec![CompilerError::WrongTypeInBinaryExpression(lhs, rhs)],
+                vec![CompilerError::WrongTypeInBinaryExpr(lhs, rhs)],
             )
         }
     })
@@ -130,24 +130,22 @@ pub(super) fn query_call_chain(
                             cir::AValue::RValue(rvalue, ident.span),
                         )
                     }),
-                cst::Call::IdentArguments { name, args, span } => {
+                cst::Call::IdentArgs { name, args, span } => {
                     let args_span = args.span;
 
                     db.query_namespaced_function(nameholders, name)
                         .and_or(
                             args.value
                                 .into_iter()
-                                .map(|call_argument| {
+                                .map(|call_arg| {
                                     db.query_call_chain(
                                         inital_nameholders.clone(),
                                         // TODO Call argument should also hava an expression
-                                        call_argument.clone().call_chain(),
+                                        call_arg.clone().call_chain(),
                                     )
-                                    .map(|it| {
-                                        match call_argument {
-                                            CallArgument::Named(name, _, _) => (Some(name), it),
-                                            CallArgument::Pos(_) => (None, it),
-                                        }
+                                    .map(|it| match call_arg {
+                                        CallArg::Named(name, _, _) => (Some(name), it),
+                                        CallArg::Pos(_) => (None, it),
                                     })
                                 })
                                 .collect::<QueryTrisult<Vec<_>>>()
@@ -155,12 +153,9 @@ pub(super) fn query_call_chain(
                             Spanned::default_inner(args_span),
                         )
                         .flat_map(|(function_decl, called_avalue_args)| {
-                            db.query_called_args(
-                                called_avalue_args,
-                                function_decl.arguments.clone(),
-                            )
-                            .intern_inner(db)
-                            .map(|args| (function_decl, args))
+                            db.query_called_args(called_avalue_args, function_decl.args.clone())
+                                .intern_inner(db)
+                                .map(|args| (function_decl, args))
                         })
                         .map(|(function_decl, function_args)| {
                             (

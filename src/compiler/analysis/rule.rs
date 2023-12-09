@@ -1,7 +1,7 @@
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::cir::{AValueChain, EventDeclarationId, Predicate, RValue};
-use crate::compiler::cst::{Action, Actions, CallArgument, Conditions};
+use crate::compiler::cir::{AValueChain, EventDeclId, Predicate, RValue};
+use crate::compiler::cst::{Action, Actions, CallArg, Conditions};
 use crate::compiler::{cir, cst, QueryTrisult};
 
 use crate::compiler::analysis::interner::IntoInternId;
@@ -9,7 +9,7 @@ use smallvec::smallvec;
 
 pub(super) fn query_rule_actions(
     db: &dyn DefQuery,
-    event_decl_id: EventDeclarationId,
+    event_decl_id: EventDeclId,
     actions: Actions,
 ) -> QueryTrisult<cir::Actions> {
     let event_type = cir::Type::Event(event_decl_id);
@@ -46,7 +46,7 @@ pub(super) fn query_rule_actions(
 
 pub(super) fn query_rule_cond(
     db: &dyn DefQuery,
-    event_decl_id: EventDeclarationId,
+    event_decl_id: EventDeclId,
     conditions: Conditions,
 ) -> QueryTrisult<Vec<cir::Expr>> {
     conditions
@@ -62,42 +62,37 @@ pub(super) fn query_rule_cond(
 }
 
 pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisult<cir::Rule> {
-    let arguments = |event_decl_id: &EventDeclarationId| {
-        let arguments_span = rule.arguments.span;
+    let args = |event_decl_id: &EventDeclId| {
+        let args_span = rule.args.span;
 
-        rule.arguments
+        rule.args
             .value
             .into_iter()
-            .map(|call_argument| {
-                db.query_call_chain(
-                    smallvec![Nameholder::Root],
-                    call_argument.clone().call_chain(),
-                )
-                .map(|it| match call_argument {
-                    CallArgument::Named(name, _, _) => (Some(name), it),
-                    CallArgument::Pos(_) => (None, it),
-                })
+            .map(|call_arg| {
+                db.query_call_chain(smallvec![Nameholder::Root], call_arg.clone().call_chain())
+                    .map(|it| match call_arg {
+                        CallArg::Named(name, _, _) => (Some(name), it),
+                        CallArg::Pos(_) => (None, it),
+                    })
             })
             .collect::<QueryTrisult<Vec<_>>>()
-            .spanned(arguments_span)
+            .spanned(args_span)
             .and(db.query_event_def_by_id(*event_decl_id))
-            .flat_map(|(arguments, event_def)| db.query_called_args(arguments, event_def.arguments))
+            .flat_map(|(args, event_def)| db.query_called_args(args, event_def.args))
     };
 
     db.query_namespaced_event(smallvec![Nameholder::Root], rule.event)
-        .and_with(arguments)
+        .and_with(args)
         .and_with(|(event_decl_id, _)| {
             db.query_rule_cond(*event_decl_id, rule.conditions)
                 .map_inner(Predicate)
         })
         .and_with(|((event_decl_id, _), _)| db.query_rule_actions(*event_decl_id, rule.actions))
-        .map(
-            |(((event_decl_id, arguments), conditions), actions)| cir::Rule {
-                title: rule.name.value,
-                event: event_decl_id,
-                arguments,
-                conditions,
-                actions,
-            },
-        )
+        .map(|(((event_decl_id, args), conditions), actions)| cir::Rule {
+            title: rule.name.value,
+            event: event_decl_id,
+            args,
+            conditions,
+            actions,
+        })
 }

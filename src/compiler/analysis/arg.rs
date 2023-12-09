@@ -1,8 +1,6 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::cir::{
-    AValueChain, CalledArguments, CalledType, CalledTypes, DeclaredArgumentIds,
-};
+use crate::compiler::cir::{AValueChain, CalledArgs, CalledType, CalledTypes, DeclArgIds};
 use crate::compiler::error::CompilerError;
 
 use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
@@ -15,8 +13,8 @@ use std::collections::{HashMap, HashSet};
 
 pub(super) fn query_declared_args(
     db: &dyn DeclQuery,
-    decl_args: cst::DeclaredArguments,
-) -> QueryTrisult<DeclaredArgumentIds> {
+    decl_args: cst::DeclArgs,
+) -> QueryTrisult<DeclArgIds> {
     decl_args
         .into_iter()
         .map(|decl_arg| db.query_declared_arg(decl_arg))
@@ -26,9 +24,9 @@ pub(super) fn query_declared_args(
 pub(super) fn query_called_args(
     db: &dyn DeclQuery,
     called_arg_avalues: Spanned<Vec<(Option<Ident>, AValueChain)>>,
-    decl_arg_ids: DeclaredArgumentIds,
-) -> QueryTrisult<CalledArguments> {
-    let mut decl_args_map: HashMap<Text, (usize, cir::DeclaredArgumentId)> = decl_arg_ids
+    decl_arg_ids: DeclArgIds,
+) -> QueryTrisult<CalledArgs> {
+    let mut decl_args_map: HashMap<Text, (usize, cir::DeclArgId)> = decl_arg_ids
         .iter()
         .enumerate()
         .map(|(index, id)| {
@@ -42,7 +40,7 @@ pub(super) fn query_called_args(
 
     let called_args: Vec<_> = called_arg_avalues.value.into_iter().enumerate().collect();
 
-    let initial_accumulator: (Option<usize>, Vec<cir::CalledArgument>) = (None, Vec::new());
+    let initial_accumulator: (Option<usize>, Vec<cir::CalledArg>) = (None, Vec::new());
     QueryTrisult::Ok(called_args)
         .fold_flat_map(
             initial_accumulator,
@@ -56,19 +54,19 @@ pub(super) fn query_called_args(
                     Some(name) => match decl_args_map.remove(&name.value) {
                         Some((index, decl_arg_id)) => {
                             if is_index_valid(index) {
-                                let called_arg = cir::CalledArgument {
+                                let called_arg = cir::CalledArg {
                                     declared: decl_arg_id,
                                     value: arg,
                                 };
                                 decl_args.push(called_arg);
                                 Ok((Some(index), decl_args))
                             } else {
-                                let error = CompilerError::CannotMixArguments(arg.span);
+                                let error = CompilerError::CannotMixArgs(arg.span);
                                 Par((Some(index), decl_args), vec![error])
                             }
                         }
                         None => {
-                            let error = CompilerError::DuplicateNamedArgument(name);
+                            let error = CompilerError::DuplicateNamedArg(name);
                             Par((Some(index), decl_args), vec![error])
                         }
                     },
@@ -77,7 +75,7 @@ pub(super) fn query_called_args(
                         if is_index_valid(index) {
                             match decl_arg_ids.get(index) {
                                 Some(decl_arg_id) => {
-                                    let called = cir::CalledArgument {
+                                    let called = cir::CalledArg {
                                         declared: *decl_arg_id,
                                         value: arg,
                                     };
@@ -85,12 +83,12 @@ pub(super) fn query_called_args(
                                     Ok((Some(index), decl_args))
                                 }
                                 None => {
-                                    let error = CompilerError::ArgumentOutOfRange(index, arg.span);
+                                    let error = CompilerError::ArgOutOfRange(index, arg.span);
                                     Par((Some(index), decl_args), vec![error])
                                 }
                             }
                         } else {
-                            let error = CompilerError::CannotMixArguments(arg.span);
+                            let error = CompilerError::CannotMixArgs(arg.span);
                             Par((Some(index), decl_args), vec![error])
                         }
                     }
@@ -101,8 +99,7 @@ pub(super) fn query_called_args(
             called_args
                 .into_iter()
                 .map(|called_arg| {
-                    let decl_arg: cir::DeclaredArgument =
-                        db.lookup_intern_decl_arg(called_arg.declared);
+                    let decl_arg: cir::DeclArg = db.lookup_intern_decl_arg(called_arg.declared);
                     let called_type = called_arg.value.returning_avalue().return_called_type(db);
 
                     if decl_arg.types.contains_type(&called_type.r#type) {
@@ -117,7 +114,7 @@ pub(super) fn query_called_args(
                         )
                     }
                 })
-                .collect::<QueryTrisult<Vec<cir::CalledArgument>>>()
+                .collect::<QueryTrisult<Vec<cir::CalledArg>>>()
         })
         .validate(|called_args| {
             let supplied_decl_args: HashSet<_> = called_args
@@ -129,10 +126,9 @@ pub(super) fn query_called_args(
             let errors: Vec<_> = all_decl_args
                 .difference(&supplied_decl_args)
                 .filter_map(|missing_decl_arg_id| {
-                    let decl_arg: cir::DeclaredArgument =
-                        db.lookup_intern_decl_arg(*missing_decl_arg_id);
+                    let decl_arg: cir::DeclArg = db.lookup_intern_decl_arg(*missing_decl_arg_id);
                     if decl_arg.default_value.is_none() {
-                        Some(CompilerError::MissingArgument {
+                        Some(CompilerError::MissingArg {
                             missing_arg: *missing_decl_arg_id,
                             call_site: called_span,
                         })
@@ -148,8 +144,8 @@ pub(super) fn query_called_args(
 
 pub(super) fn query_declared_arg(
     db: &dyn DeclQuery,
-    decl_arg: cst::DeclaredArgument,
-) -> QueryTrisult<cir::DeclaredArgumentId> {
+    decl_arg: cst::DeclArg,
+) -> QueryTrisult<cir::DeclArgId> {
     let default_value_option = decl_arg
         .default_value
         .map(|call_chain| db.query_call_chain(smallvec![Nameholder::Root], call_chain));
@@ -167,7 +163,7 @@ pub(super) fn query_declared_arg(
         })
         .collect::<QueryTrisult<Vec<CalledType>>>()
         .and_maybe(default_value_option)
-        .map(|(types, default_value)| cir::DeclaredArgument {
+        .map(|(types, default_value)| cir::DeclArg {
             position: decl_arg.position,
             name: decl_arg.name,
             types: CalledTypes {

@@ -1,8 +1,6 @@
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::cir::{EnumDeclarationId, EventDeclarationId, StructDeclarationId};
-use crate::compiler::cst::{
-    Definition, EventDefinition, Root, StructDefinition, TypeRoot, Visibility,
-};
+use crate::compiler::cir::{EnumDeclId, EventDeclId, StructDeclId};
+use crate::compiler::cst::{Def, EventDef, Root, StructDef, TypeRoot, Visibility};
 use crate::compiler::error::CompilerError;
 
 use crate::compiler::trisult::{Errors, IntoTrisult};
@@ -13,26 +11,26 @@ use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum DefKey {
-    Event(EventDeclarationId),
-    Struct(StructDeclarationId),
-    Enum(EnumDeclarationId),
+    Event(EventDeclId),
+    Struct(StructDeclId),
+    Enum(EnumDeclId),
 }
 
 pub(super) fn query_struct_decls(
     db: &dyn DeclQuery,
     path: cst::Path,
-) -> QueryTrisult<Vec<cst::StructDeclaration>> {
+) -> QueryTrisult<Vec<cst::StructDecl>> {
     let mut errors = Errors::default();
     let ast: cst::Ast = tri!(db.query_file(path, false), errors);
 
     errors.value(Vec::new())
 }
 
-pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, StructDefinition> {
+pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, StructDef> {
     db.query_ast_def_map()
         .into_iter()
         .filter_map(|(id, def)| {
-            let result: Result<StructDefinition, _> = def.try_into();
+            let result: Result<StructDef, _> = def.try_into();
             match result {
                 Ok(value) => Some((id, value)),
                 Err(_) => None,
@@ -43,11 +41,11 @@ pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, St
 
 pub(super) fn query_ast_struct_def(
     db: &dyn DeclQuery,
-    struct_decl_id: StructDeclarationId,
-) -> QueryTrisult<StructDefinition> {
+    struct_decl_id: StructDeclId,
+) -> QueryTrisult<StructDef> {
     db.query_ast_struct_def_map()
         .remove(&DefKey::Struct(struct_decl_id))
-        .ok_or_else(|| CompilerError::CannotFindDefinition(Either::Left(struct_decl_id)))
+        .ok_or_else(|| CompilerError::CannotFindDef(Either::Left(struct_decl_id)))
         .into()
 }
 
@@ -126,36 +124,36 @@ pub(super) fn query_type_items(db: &dyn DeclQuery) -> Vec<TypeRoot> {
         .collect()
 }
 
-pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Definition> {
+pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Def> {
     let map: HashMap<_, _> = db
         .query_type_items()
         .into_iter()
         .filter_map(|root| match root {
             TypeRoot::Event(event) => {
-                let event_decl_id = db.query_event_decl(event.declaration);
+                let event_decl_id = db.query_event_decl(event.decl);
                 println!("Event {:?}", event_decl_id);
-                Some((DefKey::Event(event_decl_id), event.definition.into()))
+                Some((DefKey::Event(event_decl_id), event.def.into()))
             }
             TypeRoot::Enum(r#enum) => {
-                let enum_decl_id = db.query_enum_decl(r#enum.declaration);
+                let enum_decl_id = db.query_enum_decl(r#enum.decl);
                 println!("Enum {:?}", enum_decl_id);
-                Some((DefKey::Enum(enum_decl_id), r#enum.definition.into()))
+                Some((DefKey::Enum(enum_decl_id), r#enum.def.into()))
             }
             TypeRoot::Struct(r#struct) => {
-                let struct_decl_id = db.query_struct_decl(r#struct.declaration);
+                let struct_decl_id = db.query_struct_decl(r#struct.decl);
                 println!("Struct {:?}", struct_decl_id);
-                Some((DefKey::Struct(struct_decl_id), r#struct.definition.into()))
+                Some((DefKey::Struct(struct_decl_id), r#struct.def.into()))
             }
         })
         .collect();
     map
 }
 
-pub(super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, EventDefinition> {
+pub(super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, EventDef> {
     db.query_ast_def_map()
         .into_iter()
         .filter_map(|(id, def)| {
-            let result: Result<EventDefinition, _> = def.try_into();
+            let result: Result<EventDef, _> = def.try_into();
             match result {
                 Ok(value) => Some((id, value)),
                 Err(_) => None,
@@ -166,10 +164,10 @@ pub(super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Eve
 
 pub(super) fn query_ast_event_def(
     db: &dyn DeclQuery,
-    event_decl_id: EventDeclarationId,
-) -> QueryTrisult<EventDefinition> {
+    event_decl_id: EventDeclId,
+) -> QueryTrisult<EventDef> {
     db.query_ast_event_def_map()
         .remove(&DefKey::Event(event_decl_id))
-        .ok_or_else(|| CompilerError::CannotFindDefinition(Either::Right(event_decl_id)))
+        .ok_or_else(|| CompilerError::CannotFindDef(Either::Right(event_decl_id)))
         .into()
 }

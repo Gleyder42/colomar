@@ -1,6 +1,5 @@
 use crate::compiler::cir::{
-    AValue, CalledType, CalledTypes, DeclaredArgumentId, EventDeclarationId, StructDeclarationId,
-    Type,
+    AValue, CalledType, CalledTypes, DeclArgId, EventDeclId, StructDeclId, Type,
 };
 use crate::compiler::cst::Path;
 use crate::compiler::span::Span;
@@ -18,7 +17,7 @@ pub enum CompilerError {
         first: Ident,
         second: Ident,
     },
-    CannotFindDefinition(Either<StructDeclarationId, EventDeclarationId>),
+    CannotFindDef(Either<StructDeclId, EventDeclId>),
     CannotFindIdent(Ident),
     NotA(&'static str, Ident, Ident),
     // TODO Dont use either here, make an own type
@@ -26,26 +25,26 @@ pub enum CompilerError {
         actual: CalledType,
         expected: Either<Type, CalledTypes>,
     },
-    CannotFindPrimitiveDeclaration(Text),
-    CannotFindNativeDefinition(String),
+    CannotFindPrimitiveDecl(Text),
+    CannotFindNativeDef(String),
     // TODO Add more information
-    InvalidNativeDefinition(&'static str),
+    InvalidNativeDef(&'static str),
     NoCaller,
     PlaceholderError(SaturateError),
     // TODO Add any information
     WstLexerError,
     // TODO Add any information
     WstParserError,
-    MissingArgument {
-        missing_arg: DeclaredArgumentId,
+    MissingArg {
+        missing_arg: DeclArgId,
         call_site: Span,
     },
-    CannotFindNamedArgument(Ident),
-    ArgumentOutOfRange(usize, Span),
-    DuplicateNamedArgument(Ident),
-    CannotMixArguments(Span),
+    CannotFindNamedArg(Ident),
+    ArgOutOfRange(usize, Span),
+    DuplicateNamedArg(Ident),
+    CannotMixArgs(Span),
     CannotEvalAsConst,
-    WrongTypeInBinaryExpression(AValue, AValue),
+    WrongTypeInBinaryExpr(AValue, AValue),
     CannotFindFile(Path),
 }
 
@@ -54,24 +53,24 @@ impl CompilerError {
         match self {
             CompilerError::NotImplemented(..) => 0,
             CompilerError::DuplicateIdent { .. } => 1,
-            CompilerError::CannotFindDefinition(_) => 2,
+            CompilerError::CannotFindDef(_) => 2,
             CompilerError::CannotFindIdent(_) => 3,
             CompilerError::NotA(_, _, _) => 4,
             CompilerError::WrongType { .. } => 5,
-            CompilerError::CannotFindPrimitiveDeclaration(_) => 6,
-            CompilerError::CannotFindNativeDefinition(_) => 7,
-            CompilerError::InvalidNativeDefinition(_) => 8,
+            CompilerError::CannotFindPrimitiveDecl(_) => 6,
+            CompilerError::CannotFindNativeDef(_) => 7,
+            CompilerError::InvalidNativeDef(_) => 8,
             CompilerError::NoCaller => 9,
             CompilerError::WstLexerError => 10,
             CompilerError::WstParserError => 11,
             CompilerError::PlaceholderError(_) => 12,
-            CompilerError::MissingArgument { .. } => 13,
-            CompilerError::CannotFindNamedArgument(_) => 14,
-            CompilerError::ArgumentOutOfRange(_, _) => 15,
-            CompilerError::CannotMixArguments(_) => 16,
-            CompilerError::DuplicateNamedArgument(_) => 17,
+            CompilerError::MissingArg { .. } => 13,
+            CompilerError::CannotFindNamedArg(_) => 14,
+            CompilerError::ArgOutOfRange(_, _) => 15,
+            CompilerError::CannotMixArgs(_) => 16,
+            CompilerError::DuplicateNamedArg(_) => 17,
             CompilerError::CannotEvalAsConst => 18,
-            CompilerError::WrongTypeInBinaryExpression(_, _) => 19,
+            CompilerError::WrongTypeInBinaryExpr(_, _) => 19,
             CompilerError::CannotFindFile(_) => 20,
         }
     }

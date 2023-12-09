@@ -44,8 +44,8 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
     #[salsa::invoke(call::query_wst_call_from_args)]
     fn query_wst_call_from_args(
         &self,
-        decl_args: cir::DeclaredArgumentIds,
-        called_args: cir::CalledArguments,
+        decl_args: cir::DeclArgIds,
+        called_args: cir::CalledArgs,
     ) -> Vec<Arg>;
 
     /// Impl: [variables::query_player_variables]

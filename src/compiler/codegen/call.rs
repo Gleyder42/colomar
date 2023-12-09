@@ -9,7 +9,7 @@ use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::Ident;
 use crate::compiler::{cir, compiler_todo, wst, Op, QueryTrisult};
 use crate::query_error;
-use cir::{CalledArguments, FunctionDecl};
+use cir::{CalledArgs, FunctionDecl};
 use std::collections::{HashMap, HashSet};
 
 type ReplacementMap = HashMap<Placeholder, wst::Call>;
@@ -100,7 +100,7 @@ pub(super) fn query_wst_call_by_avalue(
             let func_decl: FunctionDecl = db.lookup_intern_function_decl(func_decl_id);
             let called_args = call_arg_ids
                 .into_iter()
-                .map(|it| db.lookup_intern_called_argument(it))
+                .map(|it| db.lookup_intern_called_arg(it))
                 .collect();
 
             query_wst_call_by_function_call(
@@ -183,7 +183,7 @@ fn query_wst_call_by_function_call(
     db: &dyn Codegen,
     replacement_map: &ReplacementMap,
     func_decl: FunctionDecl,
-    called_args: CalledArguments,
+    called_args: CalledArgs,
     caller: Option<Caller>,
     _span: Span,
 ) -> QueryTrisult<Option<wst::Call>> {
@@ -192,7 +192,7 @@ fn query_wst_call_by_function_call(
         func_decl.name.value.name(db),
     );
 
-    db.query_wst_call_from_args(func_decl.arguments, called_args)
+    db.query_wst_call_from_args(func_decl.args, called_args)
         .into_iter()
         .map(|arg| {
             db.query_wst_call(caller.clone(), cir::Action::from(arg.value))
@@ -295,7 +295,7 @@ fn process_wscript(
 
     match r#type {
         Type::Enum(enum_id) => {
-            let enum_decl: cir::EnumDeclaration = db.lookup_intern_enum_decl(enum_id);
+            let enum_decl: cir::EnumDecl = db.lookup_intern_enum_decl(enum_id);
             db.query_wscript_enum_constant_impl(
                 enum_decl.name.value.name(db),
                 property_decl.name.value.name(db),
@@ -303,7 +303,7 @@ fn process_wscript(
             .inner_into_some()
         }
         Type::Struct(struct_id) => {
-            let struct_decl: cir::StructDeclaration = db.lookup_intern_struct_decl(struct_id);
+            let struct_decl: cir::StructDecl = db.lookup_intern_struct_decl(struct_id);
             db.query_wscript_struct_property_impl(
                 struct_decl.name.value.name(db),
                 property_decl.name.value.name(db),
@@ -317,7 +317,7 @@ fn process_wscript(
             .inner_into_some()
         }
         Type::Event(event_id) => {
-            let event_decl: cir::EventDeclaration = db.lookup_intern_event_decl(event_id);
+            let event_decl: cir::EventDecl = db.lookup_intern_event_decl(event_id);
             db.query_wscript_event_context_property_impl(
                 event_decl.name.value.name(db),
                 property_decl.name.value.name(db),
@@ -333,8 +333,8 @@ fn process_wscript(
 
 pub fn query_wst_call_from_args(
     db: &dyn Codegen,
-    decl_args: cir::DeclaredArgumentIds,
-    called_args: CalledArguments,
+    decl_args: cir::DeclArgIds,
+    called_args: CalledArgs,
 ) -> Vec<Arg> {
     let all_decl_args: HashSet<_> = decl_args.into_iter().collect();
 
@@ -346,7 +346,7 @@ pub fn query_wst_call_from_args(
     let defaulted_args = all_decl_args
         .difference(&supplied_decl_args)
         .map(|decl_arg_id| db.lookup_intern_decl_arg(*decl_arg_id))
-        .collect::<Vec<cir::DeclaredArgument>>();
+        .collect::<Vec<cir::DeclArg>>();
     let supplied_args = called_args;
 
     const ERROR: &str = "Compiler Bug:
@@ -361,7 +361,7 @@ pub fn query_wst_call_from_args(
             value: decl_arg.default_value.expect(ERROR),
         })
         .chain(supplied_args.into_iter().map(|called_arg| {
-            let decl_arg: cir::DeclaredArgument = db.lookup_intern_decl_arg(called_arg.declared);
+            let decl_arg: cir::DeclArg = db.lookup_intern_decl_arg(called_arg.declared);
             Arg {
                 index: decl_arg.position,
                 name: decl_arg.name,

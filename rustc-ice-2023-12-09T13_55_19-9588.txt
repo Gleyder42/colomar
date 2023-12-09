@@ -1,0 +1,110 @@
+thread 'rustc' panicked at compiler\rustc_middle\src\dep_graph\dep_node.rs:198:17:
+Failed to extract DefId: def_kind fa236cee0774ba38-f8a28ceb08263e97
+stack backtrace:
+   0:     0x7ff87632ddff - std::backtrace::Backtrace::force_capture::hdc1a4c08ddd4a6c0
+   1:     0x7ff87632dd64 - std::backtrace::Backtrace::force_capture::hdc1a4c08ddd4a6c0
+   2:     0x7ff8483dd6a6 - <tracing_subscriber[97438593bbbd95eb]::fmt::format::Writer>::write_fmt
+   3:     0x7ff876346ea3 - std::panicking::rust_panic_with_hook::hd67d2288d4d6ab6f
+   4:     0x7ff876346d45 - <std::panicking::begin_panic_handler::StaticStrPayload as core::panic::PanicPayload>::take_box::hadfb1daf3cd7dbb5
+   5:     0x7ff876343ee9 - <std::sys_common::backtrace::_print::DisplayBacktrace as core::fmt::Display>::fmt::h9cc907fdb83ab0ff
+   6:     0x7ff876346a54 - rust_begin_unwind
+   7:     0x7ff87639b657 - core::panicking::panic_fmt::h07416ab876fc2357
+   8:     0x7ff849712ef1 - <rustc_middle[f6858c49eb03fbf1]::ty::typeck_results::UserType as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+   9:     0x7ff84823676d - <rustc_query_system[3f2ff57fdc4c187e]::dep_graph::dep_node::DepNode as rustc_middle[f6858c49eb03fbf1]::dep_graph::dep_node::DepNodeExt>::extract_def_id
+  10:     0x7ff848edf31c - <rustc_span[b3511583ab8e96c]::def_id::LocalDefId as rustc_query_impl[1575ff407817a601]::profiling_support::SpecIntoSelfProfilingString>::spec_to_self_profile_string
+  11:     0x7ff847c62f8b - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  12:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  13:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  14:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  15:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  16:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  17:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  18:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  19:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  20:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  21:     0x7ff847d01d75 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  22:     0x7ff847ceb9d9 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  23:     0x7ff84736a6eb - <rustc_codegen_llvm[24cde7e7f60839c0]::builder::Builder as rustc_codegen_ssa[35bc74b34ac0f05a]::traits::builder::BuilderMethods>::load_operand
+  24:     0x7ff8473a3dc6 - <rustc_target[a74b98d6e429232a]::abi::TyAndLayout<rustc_middle[f6858c49eb03fbf1]::ty::Ty> as rustc_codegen_llvm[24cde7e7f60839c0]::type_of::LayoutLlvmExt>::llvm_field_index
+  25:     0x7ff847346858 - <rustc_codegen_llvm[24cde7e7f60839c0]::base::ValueIter as core[fa305fcf821c0d6d]::iter::traits::iterator::Iterator>::next
+  26:     0x7ff8444d0a25 - <rustc_codegen_llvm[24cde7e7f60839c0]::debuginfo::CodegenUnitDebugContext as core[fa305fcf821c0d6d]::ops::drop::Drop>::drop
+  27:     0x7ff8444bcd65 - <rustc_codegen_llvm[24cde7e7f60839c0]::back::owned_target_machine::OwnedTargetMachine as core[fa305fcf821c0d6d]::ops::drop::Drop>::drop
+  28:     0x7ff8444e82a3 - <rustc_target[a74b98d6e429232a]::abi::TyAndLayout<rustc_middle[f6858c49eb03fbf1]::ty::Ty> as rustc_codegen_llvm[24cde7e7f60839c0]::type_of::LayoutLlvmExt>::scalar_llvm_type_at
+  29:     0x7ff84449c2f9 - <rustc_codegen_llvm[24cde7e7f60839c0]::LlvmCodegenBackend as rustc_codegen_ssa[35bc74b34ac0f05a]::traits::backend::CodegenBackend>::codegen_crate
+  30:     0x7ff844458749 - rustc_interface[ef6742c4c9907aec]::interface::parse_check_cfg
+  31:     0x7ff8444493e7 - rustc_interface[ef6742c4c9907aec]::passes::start_codegen
+  32:     0x7ff84445e686 - rustc_interface[ef6742c4c9907aec]::interface::parse_check_cfg
+  33:     0x7ff844438e7f - <rustc_interface[ef6742c4c9907aec]::queries::Queries>::codegen_and_build_linker
+  34:     0x7ff8443d2bf9 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  35:     0x7ff84440c7f3 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  36:     0x7ff8444139aa - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  37:     0x7ff84440d321 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  38:     0x7ff8443ca23f - rustc_driver_impl[2534eed4e385b792]::main
+  39:     0x7ff8443ca578 - rustc_driver_impl[2534eed4e385b792]::main
+  40:     0x7ff876358f4c - std::sys::windows::thread::Thread::new::ha14aa866915fa42e
+  41:     0x7ff8e71b7344 - BaseThreadInitThunk
+  42:     0x7ff8e84026b1 - RtlUserThreadStart
+
+
+rustc version: 1.76.0-nightly (e9013ac0e 2023-12-05)
+platform: x86_64-pc-windows-msvc
+
+query stack during panic:
+#0 [fn_abi_of_instance] computing call ABI of `core::ptr::drop_in_place::<salsa::derived::slot::PanicGuard<'_, compiler::analysis::decl::QueryEnumAstQuery, salsa::derived::AlwaysMemoizeValue>> - shim(Some(salsa::derived::slot::PanicGuard<'_, compiler::analysis::decl::QueryEnumAstQuery, salsa::derived::AlwaysMemoizeValue>))`
+end of query stack
+thread 'rustc' panicked at compiler\rustc_middle\src\dep_graph\dep_node.rs:198:17:
+Failed to extract DefId: type_of fa236cee0774ba38-f8a28ceb08263e97
+stack backtrace:
+   0:     0x7ff87632ddff - std::backtrace::Backtrace::force_capture::hdc1a4c08ddd4a6c0
+   1:     0x7ff87632dd64 - std::backtrace::Backtrace::force_capture::hdc1a4c08ddd4a6c0
+   2:     0x7ff8483dd6a6 - <tracing_subscriber[97438593bbbd95eb]::fmt::format::Writer>::write_fmt
+   3:     0x7ff876346ea3 - std::panicking::rust_panic_with_hook::hd67d2288d4d6ab6f
+   4:     0x7ff876346d45 - <std::panicking::begin_panic_handler::StaticStrPayload as core::panic::PanicPayload>::take_box::hadfb1daf3cd7dbb5
+   5:     0x7ff876343ee9 - <std::sys_common::backtrace::_print::DisplayBacktrace as core::fmt::Display>::fmt::h9cc907fdb83ab0ff
+   6:     0x7ff876346a54 - rust_begin_unwind
+   7:     0x7ff87639b657 - core::panicking::panic_fmt::h07416ab876fc2357
+   8:     0x7ff849712ef1 - <rustc_middle[f6858c49eb03fbf1]::ty::typeck_results::UserType as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+   9:     0x7ff84823676d - <rustc_query_system[3f2ff57fdc4c187e]::dep_graph::dep_node::DepNode as rustc_middle[f6858c49eb03fbf1]::dep_graph::dep_node::DepNodeExt>::extract_def_id
+  10:     0x7ff8484e74fe - rustc_interface[ef6742c4c9907aec]::callbacks::dep_node_debug
+  11:     0x7ff84982bd29 - <rustc_query_system[3f2ff57fdc4c187e]::dep_graph::dep_node::DepNode as core[fa305fcf821c0d6d]::fmt::Debug>::fmt
+  12:     0x7ff876375e1d - core::fmt::write::h677c2d2c01a89f4a
+  13:     0x7ff876337d96 - <&std::io::stdio::Stderr as std::io::Write>::write_fmt::head411183ebe10b9
+  14:     0x7ff876338756 - std::io::stdio::_eprint::h4e43410adf4d3b77
+  15:     0x7ff848ef5168 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::depth_limit_error
+  16:     0x7ff847c63fdc - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  17:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  18:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  19:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  20:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  21:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  22:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  23:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  24:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  25:     0x7ff847c62f23 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  26:     0x7ff847d01d75 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  27:     0x7ff847ceb9d9 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  28:     0x7ff84736a6eb - <rustc_codegen_llvm[24cde7e7f60839c0]::builder::Builder as rustc_codegen_ssa[35bc74b34ac0f05a]::traits::builder::BuilderMethods>::load_operand
+  29:     0x7ff8473a3dc6 - <rustc_target[a74b98d6e429232a]::abi::TyAndLayout<rustc_middle[f6858c49eb03fbf1]::ty::Ty> as rustc_codegen_llvm[24cde7e7f60839c0]::type_of::LayoutLlvmExt>::llvm_field_index
+  30:     0x7ff847346858 - <rustc_codegen_llvm[24cde7e7f60839c0]::base::ValueIter as core[fa305fcf821c0d6d]::iter::traits::iterator::Iterator>::next
+  31:     0x7ff8444d0a25 - <rustc_codegen_llvm[24cde7e7f60839c0]::debuginfo::CodegenUnitDebugContext as core[fa305fcf821c0d6d]::ops::drop::Drop>::drop
+  32:     0x7ff8444bcd65 - <rustc_codegen_llvm[24cde7e7f60839c0]::back::owned_target_machine::OwnedTargetMachine as core[fa305fcf821c0d6d]::ops::drop::Drop>::drop
+  33:     0x7ff8444e82a3 - <rustc_target[a74b98d6e429232a]::abi::TyAndLayout<rustc_middle[f6858c49eb03fbf1]::ty::Ty> as rustc_codegen_llvm[24cde7e7f60839c0]::type_of::LayoutLlvmExt>::scalar_llvm_type_at
+  34:     0x7ff84449c2f9 - <rustc_codegen_llvm[24cde7e7f60839c0]::LlvmCodegenBackend as rustc_codegen_ssa[35bc74b34ac0f05a]::traits::backend::CodegenBackend>::codegen_crate
+  35:     0x7ff844458749 - rustc_interface[ef6742c4c9907aec]::interface::parse_check_cfg
+  36:     0x7ff8444493e7 - rustc_interface[ef6742c4c9907aec]::passes::start_codegen
+  37:     0x7ff84445e686 - rustc_interface[ef6742c4c9907aec]::interface::parse_check_cfg
+  38:     0x7ff844438e7f - <rustc_interface[ef6742c4c9907aec]::queries::Queries>::codegen_and_build_linker
+  39:     0x7ff8443d2bf9 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  40:     0x7ff84440c7f3 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  41:     0x7ff8444139aa - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  42:     0x7ff84440d321 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  43:     0x7ff8443ca23f - rustc_driver_impl[2534eed4e385b792]::main
+  44:     0x7ff8443ca578 - rustc_driver_impl[2534eed4e385b792]::main
+  45:     0x7ff876358f4c - std::sys::windows::thread::Thread::new::ha14aa866915fa42e
+  46:     0x7ff8e71b7344 - BaseThreadInitThunk
+  47:     0x7ff8e84026b1 - RtlUserThreadStart
+
+
+query stack during panic:
+#0 [fn_abi_of_instance] computing call ABI of `core::ptr::drop_in_place::<salsa::derived::slot::PanicGuard<'_, compiler::analysis::decl::QueryEnumAstQuery, salsa::derived::AlwaysMemoizeValue>> - shim(Some(salsa::derived::slot::PanicGuard<'_, compiler::analysis::decl::QueryEnumAstQuery, salsa::derived::AlwaysMemoizeValue>))`
+end of query stack

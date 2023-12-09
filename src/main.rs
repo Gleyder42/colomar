@@ -211,7 +211,7 @@ fn print_errors(
                 ]))
                 .unwrap();
             }
-            CompilerError::CannotFindDefinition(_def) => {
+            CompilerError::CannotFindDef(_def) => {
                 todo!()
             }
             CompilerError::CannotFindIdent(ident) => {
@@ -309,7 +309,7 @@ fn print_errors(
                     ]))
                     .unwrap();
             }
-            CompilerError::CannotFindPrimitiveDeclaration(name) => {
+            CompilerError::CannotFindPrimitiveDecl(name) => {
                 /// We use ariadne to print the compiler error, even though we have no span
                 /// nor source message.
                 /// If want to have a consistent error reporting so I use ariadne instead of
@@ -327,8 +327,8 @@ fn print_errors(
                     .print(Source::from(""))
                     .unwrap();
             }
-            CompilerError::CannotFindNativeDefinition(_) => {}
-            CompilerError::InvalidNativeDefinition(_) => {}
+            CompilerError::CannotFindNativeDef(_) => {}
+            CompilerError::InvalidNativeDef(_) => {}
             CompilerError::NoCaller => {}
             CompilerError::NotImplemented(reason, span) => {
                 let source = source_map.get(&span.source).unwrap();
@@ -353,13 +353,13 @@ fn print_errors(
             CompilerError::PlaceholderError(_) => {}
             CompilerError::WstLexerError => {}
             CompilerError::WstParserError => {}
-            CompilerError::MissingArgument { .. } => {}
-            CompilerError::CannotFindNamedArgument(_) => {}
-            CompilerError::ArgumentOutOfRange(_, _) => {}
-            CompilerError::DuplicateNamedArgument(_) => {}
-            CompilerError::CannotMixArguments(_) => {}
+            CompilerError::MissingArg { .. } => {}
+            CompilerError::CannotFindNamedArg(_) => {}
+            CompilerError::ArgOutOfRange(_, _) => {}
+            CompilerError::DuplicateNamedArg(_) => {}
+            CompilerError::CannotMixArgs(_) => {}
             CompilerError::CannotEvalAsConst => {}
-            CompilerError::WrongTypeInBinaryExpression(_, _) => {}
+            CompilerError::WrongTypeInBinaryExpr(_, _) => {}
             CompilerError::CannotFindFile(_) => {}
         }
     }

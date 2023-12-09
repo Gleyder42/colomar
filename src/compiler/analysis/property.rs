@@ -9,7 +9,7 @@ use smallvec::smallvec;
 pub(super) fn query_property(
     db: &dyn DeclQuery,
     instance: Option<Type>,
-    property_decl: cst::PropertyDeclaration,
+    property_decl: cst::PropertyDecl,
 ) -> QueryTrisult<PropertyDecl> {
     db.query_namespaced_type(smallvec![Nameholder::Root], property_decl.r#type)
         .map(|r#type| PropertyDecl {

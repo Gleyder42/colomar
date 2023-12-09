@@ -1,7 +1,7 @@
 use crate::compiler::span::{Span, Spanned, SpannedBool};
 use crate::compiler::trisult::Trisult;
 use crate::compiler::{
-    AssignMod, Ident, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECLARED_ARGUMENTS_LEN,
+    AssignMod, Ident, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
@@ -10,32 +10,32 @@ pub type Condition = Expr;
 
 pub type Conditions = SmallVec<[Condition; CONDITIONS_LEN]>;
 pub type Actions = SmallVec<[Action; ACTIONS_LEN]>;
-pub type DeclaredArguments = SmallVec<[DeclaredArgument; DECLARED_ARGUMENTS_LEN]>;
-pub type PropertyDecls = SmallVec<[PropertyDeclaration; PROPERTY_DECLS_LEN]>;
-pub type FunctionDecls = SmallVec<[FunctionDeclaration; FUNCTIONS_DECLS_LEN]>;
+pub type DeclArgs = SmallVec<[DeclArg; DECL_ARGS_LEN]>;
+pub type PropertyDecls = SmallVec<[PropertyDecl; PROPERTY_DECLS_LEN]>;
+pub type FunctionDecls = SmallVec<[FunctionDecl; FUNCTIONS_DECLS_LEN]>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum Definition {
-    Event(EventDefinition),
-    Enum(EnumDefinition),
-    Struct(StructDefinition),
+pub enum Def {
+    Event(EventDef),
+    Enum(EnumDef),
+    Struct(StructDef),
 }
 
-impl From<EventDefinition> for Definition {
-    fn from(value: EventDefinition) -> Self {
-        Definition::Event(value)
+impl From<EventDef> for Def {
+    fn from(value: EventDef) -> Self {
+        Def::Event(value)
     }
 }
 
-impl From<EnumDefinition> for Definition {
-    fn from(value: EnumDefinition) -> Self {
-        Definition::Enum(value)
+impl From<EnumDef> for Def {
+    fn from(value: EnumDef) -> Self {
+        Def::Enum(value)
     }
 }
 
-impl From<StructDefinition> for Definition {
-    fn from(value: StructDefinition) -> Self {
-        Definition::Struct(value)
+impl From<StructDef> for Def {
+    fn from(value: StructDef) -> Self {
+        Def::Struct(value)
     }
 }
 
@@ -65,10 +65,10 @@ pub enum Root {
 impl Root {
     pub fn visibility(&self) -> Visibility {
         match self {
-            Root::Event(event) => event.declaration.visibility,
+            Root::Event(event) => event.decl.visibility,
             Root::Rule(rule) => rule.visibility,
-            Root::Enum(r#enum) => r#enum.declaration.visibility,
-            Root::Struct(r#struct) => r#struct.declaration.visibility,
+            Root::Enum(r#enum) => r#enum.decl.visibility,
+            Root::Struct(r#struct) => r#struct.decl.visibility,
             Root::Import(_) => Visibility::Private, // imports should not appear as public
         }
     }
@@ -85,7 +85,7 @@ pub enum TypeRoot {
 pub enum Action {
     CallChain(CallChain),
     Assignment(CallChain, CallChain, Option<AssignMod>),
-    Property(PropertyDeclaration),
+    Property(PropertyDecl),
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -115,7 +115,7 @@ impl IntoIterator for Types {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct EventDeclaration {
+pub struct EventDecl {
     pub visibility: Visibility,
     pub is_native: SpannedBool,
     pub name: Ident,
@@ -123,34 +123,34 @@ pub struct EventDeclaration {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct EventDefinition {
-    pub by: Option<(Ident, CallArguments)>,
-    pub arguments: Spanned<DeclaredArguments>,
+pub struct EventDef {
+    pub by: Option<(Ident, CallArgs)>,
+    pub args: Spanned<DeclArgs>,
     pub conditions: Conditions,
     pub actions: Actions,
 }
 
-impl TryFrom<Definition> for EventDefinition {
+impl TryFrom<Def> for EventDef {
     type Error = &'static str;
 
-    fn try_from(value: Definition) -> Result<Self, Self::Error> {
+    fn try_from(value: Def) -> Result<Self, Self::Error> {
         match value {
-            Definition::Event(event) => Ok(event),
-            Definition::Enum(_) => Err("Cannot convert enum to event definition"),
-            Definition::Struct(_) => Err("Cannot convert struct to event definition"),
+            Def::Event(event) => Ok(event),
+            Def::Enum(_) => Err("Cannot convert enum to event definition"),
+            Def::Struct(_) => Err("Cannot convert struct to event definition"),
         }
     }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Event {
-    pub declaration: EventDeclaration,
-    pub definition: EventDefinition,
+    pub decl: EventDecl,
+    pub def: EventDef,
     pub span: Span,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct PropertyDeclaration {
+pub struct PropertyDecl {
     pub is_native: SpannedBool,
     pub use_restriction: Spanned<UseRestriction>,
     pub name: Ident,
@@ -158,14 +158,14 @@ pub struct PropertyDeclaration {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct FunctionDeclaration {
+pub struct FunctionDecl {
     pub is_native: SpannedBool,
     pub name: Ident,
-    pub arguments: Spanned<DeclaredArguments>,
+    pub args: Spanned<DeclArgs>,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct StructDeclaration {
+pub struct StructDecl {
     pub visibility: Visibility,
     pub is_open: SpannedBool,
     pub is_native: SpannedBool,
@@ -174,19 +174,19 @@ pub struct StructDeclaration {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct StructDefinition {
+pub struct StructDef {
     pub properties: PropertyDecls,
     pub functions: FunctionDecls,
 }
 
-impl TryFrom<Definition> for StructDefinition {
+impl TryFrom<Def> for StructDef {
     type Error = &'static str;
 
-    fn try_from(value: Definition) -> Result<Self, Self::Error> {
+    fn try_from(value: Def) -> Result<Self, Self::Error> {
         match value {
-            Definition::Event(_) => Err("Cannot convert event to struct definition"),
-            Definition::Enum(_) => Err("Cannot convert enum to struct definition"),
-            Definition::Struct(r#struct) => Ok(r#struct),
+            Def::Event(_) => Err("Cannot convert event to struct definition"),
+            Def::Enum(_) => Err("Cannot convert enum to struct definition"),
+            Def::Struct(r#struct) => Ok(r#struct),
         }
     }
 }
@@ -200,13 +200,13 @@ pub enum Visibility {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Struct {
-    pub declaration: StructDeclaration,
-    pub definition: StructDefinition,
+    pub decl: StructDecl,
+    pub def: StructDef,
     pub span: Span,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct EnumDeclaration {
+pub struct EnumDecl {
     pub visibility: Visibility,
     pub is_native: SpannedBool,
     pub name: Ident,
@@ -214,31 +214,31 @@ pub struct EnumDeclaration {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct EnumDefinition {
+pub struct EnumDef {
     pub constants: Vec<Ident>,
 }
 
-impl TryFrom<Definition> for EnumDefinition {
+impl TryFrom<Def> for EnumDef {
     type Error = &'static str;
 
-    fn try_from(value: Definition) -> Result<Self, Self::Error> {
+    fn try_from(value: Def) -> Result<Self, Self::Error> {
         match value {
-            Definition::Event(_) => Err("Cannot convert event to enum definition"),
-            Definition::Enum(r#enum) => Ok(r#enum),
-            Definition::Struct(_) => Err("Cannot convert struct to enum definition"),
+            Def::Event(_) => Err("Cannot convert event to enum definition"),
+            Def::Enum(r#enum) => Ok(r#enum),
+            Def::Struct(_) => Err("Cannot convert struct to enum definition"),
         }
     }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Enum {
-    pub declaration: EnumDeclaration,
-    pub definition: EnumDefinition,
+    pub decl: EnumDecl,
+    pub def: EnumDef,
     pub span: Span,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct DeclaredArgument {
+pub struct DeclArg {
     pub position: usize,
     pub name: Ident,
     pub types: Types,
@@ -251,7 +251,7 @@ pub struct Rule {
     pub visibility: Visibility,
     pub name: Spanned<Text>,
     pub event: Ident,
-    pub arguments: CallArguments,
+    pub args: CallArgs,
     pub conditions: Conditions,
     pub actions: Actions,
 }
@@ -267,7 +267,7 @@ pub struct Block {
 /// ## Example
 /// - (Team.All, Hero.Ana)
 /// - (player, 100)
-pub type CallArguments = Spanned<Vec<CallArgument>>;
+pub type CallArgs = Spanned<Vec<CallArg>>;
 
 /// A call argument is either identified by name or position.
 ///
@@ -277,17 +277,17 @@ pub type CallArguments = Spanned<Vec<CallArgument>>;
 /// ### By position
 ///  - (1, 2, 3)
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub enum CallArgument {
+pub enum CallArg {
     Named(Ident, CallChain, Span),
     Pos(CallChain),
 }
 
 pub type Expr = crate::compiler::Expr<CallChain>;
 
-impl CallArgument {
+impl CallArg {
     pub fn call_chain(self) -> CallChain {
         match self {
-            CallArgument::Named(_, call_chain, _) | CallArgument::Pos(call_chain) => call_chain,
+            CallArg::Named(_, call_chain, _) | CallArg::Pos(call_chain) => call_chain,
         }
     }
 }
@@ -306,7 +306,7 @@ impl From<Box<Call>> for CallChain {
             Call::Ident(ref ident) => ident.span,
             Call::String(_, ref span) => *span,
             Call::Number(_, ref span) => *span,
-            Call::IdentArguments { ref span, .. } => *span,
+            Call::IdentArgs { ref span, .. } => *span,
         };
         Spanned {
             value: vec![value],
@@ -317,7 +317,7 @@ impl From<Box<Call>> for CallChain {
 
 /// Represent a single ident with the intention to use it as a call.
 /// A call here means like referencing a variable or function.
-/// A call us usually not alone and is mostly user within [CallChain] and [CallArguments]
+/// A call us usually not alone and is mostly user within [CallChain] and [CallArgs]
 /// ## Example
 /// - Team
 /// - All
@@ -326,14 +326,14 @@ impl From<Box<Call>> for CallChain {
 pub enum Call {
     // TODO Use doctests here to ensure valid examples
     /// An ident followed by call arguments.
-    /// [CallArguments] might be recursive, so [Call] must be used behind a pointer.
+    /// [CallArgs] might be recursive, so [Call] must be used behind a pointer.
     /// ## Example
     /// - heal(player, 100)
     /// - display(player, message)
     /// - heal(player, message = 100)
-    IdentArguments {
+    IdentArgs {
         name: Ident,
-        args: CallArguments,
+        args: CallArgs,
         span: Span,
     },
     /// An ident.
