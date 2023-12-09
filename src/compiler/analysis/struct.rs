@@ -1,9 +1,7 @@
 use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::def::DefQuery;
 use crate::compiler::analysis::interner::IntoInternId;
-use crate::compiler::cir::{
-    FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, StructDeclarationId, Type,
-};
+use crate::compiler::cir::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, Type};
 use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
 
@@ -32,7 +30,7 @@ pub(super) fn query_struct_decl(
 
 pub(super) fn query_struct_functions(
     db: &dyn DeclQuery,
-    struct_decl_id: StructDeclarationId,
+    struct_decl_id: cir::StructDeclarationId,
     functions: cst::FunctionDecls,
 ) -> QueryTrisult<FunctionDeclIds> {
     functions
@@ -44,7 +42,7 @@ pub(super) fn query_struct_functions(
 
 pub(super) fn query_struct_properties(
     db: &dyn DeclQuery,
-    struct_decl_id: StructDeclarationId,
+    struct_decl_id: cir::StructDeclarationId,
     properties: cst::PropertyDecls,
 ) -> QueryTrisult<PropertyDeclIds> {
     let struct_type = Type::Struct(struct_decl_id);
@@ -58,7 +56,7 @@ pub(super) fn query_struct_properties(
 
 pub(super) fn query_struct_def(
     db: &dyn DefQuery,
-    struct_decl_id: StructDeclarationId,
+    struct_decl_id: cir::StructDeclarationId,
     struct_def: cst::StructDefinition,
 ) -> QueryTrisult<cir::StructDefinition> {
     db.query_struct_functions(struct_decl_id, struct_def.functions)

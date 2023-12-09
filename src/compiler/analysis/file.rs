@@ -18,6 +18,16 @@ pub enum DefKey {
     Enum(EnumDeclarationId),
 }
 
+pub(super) fn query_struct_decls(
+    db: &dyn DeclQuery,
+    path: cst::Path,
+) -> QueryTrisult<Vec<cst::StructDeclaration>> {
+    let mut errors = Errors::default();
+    let ast: cst::Ast = tri!(db.query_file(path, false), errors);
+
+    errors.value(Vec::new())
+}
+
 pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, StructDefinition> {
     db.query_ast_def_map()
         .into_iter()

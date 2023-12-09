@@ -265,10 +265,20 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
     let property = property().map(StructMember::Property);
     let member_function = member_function.map(StructMember::Function);
 
-    visibility()
+    let struct_start = visibility()
         .then(open_or_not())
         .then(native_or_not())
         .then_ignore(just(Token::Struct))
+        .or_not()
+        .map_with_span(|it, span| match it {
+            Some(it) => it,
+            None => (
+                (Visibility::Public, Some(Spanned::new((), span))),
+                Some(Spanned::new((), span)),
+            ),
+        });
+
+    struct_start
         .then(ident())
         .map_with_span(
             |(((visibility, is_open), is_native), name), span| StructDeclaration {

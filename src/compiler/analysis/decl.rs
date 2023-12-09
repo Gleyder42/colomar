@@ -49,6 +49,10 @@ pub trait DeclQuery: Interner + StringInterner {
     #[salsa::invoke(file::query_file)]
     fn query_file(&self, path: cst::Path, include_only_public: bool) -> QueryTrisult<Ast>;
 
+    /// Impl [file::query_struct_decls]
+    #[salsa::invoke(file::query_struct_decls)]
+    fn query_struct_decls(&self, path: cst::Path) -> QueryTrisult<Vec<cst::StructDeclaration>>;
+
     /// Impl: [file::query_type_items]
     #[salsa::invoke(file::query_type_items)]
     fn query_type_items(&self) -> Vec<TypeRoot>;
