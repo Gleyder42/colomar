@@ -9,3 +9,7 @@ pub native enum Slot {
 pub native event OngoingEachPlayer(team: Team = Team.All, heroSlot: Hero | Slot = Slot.All) {
     native val player: Player;
 }
+
+pub native event OngoingGlobal() {
+
+}

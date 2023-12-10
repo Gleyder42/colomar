@@ -3,9 +3,27 @@ import std;
 Player {
     var counter: num;
 
+    var currentAimSpeed: num;
+    var currentMoveSpeed: num;
+
     var a: bool;
     var b: bool;
     var c: bool;
+}
+
+rule "Init" OngoingEachPlayer() {
+    player.currentAimSpeed = 100;
+    player.currentMoveSpeed = 100;
+}
+
+rule "Reduce Aim Speed" OngoingEachPlayer() {
+    cond player.isInAir;
+
+    player.currentAimSpeed -= 10;
+    player.currentMoveSpeed += 10;
+    player.aimSpeed = player.currentAimSpeed;
+    player.moveSpeed = player.currentMoveSpeed;
+    player.sendSmallMessage("Aim slower");
 }
 
 rule "Hello World" OngoingEachPlayer() {

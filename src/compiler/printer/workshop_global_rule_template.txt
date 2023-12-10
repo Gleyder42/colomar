@@ -1,0 +1,17 @@
+rule("{rule}")
+{{
+	event
+	{{
+		{event};
+	}}
+
+	conditions
+	{{
+{conditions}
+	}}
+
+	actions
+	{{
+{actions}
+	}}
+}}

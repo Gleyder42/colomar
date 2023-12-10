@@ -145,8 +145,8 @@ impl<T: AsRef<str>> From<T> for Ident {
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Event {
     pub name: Ident,
-    pub team: Ident,
-    pub hero_slot: Ident,
+    pub team: Option<Ident>,
+    pub hero_slot: Option<Ident>,
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]

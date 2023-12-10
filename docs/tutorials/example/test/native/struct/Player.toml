@@ -1,7 +1,10 @@
 [properties]
 isReloading = "Is Reloading($caller$)"
 damageDealt = "Set Damage Dealt($caller$, $value$)"
+aimSpeed = "Set Aim Speed($caller$, $value$)"
+moveSpeed = "Set Move Speed($caller$, $value$)"
 eyePos = "Eye Position($caller$)"
+isInAir = "Is In Air($caller$)"
 
 [functions]
 sendSmallMessage = "Small Message($caller$, $message$)"

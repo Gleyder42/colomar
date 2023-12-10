@@ -48,15 +48,25 @@ fn query_workshop_output(db: &dyn PrinterQuery) -> QueryTrisult<String> {
 }
 
 fn query_wst_rule_to_string(db: &dyn PrinterQuery, rule: wst::Rule) -> String {
-    format!(
-        include_str!("workshop_rule_template.txt"),
-        rule = rule.title.name(db),
-        event = rule.event.name,
-        team = rule.event.team,
-        hero_slot = rule.event.hero_slot,
-        conditions = join_to_string(rule.conditions),
-        actions = join_to_string(rule.actions)
-    )
+    if rule.event.hero_slot.is_none() && rule.event.team.is_none() {
+        format!(
+            include_str!("workshop_global_rule_template.txt"),
+            rule = rule.title.name(db),
+            event = rule.event.name,
+            conditions = join_to_string(rule.conditions),
+            actions = join_to_string(rule.actions)
+        )
+    } else {
+        format!(
+            include_str!("workshop_rule_template.txt"),
+            rule = rule.title.name(db),
+            event = rule.event.name,
+            team = rule.event.team.unwrap(),
+            hero_slot = rule.event.hero_slot.unwrap(),
+            conditions = join_to_string(rule.conditions),
+            actions = join_to_string(rule.actions)
+        )
+    }
 }
 
 fn join_to_string<T: ToString>(iter: impl IntoIterator<Item = T>) -> String {
@@ -69,6 +79,8 @@ fn join_to_string<T: ToString>(iter: impl IntoIterator<Item = T>) -> String {
         })
         .collect::<Vec<_>>()
         .join(";\n");
-    string.push(';');
+    if string.len() > 0 {
+        string.push(';');
+    }
     string
 }

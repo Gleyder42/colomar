@@ -69,8 +69,12 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
                 title: rule.title,
                 event: wst::Event {
                     name: event_name.into(),
-                    team: db.query_const_eval(args.pop_front().unwrap()).unwrap_ok(),
-                    hero_slot: db.query_const_eval(args.pop_front().unwrap()).unwrap_ok(),
+                    team: args
+                        .pop_front()
+                        .map(|it| db.query_const_eval(it).unwrap_ok()),
+                    hero_slot: args
+                        .pop_front()
+                        .map(|it| db.query_const_eval(it).unwrap_ok()),
                 },
                 actions,
                 conditions,

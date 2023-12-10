@@ -9,6 +9,9 @@ pub partial native struct Player {
     native getvar isReloading: bool;
     native setvar damageDealt: num;
     native getvar eyePos: vector;
+    native getvar isInAir: bool;
+    native setvar aimSpeed: num;
+    native setvar moveSpeed: num;
 
     native fn sendSmallMessage(message: string);
 
