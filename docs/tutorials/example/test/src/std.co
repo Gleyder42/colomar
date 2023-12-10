@@ -4,17 +4,11 @@ pub native struct bool { }
 pub native struct string { }
 pub native struct num { }
 
-pub open native struct Player {
-
-    var counter: num;
+pub partial native struct Player {
 
     native getvar isReloading: bool;
     native setvar damageDealt: num;
     native getvar eyePos: vector;
-
-    var a: bool;
-    var b: bool;
-    var c: bool;
 
     native fn sendSmallMessage(message: string);
 

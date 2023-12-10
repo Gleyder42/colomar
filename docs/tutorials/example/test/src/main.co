@@ -1,5 +1,13 @@
 import std;
 
+Player {
+    var counter: num;
+
+    var a: bool;
+    var b: bool;
+    var c: bool;
+}
+
 rule "Hello World" OngoingEachPlayer() {
     cond (player.a && player.b) || player.c;
 

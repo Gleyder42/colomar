@@ -5,7 +5,7 @@ use crate::compiler::cst::Path;
 use crate::compiler::span::Span;
 use crate::compiler::trisult::Trisult;
 use crate::compiler::wst::partial::SaturateError;
-use crate::compiler::{Ident, QueryTrisult, Text};
+use crate::compiler::{Ident, QueryTrisult, StructId, Text};
 use crate::query_error;
 use either::Either;
 use std::borrow::Cow;
@@ -17,7 +17,7 @@ pub enum CompilerError {
         first: Ident,
         second: Ident,
     },
-    CannotFindDef(Either<StructDeclId, EventDeclId>),
+    CannotFindDef(Either<StructId, EventDeclId>),
     CannotFindIdent(Ident),
     NotA(&'static str, Ident, Ident),
     // TODO Dont use either here, make an own type
@@ -46,6 +46,7 @@ pub enum CompilerError {
     CannotEvalAsConst,
     WrongTypeInBinaryExpr(AValue, AValue),
     CannotFindFile(Path),
+    CannotFindStruct(Text),
 }
 
 impl CompilerError {
@@ -72,6 +73,7 @@ impl CompilerError {
             CompilerError::CannotEvalAsConst => 18,
             CompilerError::WrongTypeInBinaryExpr(_, _) => 19,
             CompilerError::CannotFindFile(_) => 20,
+            CompilerError::CannotFindStruct(_) => 21,
         }
     }
 }

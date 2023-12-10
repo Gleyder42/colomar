@@ -20,6 +20,15 @@ pub enum Def {
     Struct(StructDef),
 }
 
+impl Def {
+    pub fn expect_struct(self, message: &'static str) -> StructDef {
+        match self {
+            Def::Struct(def) => def,
+            Def::Enum(_) | Def::Event(_) => panic!("{message}"),
+        }
+    }
+}
+
 impl From<EventDef> for Def {
     fn from(value: EventDef) -> Self {
         Def::Event(value)
@@ -166,7 +175,7 @@ pub struct FunctionDecl {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct StructDecl {
     pub visibility: Visibility,
-    pub is_open: SpannedBool,
+    pub is_partial: SpannedBool,
     pub is_native: SpannedBool,
     pub name: Ident,
     pub span: Span,

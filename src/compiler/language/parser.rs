@@ -53,7 +53,7 @@ fn declared_arg<'src>() -> impl Parser<'src, ParserInput, Spanned<Vec<DeclArg>>,
         .map_with_span(Spanned::new)
 }
 
-fn native_or_not<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+fn native<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
     just(Token::Native)
         .or_not()
         .map_with_span(Spanned::ignore_value)
@@ -66,7 +66,7 @@ fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
         .or_not();
 
     visibility()
-        .then(native_or_not())
+        .then(native())
         .then_ignore(just(Token::Event))
         .then(ident())
         .map_with_span(|((visibility, is_native), name), span| EventDecl {
@@ -118,7 +118,7 @@ fn r#enum<'src>() -> impl Parser<'src, ParserInput, Enum, ParserExtra<'src>> {
         .collect::<Vec<_>>();
 
     visibility()
-        .then(native_or_not())
+        .then(native())
         .then_ignore(just(Token::Enum))
         .then(ident())
         .map_with_span(|((visibility, is_native), name), span| EnumDecl {
@@ -144,7 +144,7 @@ fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDecl, ParserExtra<
     );
     let use_restriction = choice(use_restriction_tokens).map_with_span(Spanned::new);
 
-    native_or_not()
+    native()
         .then(use_restriction)
         .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
@@ -223,8 +223,8 @@ fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>>
     })
 }
 
-fn open_or_not<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
-    just(Token::Open)
+fn partial<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    just(Token::Partial)
         .or_not()
         .map_with_span(Spanned::ignore_value)
 }
@@ -245,7 +245,7 @@ fn import<'src>() -> impl Parser<'src, ParserInput, Import, ParserExtra<'src>> {
 }
 
 fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>> {
-    let member_function = native_or_not()
+    let member_function = native()
         .then_ignore(just(Token::Fn))
         .then(ident())
         .then(declared_arg())
@@ -264,8 +264,8 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
     let member_function = member_function.map(StructMember::Function);
 
     let struct_start = visibility()
-        .then(open_or_not())
-        .then(native_or_not())
+        .then(partial())
+        .then(native())
         .then_ignore(just(Token::Struct))
         .or_not()
         .map_with_span(|it, span| match it {
@@ -279,9 +279,9 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
     struct_start
         .then(ident())
         .map_with_span(
-            |(((visibility, is_open), is_native), name), span| StructDecl {
+            |(((visibility, is_partial), is_native), name), span| StructDecl {
                 visibility,
-                is_open,
+                is_partial,
                 is_native,
                 name,
                 span,

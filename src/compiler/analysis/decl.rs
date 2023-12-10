@@ -7,12 +7,13 @@ use crate::compiler::cir::{
 };
 use crate::compiler::cst::{Actions, TypeRoot};
 use crate::compiler::error::CompilerError;
-use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
+use crate::compiler::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, Text};
 
 use crate::compiler::span::{Spanned, StringInterner};
 use cir::DeclArgId;
 use cst::Ast;
 use hashlink::LinkedHashMap;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -50,8 +51,12 @@ pub trait DeclQuery: Interner + StringInterner {
     fn query_file(&self, path: cst::Path, include_only_public: bool) -> QueryTrisult<Ast>;
 
     /// Impl [file::query_struct_decls]
-    #[salsa::invoke(file::query_struct_decls)]
-    fn query_struct_decls(&self, path: cst::Path) -> QueryTrisult<Vec<cst::StructDecl>>;
+    #[salsa::invoke(file::query_structs)]
+    fn query_structs(&self) -> QueryTrisult<HashMap<Text, SmallVec<[cst::Struct; 1]>>>;
+
+    /// Impl [file::query_struct_by_name]
+    #[salsa::invoke(file::query_struct_by_name)]
+    fn query_struct_by_name(&self, text: Text) -> QueryTrisult<SmallVec<[cst::Struct; 1]>>;
 
     /// Impl: [file::query_type_items]
     #[salsa::invoke(file::query_type_items)]
@@ -66,7 +71,7 @@ pub trait DeclQuery: Interner + StringInterner {
     /// instead
     /// Impl: [file::query_ast_def_map]
     #[salsa::invoke(file::query_ast_def_map)]
-    fn query_ast_def_map(&self) -> HashMap<DefKey, cst::Def>;
+    fn query_ast_def_map(&self) -> SVMultiMap<DefKey, cst::Def, 1>;
 
     /// Impl: [file::query_ast_event_def_map]
     #[salsa::invoke(file::query_ast_event_def_map)]
@@ -74,7 +79,7 @@ pub trait DeclQuery: Interner + StringInterner {
 
     /// Impl: [file::query_ast_struct_def_map]
     #[salsa::invoke(file::query_ast_struct_def_map)]
-    fn query_ast_struct_def_map(&self) -> HashMap<DefKey, cst::StructDef>;
+    fn query_ast_struct_def_map(&self) -> SVMultiMap<DefKey, cst::StructDef, 1>;
 
     /// Queries an event definition my even declaration id
     /// Impl: [file::query_ast_event_def]
@@ -83,7 +88,10 @@ pub trait DeclQuery: Interner + StringInterner {
 
     /// Impl: [file::query_ast_struct_def]
     #[salsa::invoke(file::query_ast_struct_def)]
-    fn query_ast_struct_def(&self, struct_decl_id: StructDeclId) -> QueryTrisult<cst::StructDef>;
+    fn query_ast_struct_def(
+        &self,
+        struct_id: StructId,
+    ) -> QueryTrisult<SmallVec<[cst::StructDef; 1]>>;
 
     // Arg
 

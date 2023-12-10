@@ -2,9 +2,12 @@ use crate::compiler::span::StringId;
 use crate::compiler::trisult::Trisult;
 use error::CompilerError;
 use hashlink::LinkedHashMap;
+use smallvec::SmallVec;
 use span::Span;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::hash::Hash;
 
 pub mod analysis;
 pub mod cir;
@@ -37,6 +40,66 @@ pub const PROPERTY_DECLS_LEN: usize = 4;
 pub const FUNCTIONS_DECLS_LEN: usize = 6;
 pub const ENUM_CONSTANTS_LEN: usize = 8;
 pub const CALLED_ARGS_LEN: usize = DECL_ARGS_LEN;
+pub type StructId = Text;
+pub type SVMultiMap<K, V, const N: usize> = HashMap<K, SmallVec<[V; N]>>;
+
+pub struct SVMultiMapWrapper<K, V, const N: usize>(SVMultiMap<K, V, N>);
+
+impl<K, V, const N: usize> FromIterator<(K, V)> for SVMultiMapWrapper<K, V, N>
+where
+    K: Eq + Hash,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut map = SVMultiMap::new();
+
+        for (key, value) in iter {
+            map.entry(key)
+                .or_insert(SmallVec::<[V; N]>::new())
+                .push(value);
+        }
+
+        SVMultiMapWrapper(map)
+    }
+}
+
+impl<K, V, const N: usize> FromIterator<(K, SmallVec<[V; N]>)> for SVMultiMapWrapper<K, V, N>
+where
+    K: Eq + Hash,
+{
+    fn from_iter<T: IntoIterator<Item = (K, SmallVec<[V; N]>)>>(iter: T) -> Self {
+        let mut map = SVMultiMap::new();
+
+        for (key, mut value) in iter {
+            map.entry(key)
+                .or_insert(SmallVec::<[V; N]>::new())
+                .append(&mut value)
+        }
+
+        SVMultiMapWrapper(map)
+    }
+}
+
+impl<K, V, const N: usize> Into<SVMultiMap<K, V, N>> for SVMultiMapWrapper<K, V, N> {
+    fn into(self) -> SVMultiMap<K, V, N> {
+        self.0
+    }
+}
+
+pub fn flatten<LR, L, R, const LN: usize, const RN: usize>(
+    iter: impl IntoIterator<Item = LR>,
+    splitter: impl Fn(LR) -> (SmallVec<[L; LN]>, SmallVec<[R; RN]>),
+) -> (SmallVec<[L; LN]>, SmallVec<[R; RN]>) {
+    let mut left_vec: SmallVec<[L; LN]> = SmallVec::new();
+    let mut right_vec: SmallVec<[R; RN]> = SmallVec::new();
+
+    for lr in iter {
+        let (mut left, mut right) = splitter(lr);
+        left_vec.append(&mut left);
+        right_vec.append(&mut right);
+    }
+
+    (left_vec, right_vec)
+}
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {

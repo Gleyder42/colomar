@@ -6,9 +6,10 @@ use crate::compiler::cir::{
 };
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
-use crate::compiler::{HashableMap, Ident, QueryTrisult, Text};
+use crate::compiler::{flatten, HashableMap, Ident, QueryTrisult, StructId, Text};
 use crate::query_error;
 
+use crate::compiler::cst::{FunctionDecls, PropertyDecls};
 use colomar_macros::Interned;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
@@ -20,7 +21,10 @@ pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> QueryTrisult<Namespace
 
     db.query_type_map()
         .into_iter()
-        .map(|(ident, r#type)| namespace.add(ident, RValue::Type(r#type), db))
+        .map(|(ident, r#type)| {
+            let allow_duplicates = r#type.is_partial(db).unwrap_or(false);
+            namespace.add(allow_duplicates, ident, RValue::Type(r#type), db)
+        })
         .collect::<QueryTrisult<Vec<()>>>()
         .map(|_| Rc::new(namespace))
         .intern(db)
@@ -46,6 +50,7 @@ pub(super) fn query_event_namespace(
                 .into_iter()
                 .map(|property_decl| {
                     namespace.add(
+                        false,
                         property_decl.name.clone(),
                         RValue::Property(property_decl.intern(db)),
                         db,
@@ -130,36 +135,43 @@ pub(super) fn query_struct_namespace(
     db: &dyn DeclQuery,
     struct_decl_id: StructDeclId,
 ) -> QueryTrisult<NamespaceId> {
-    db.query_ast_struct_def(struct_decl_id)
-        .flat_map(|struct_def| {
-            Trisult::Ok(Namespace::new())
-                .fold_with(
-                    db.query_struct_properties(struct_decl_id, struct_def.properties),
-                    |mut namespace, property_id| {
-                        let property: PropertyDecl = db.lookup_intern_property_decl(property_id);
-                        let result = namespace.add(
-                            property.name.clone(),
-                            RValue::Property(property.intern(db)),
-                            db,
-                        );
-                        result.map(|_| namespace).into()
-                    },
-                )
-                .fold_with(
-                    db.query_struct_functions(struct_decl_id, struct_def.functions),
-                    |mut namespace, function_id| {
-                        let function: FunctionDecl = db.lookup_intern_function_decl(function_id);
-                        let result = namespace.add(
-                            function.name.clone(),
-                            RValue::Function(function.intern(db)),
-                            db,
-                        );
-                        result.map(|_| namespace).into()
-                    },
-                )
-                .map(Rc::new)
-                .intern(db)
-        })
+    let struct_id: StructId = db.lookup_intern_struct_decl(struct_decl_id).name.value;
+
+    db.query_ast_struct_def(struct_id).flat_map(|struct_def| {
+        println!("{}", struct_def.len());
+        let (properties, functions): (PropertyDecls, FunctionDecls) =
+            flatten(struct_def, |it| (it.properties, it.functions));
+
+        Trisult::Ok(Namespace::new())
+            .fold_with(
+                db.query_struct_properties(struct_decl_id, properties),
+                |mut namespace, property_id| {
+                    let property: PropertyDecl = db.lookup_intern_property_decl(property_id);
+                    let result = namespace.add(
+                        true,
+                        property.name.clone(),
+                        RValue::Property(property.intern(db)),
+                        db,
+                    );
+                    result.map(|_| namespace).into()
+                },
+            )
+            .fold_with(
+                db.query_struct_functions(struct_decl_id, functions),
+                |mut namespace, function_id| {
+                    let function: FunctionDecl = db.lookup_intern_function_decl(function_id);
+                    let result = namespace.add(
+                        true,
+                        function.name.clone(),
+                        RValue::Function(function.intern(db)),
+                        db,
+                    );
+                    result.map(|_| namespace).into()
+                },
+            )
+            .map(Rc::new)
+            .intern(db)
+    })
 }
 
 pub(super) fn query_namespaced_rvalue(
@@ -316,21 +328,24 @@ impl Namespace {
         }
     }
 
+    /// Ignore duplicates to support partial structs
     fn add<I: Interner + ?Sized>(
         &mut self,
+        allow_duplicates: bool,
         ident: Ident,
         rvalue: RValue,
         db: &I,
     ) -> Result<(), CompilerError> {
-        match self.contains(&ident) {
-            Some(root) => {
+        match (self.contains(&ident), allow_duplicates) {
+            (Some(root), false) => {
                 CompilerError::DuplicateIdent {
                     first: root.name(db), // TODO How to deal with errors?
                     second: ident,
                 }
                 .into()
             }
-            None => {
+            (Some(_), true) => Ok(()),
+            (None, _) => {
                 self.map.insert(ident.value.clone(), rvalue);
                 Ok(())
             }

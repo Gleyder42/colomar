@@ -14,7 +14,7 @@ pub enum Token {
     Native,
     Enum,
     By,
-    Open, // TODO Rename to partial
+    Partial,
     Struct,
     GetVar,
     SetVar,
@@ -41,7 +41,7 @@ impl Display for Token {
             Token::Enum => write!(f, "enum"),
             Token::By => write!(f, "by"),
             Token::Struct => write!(f, "struct"),
-            Token::Open => write!(f, "open"),
+            Token::Partial => write!(f, "partial"),
             Token::GetVar => write!(f, "getvar"),
             Token::SetVar => write!(f, "setvar"),
             Token::Fn => write!(f, "fn"),
@@ -84,7 +84,7 @@ pub fn lexer<'src>(
         "event" => Token::Event,
         "enum" => Token::Enum,
         "by" => Token::By,
-        "open" => Token::Open,
+        "partial" => Token::Partial,
         "struct" => Token::Struct,
         "getvar" => Token::GetVar,
         "setvar" => Token::SetVar,
@@ -173,7 +173,8 @@ mod tests {
 
     #[test]
     fn test_keyword_lexer() {
-        let code = "rule cond native event enum by open struct getvar setvar val var fn type pub";
+        let code =
+            "rule cond native event enum by partial struct getvar setvar val var fn type pub";
         let interner = TestDatabase::default();
         let span_source_id = interner.intern_str("test_end_is_consumed");
 
@@ -185,7 +186,7 @@ mod tests {
             Token::Event,
             Token::Enum,
             Token::By,
-            Token::Open,
+            Token::Partial,
             Token::Struct,
             Token::GetVar,
             Token::SetVar,

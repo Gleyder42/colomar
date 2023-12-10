@@ -5,15 +5,33 @@ use crate::compiler::cir::{FunctionDecl, FunctionDeclIds, PropertyDecl, Property
 use crate::compiler::QueryTrisult;
 use crate::compiler::{cir, cst, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
 
+use crate::compiler::trisult::Errors;
+use crate::tri;
 use smallvec::SmallVec;
 
 pub(super) fn query_struct(db: &dyn DefQuery, r#struct: cst::Struct) -> QueryTrisult<cir::Struct> {
-    let struct_decl = db.query_struct_decl(r#struct.decl);
-    db.query_struct_def(struct_decl, r#struct.def)
-        .map(|struct_def| cir::Struct {
-            decl: struct_decl,
-            def: struct_def,
-        })
+    let mut errors = Errors::default();
+
+    let structs = tri!(db.query_struct_by_name(r#struct.decl.name.value), errors);
+
+    let mut decls = SmallVec::with_capacity(structs.len());
+    let mut defs = SmallVec::with_capacity(structs.len());
+
+    for r#struct in structs {
+        let struct_decl_id = db.query_struct_decl(r#struct.decl);
+        decls.push(struct_decl_id);
+
+        defs.push(tri!(
+            db.query_struct_def(struct_decl_id, r#struct.def),
+            errors
+        ));
+    }
+
+    let r#struct = cir::Struct {
+        decl: decls,
+        def: defs,
+    };
+    errors.value(r#struct)
 }
 
 pub(super) fn query_struct_decl(
@@ -22,7 +40,7 @@ pub(super) fn query_struct_decl(
 ) -> cir::StructDeclId {
     cir::StructDecl {
         name: r#struct.name,
-        is_open: r#struct.is_open,
+        is_partial: r#struct.is_partial,
         is_native: r#struct.is_native,
     }
     .intern(db)

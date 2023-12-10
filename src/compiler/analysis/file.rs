@@ -4,48 +4,84 @@ use crate::compiler::cst::{Def, EventDef, Root, StructDef, TypeRoot, Visibility}
 use crate::compiler::error::CompilerError;
 
 use crate::compiler::trisult::{Errors, IntoTrisult};
-use crate::compiler::{cst, QueryTrisult};
+use crate::compiler::{cst, Ident, QueryTrisult, SVMultiMap, SVMultiMapWrapper, StructId, Text};
 use crate::tri;
 use either::Either;
+use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum DefKey {
     Event(EventDeclId),
-    Struct(StructDeclId),
+    Struct(StructId),
     Enum(EnumDeclId),
 }
 
-pub(super) fn query_struct_decls(
+pub(super) fn query_structs(
     db: &dyn DeclQuery,
-    path: cst::Path,
-) -> QueryTrisult<Vec<cst::StructDecl>> {
+) -> QueryTrisult<HashMap<Text, SmallVec<[cst::Struct; 1]>>> {
     let mut errors = Errors::default();
-    let ast: cst::Ast = tri!(db.query_file(path, false), errors);
+    let ast = db.query_main_file();
 
-    errors.value(Vec::new())
+    let struct_decls: Vec<_> = ast
+        .into_iter()
+        .filter_map(|element| match element {
+            Root::Struct(r#struct) => Some((r#struct.decl.name.value, r#struct)),
+            _ => None,
+        })
+        .collect();
+
+    let mut struct_map = HashMap::new();
+    for (text, r#struct) in struct_decls {
+        struct_map
+            .entry(text)
+            .or_insert(SmallVec::new())
+            .push(r#struct);
+    }
+
+    errors.value(struct_map)
 }
 
-pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, StructDef> {
+pub(super) fn query_struct_by_name(
+    db: &dyn DeclQuery,
+    text: Text,
+) -> QueryTrisult<SmallVec<[cst::Struct; 1]>> {
+    db.query_structs().flat_map(|mut struct_map| {
+        struct_map
+            .remove(&text)
+            .trisult_ok_or(CompilerError::CannotFindStruct(text))
+    })
+}
+
+pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> SVMultiMap<DefKey, StructDef, 1> {
     db.query_ast_def_map()
         .into_iter()
-        .filter_map(|(id, def)| {
-            let result: Result<StructDef, _> = def.try_into();
-            match result {
-                Ok(value) => Some((id, value)),
-                Err(_) => None,
+        .filter_map(|(def_key, def)| match def_key {
+            DefKey::Struct(_) => {
+                let defs: SmallVec<[StructDef; 1]> = def
+                    .into_iter()
+                    .map(|def| {
+                        const MESSAGE: &'static str =
+                            "Expected struct def because key was a struct key";
+                        def.expect_struct(MESSAGE)
+                    })
+                    .collect();
+
+                Some((def_key, defs))
             }
+            _ => None,
         })
-        .collect()
+        .collect::<SVMultiMapWrapper<DefKey, StructDef, 1>>()
+        .into()
 }
 
 pub(super) fn query_ast_struct_def(
     db: &dyn DeclQuery,
-    struct_decl_id: StructDeclId,
-) -> QueryTrisult<StructDef> {
+    struct_id: StructId,
+) -> QueryTrisult<SmallVec<[StructDef; 1]>> {
     db.query_ast_struct_def_map()
-        .remove(&DefKey::Struct(struct_decl_id))
-        .ok_or_else(|| CompilerError::CannotFindDef(Either::Left(struct_decl_id)))
+        .remove(&DefKey::Struct(struct_id))
+        .ok_or_else(|| CompilerError::CannotFindDef(Either::Left(struct_id)))
         .into()
 }
 
@@ -124,40 +160,48 @@ pub(super) fn query_type_items(db: &dyn DeclQuery) -> Vec<TypeRoot> {
         .collect()
 }
 
-pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Def> {
-    let map: HashMap<_, _> = db
-        .query_type_items()
+pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> SVMultiMap<DefKey, Def, 1> {
+    db.query_type_items()
         .into_iter()
         .filter_map(|root| match root {
             TypeRoot::Event(event) => {
                 let event_decl_id = db.query_event_decl(event.decl);
                 println!("Event {:?}", event_decl_id);
-                Some((DefKey::Event(event_decl_id), event.def.into()))
+                Some((DefKey::Event(event_decl_id), Def::Event(event.def)))
             }
             TypeRoot::Enum(r#enum) => {
                 let enum_decl_id = db.query_enum_decl(r#enum.decl);
                 println!("Enum {:?}", enum_decl_id);
-                Some((DefKey::Enum(enum_decl_id), r#enum.def.into()))
+                Some((DefKey::Enum(enum_decl_id), Def::Enum(r#enum.def)))
             }
             TypeRoot::Struct(r#struct) => {
+                let ident: StructId = r#struct.decl.name.value;
                 let struct_decl_id = db.query_struct_decl(r#struct.decl);
                 println!("Struct {:?}", struct_decl_id);
-                Some((DefKey::Struct(struct_decl_id), r#struct.def.into()))
+                Some((DefKey::Struct(ident), Def::Struct(r#struct.def)))
             }
         })
-        .collect();
-    map
+        .collect::<SVMultiMapWrapper<DefKey, Def, 1>>()
+        .into()
 }
 
 pub(super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, EventDef> {
     db.query_ast_def_map()
         .into_iter()
-        .filter_map(|(id, def)| {
-            let result: Result<EventDef, _> = def.try_into();
-            match result {
-                Ok(value) => Some((id, value)),
-                Err(_) => None,
+        .filter_map(|(def_key, mut def)| match def_key {
+            DefKey::Event(_) => {
+                assert_eq!(
+                    def.len(),
+                    1,
+                    "Events must have exactly 1 definitions, but had {}",
+                    def.len()
+                );
+
+                const MESSAGE: &str =
+                    "Current definition key is an event, but the definition itself was not";
+                Some((def_key, def.remove(0).try_into().expect(MESSAGE)))
             }
+            DefKey::Struct(_) | DefKey::Enum(_) => None,
         })
         .collect()
 }

@@ -361,6 +361,7 @@ fn print_errors(
             CompilerError::CannotEvalAsConst => {}
             CompilerError::WrongTypeInBinaryExpr(_, _) => {}
             CompilerError::CannotFindFile(_) => {}
+            CompilerError::CannotFindStruct(_) => {}
         }
     }
 }

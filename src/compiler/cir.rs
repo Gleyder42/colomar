@@ -1,3 +1,4 @@
+use crate::compiler::analysis::interner::Interner;
 use crate::compiler::span::{CopyRange, Span, Spanned, SpannedBool};
 use crate::compiler::{AssignMod, UseRestriction};
 use crate::compiler::{
@@ -84,13 +85,13 @@ pub struct PropertyDecl {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Struct {
-    pub decl: StructDeclId,
-    pub def: StructDef,
+    pub decl: SmallVec<[StructDeclId; 1]>,
+    pub def: SmallVec<[StructDef; 1]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct StructDecl {
-    pub is_open: SpannedBool,
+    pub is_partial: SpannedBool,
     pub is_native: SpannedBool,
     pub name: Ident,
 }
@@ -131,6 +132,19 @@ pub enum Type {
     Struct(StructDeclId),
     Event(EventDeclId),
     Unit,
+}
+
+impl Type {
+    pub fn is_partial(&self, db: &(impl Interner + ?Sized)) -> Option<bool> {
+        match self {
+            Type::Enum(_) => None,
+            Type::Struct(r#struct) => {
+                Some(db.lookup_intern_struct_decl(*r#struct).is_partial.is_some())
+            }
+            Type::Event(_) => None,
+            Type::Unit => None,
+        }
+    }
 }
 
 impl From<StructDeclId> for Type {
