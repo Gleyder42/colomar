@@ -1,12 +1,18 @@
 use crate::compiler::error::CompilerError;
-use crate::compiler::trisult::Trisult;
-use crate::compiler::{workshop, wst, HashableMap, QueryTrisult, Text2};
-use chumsky::prelude::end;
+use crate::compiler::trisult::{Errors, Trisult};
+use crate::compiler::workshop::lexer::Token;
+use crate::compiler::{trisult, workshop, wst, HashableMap, QueryTrisult, Text2};
+use crate::{query_error, tri};
+use chumsky::error::{Rich, RichReason};
+use chumsky::input::{Input, Stream};
+use chumsky::prelude::{end, SimpleSpan};
 use chumsky::Parser;
 use serde::Deserialize;
+use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
 
+mod error_reporter;
 pub mod wscript_impl;
 
 #[salsa::query_group(WorkshopScriptLoaderDatabase)]
@@ -165,35 +171,62 @@ fn query_wscript_impl(
     query: impl FnOnce() -> QueryTrisult<HashableMap<String, String>>,
     selection: Text2,
 ) -> QueryTrisult<wst::partial::Call> {
-    query()
-        .flat_map(|map| {
-            map.get(selection.as_str())
-                .ok_or(CompilerError::CannotFindNativeDef(selection))
-                .cloned()
-                .into()
-        })
-        .flat_map(|wscript| {
-            let tokens: Result<Trisult<Vec<_>, _>, _> = workshop::lexer::lexer()
+    let mut errors = Errors::new();
+    // wscript_map contains mappings from functions defined in colomar and their workshop counterpart.
+    let mut wscript_map = tri!(query(), errors);
+    let wscript: Trisult<_, _> = wscript_map
+        .remove(selection.as_str())
+        .ok_or(CompilerError::CannotFindNativeDef(selection))
+        .into();
+    let wscript = tri!(wscript, errors);
+
+    let (tokens, lexer_errors) = workshop::lexer::lexer()
+        .then_ignore(end())
+        .parse(wscript.as_str())
+        .into_output_errors();
+
+    // Convert zero or more lexer_errors into a byte vec, which will be printed directly to stdout.
+    // Essentially it will already print the errors in a nice readable format.
+    // We cannot provide CompilerError::WstLexerError with the lexer_errors directly, because they contain a lifetime.
+    // The reason is that errors may either borrow the underlying tokens or own them.
+    // Both is possible at compile time.
+    // Theoretically we should be able to force a static lifetime with unsafe code, to satisfy the compiler, as
+    // we can ensure that all data is owned by the Rich error.
+    // However, Rich error does not implement Hash.
+    // Therefore the errors are now nicely printed.
+    if !lexer_errors.is_empty() {
+        let error = CompilerError::WstLexerError(
+            wscript.clone(),
+            error_reporter::to_stdout_buffer(lexer_errors, wscript.as_str()),
+        );
+        return errors.fail(error);
+    }
+
+    let (call, parser_errors) = match tokens {
+        Some(tokens) => {
+            let eoi = SimpleSpan::new(tokens.len(), tokens.len() + 1);
+            let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
+
+            workshop::parser::call()
                 .then_ignore(end())
-                .parse(wscript.as_str())
+                .parse(stream)
                 .into_output_errors()
-                .try_into();
-            let tokens = tokens
-                .unwrap()
-                .map_errors(|_error| CompilerError::WstLexerError);
+        }
+        None => (None, Vec::new()),
+    };
 
-            tokens.flat_map(|tokens| {
-                let trisult: Result<Trisult<_, _>, _> = workshop::parser::call()
-                    .then_ignore(end())
-                    .parse(&tokens)
-                    .into_output_errors()
-                    .try_into();
+    if !parser_errors.is_empty() {
+        let error = CompilerError::WstParserError(
+            wscript.clone(),
+            error_reporter::to_stdout_buffer(parser_errors, wscript.as_str()),
+        );
+        errors.push(error);
+    }
 
-                trisult
-                    .unwrap()
-                    .map_errors(|_error| CompilerError::WstParserError)
-            })
-        })
+    return match call {
+        Some(call) => errors.value(call),
+        None => errors.fail_directly(),
+    };
 }
 
 macro_rules! impl_wscript_queries {

@@ -16,6 +16,7 @@ pub mod codegen;
 pub mod cst;
 pub mod database;
 pub mod error;
+pub mod error_reporter;
 pub mod language;
 pub mod loader;
 pub mod printer;

@@ -2,13 +2,15 @@ use crate::compiler::workshop::lexer::Token;
 use crate::compiler::wst::partial::Placeholder;
 use crate::compiler::wst::{partial, Ident};
 use chumsky::error::Error;
+use chumsky::input::{SpannedInput, Stream};
 
 use chumsky::prelude::*;
 use chumsky::util::Maybe;
 use smol_str::SmolStr;
 
 pub type ParserExtra<'a> = extra::Err<Rich<'a, Token>>;
-pub type ParserInput<'a> = &'a [Token];
+pub type ParserInput =
+    SpannedInput<Token, SimpleSpan, Stream<std::vec::IntoIter<(Token, SimpleSpan)>>>;
 
 #[derive(Debug, Clone)]
 enum Name {
@@ -16,19 +18,19 @@ enum Name {
     Placeholder(Placeholder),
 }
 
-fn ident<'src>() -> impl Parser<'src, &'src [Token], Ident, ParserExtra<'src>> + Clone {
+fn ident<'src>() -> impl Parser<'src, ParserInput, Ident, ParserExtra<'src>> + Clone {
     select! {
         Token::Ident(text) => Ident(text)
     }
 }
 
-fn placeholder<'src>() -> impl Parser<'src, &'src [Token], Placeholder, ParserExtra<'src>> + Clone {
+fn placeholder<'src>() -> impl Parser<'src, ParserInput, Placeholder, ParserExtra<'src>> + Clone {
     select! {
         Token::Placeholder(text) => Placeholder(text)
     }
 }
 
-pub fn call<'src>() -> impl Parser<'src, &'src [Token], partial::Call, ParserExtra<'src>> {
+pub fn call<'src>() -> impl Parser<'src, ParserInput, partial::Call, ParserExtra<'src>> {
     recursive::<_, partial::Call, _, _, _>(|call| {
         let args = call
             .separated_by(just(Token::Ctrl(',')))
@@ -65,13 +67,16 @@ pub fn call<'src>() -> impl Parser<'src, &'src [Token], partial::Call, ParserExt
 mod tests {
     use super::*;
     use crate::compiler::workshop::lexer::lexer;
-    use crate::compiler::Text;
 
     #[test]
     fn test_element_parser() {
         let code = "Small Message(Event Player, Is Reloading(Event Player))";
         let tokens = lexer().then_ignore(end()).parse(code).unwrap();
-        let actual_element = call().then_ignore(end()).parse(&tokens).unwrap();
+
+        let eoi = SimpleSpan::new(tokens.len(), tokens.len() + 1);
+        let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
+
+        let actual_element = call().then_ignore(end()).parse(stream).unwrap();
 
         let expected_element = partial::Call::Function(partial::Function {
             name: Ident(SmolStr::new("Small Message")),
@@ -91,7 +96,11 @@ mod tests {
     fn test_placeholder() {
         let code = "Set Damage Dealt($caller$, $value$)";
         let tokens = lexer().then_ignore(end()).parse(code).unwrap();
-        let actual_element = call().then_ignore(end()).parse(&tokens).unwrap();
+
+        let eoi = SimpleSpan::new(tokens.len(), tokens.len() + 1);
+        let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
+
+        let actual_element = call().then_ignore(end()).parse(stream).unwrap();
 
         let expected_element = partial::Call::Function(partial::Function {
             name: Ident(SmolStr::new("Set Damage Dealt")),

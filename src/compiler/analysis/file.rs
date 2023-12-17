@@ -79,10 +79,13 @@ pub(super) fn query_ast_struct_def(
     db: &dyn DeclQuery,
     struct_id: StructId,
 ) -> QueryTrisult<SmallVec<[StructDef; 1]>> {
-    db.query_ast_struct_def_map()
+    let vec = db
+        .query_ast_struct_def_map()
         .remove(&DefKey::Struct(struct_id))
-        .ok_or_else(|| CompilerError::CannotFindDef(Either::Left(struct_id)))
-        .into()
+        .expect(&format!(
+            "If a struct declaration id is supplied, the struct definition should also exist"
+        ));
+    QueryTrisult::Ok(vec)
 }
 
 pub(super) fn query_main_file(db: &dyn DeclQuery) -> cst::Ast {
@@ -210,8 +213,9 @@ pub(super) fn query_ast_event_def(
     db: &dyn DeclQuery,
     event_decl_id: EventDeclId,
 ) -> QueryTrisult<EventDef> {
-    db.query_ast_event_def_map()
+    let vec = db
+        .query_ast_event_def_map()
         .remove(&DefKey::Event(event_decl_id))
-        .ok_or_else(|| CompilerError::CannotFindDef(Either::Right(event_decl_id)))
-        .into()
+        .expect("If an event declaration id is supplied, the event definition should also exist");
+    QueryTrisult::Ok(vec)
 }

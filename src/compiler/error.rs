@@ -1,3 +1,4 @@
+use crate::compiler::analysis::interner::Interner;
 use crate::compiler::cir::{
     AValue, CalledType, CalledTypes, DeclArgId, EventDeclId, StructDeclId, Type,
 };
@@ -5,8 +6,9 @@ use crate::compiler::cst::Path;
 use crate::compiler::span::Span;
 use crate::compiler::trisult::Trisult;
 use crate::compiler::wst::partial::SaturateError;
-use crate::compiler::{Ident, QueryTrisult, StructId, Text};
+use crate::compiler::{workshop, Ident, QueryTrisult, StructId, Text};
 use crate::query_error;
+use chumsky::error::Rich;
 use either::Either;
 use std::borrow::Cow;
 
@@ -17,7 +19,6 @@ pub enum CompilerError {
         first: Ident,
         second: Ident,
     },
-    CannotFindDef(Either<StructId, EventDeclId>),
     CannotFindIdent(Ident),
     NotA(&'static str, Ident, Ident),
     // TODO Dont use either here, make an own type
@@ -27,14 +28,11 @@ pub enum CompilerError {
     },
     CannotFindPrimitiveDecl(Text),
     CannotFindNativeDef(String),
-    // TODO Add more information
-    InvalidNativeDef(&'static str),
-    NoCaller,
     PlaceholderError(SaturateError),
     // TODO Add any information
-    WstLexerError,
+    WstLexerError(String, Vec<u8>),
     // TODO Add any information
-    WstParserError,
+    WstParserError(String, Vec<u8>),
     MissingArg {
         missing_arg: DeclArgId,
         call_site: Span,
@@ -50,20 +48,41 @@ pub enum CompilerError {
 }
 
 impl CompilerError {
+    pub fn main_span(&self) -> Option<Span> {
+        match self {
+            CompilerError::NotImplemented(_, span) => Some(*span),
+            CompilerError::DuplicateIdent { first, .. } => Some(first.span),
+            CompilerError::CannotFindIdent(ident) => Some(ident.span),
+            CompilerError::NotA(_, ident, _) => Some(ident.span),
+            CompilerError::WrongType { actual, .. } => Some(actual.span),
+            CompilerError::CannotFindPrimitiveDecl(_) => None,
+            CompilerError::CannotFindNativeDef(_) => None,
+            CompilerError::PlaceholderError(_) => None,
+            CompilerError::WstLexerError(_, _) => None,
+            CompilerError::WstParserError(_, _) => None,
+            CompilerError::MissingArg { .. } => None,
+            CompilerError::CannotFindNamedArg(_) => None,
+            CompilerError::ArgOutOfRange(_, _) => None,
+            CompilerError::DuplicateNamedArg(_) => None,
+            CompilerError::CannotMixArgs(_) => None,
+            CompilerError::CannotEvalAsConst => None,
+            CompilerError::WrongTypeInBinaryExpr(_, _) => None,
+            CompilerError::CannotFindFile(_) => None,
+            CompilerError::CannotFindStruct(_) => None,
+        }
+    }
+
     pub fn error_code(&self) -> u16 {
         match self {
             CompilerError::NotImplemented(..) => 0,
             CompilerError::DuplicateIdent { .. } => 1,
-            CompilerError::CannotFindDef(_) => 2,
             CompilerError::CannotFindIdent(_) => 3,
             CompilerError::NotA(_, _, _) => 4,
             CompilerError::WrongType { .. } => 5,
             CompilerError::CannotFindPrimitiveDecl(_) => 6,
             CompilerError::CannotFindNativeDef(_) => 7,
-            CompilerError::InvalidNativeDef(_) => 8,
-            CompilerError::NoCaller => 9,
-            CompilerError::WstLexerError => 10,
-            CompilerError::WstParserError => 11,
+            CompilerError::WstLexerError(_, _) => 10,
+            CompilerError::WstParserError(_, _) => 11,
             CompilerError::PlaceholderError(_) => 12,
             CompilerError::MissingArg { .. } => 13,
             CompilerError::CannotFindNamedArg(_) => 14,

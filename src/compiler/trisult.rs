@@ -71,7 +71,29 @@ impl<T, E> Trisult<T, E> {
         }
     }
 
-    pub fn map_errors<L>(self, func: impl Fn(E) -> L) -> Trisult<T, L> {
+    pub fn reduce_errors<L>(self, func: impl Fn(Vec<E>) -> L) -> Trisult<T, L> {
+        match self {
+            Trisult::Ok(value) => Trisult::Ok(value),
+            Trisult::Par(value, errors) => Trisult::Par(value, vec![func(errors)]),
+            Trisult::Err(errors) => Trisult::Err(vec![func(errors)]),
+        }
+    }
+
+    pub fn merge_errors(self, mut errors: Errors<E>) -> Trisult<T, E> {
+        match self {
+            ok @ Trisult::Ok(_) => ok,
+            Trisult::Par(value, mut other_errors) => {
+                other_errors.append(&mut errors.vec);
+                Trisult::Par(value, other_errors)
+            }
+            Trisult::Err(mut other_errors) => {
+                other_errors.append(&mut errors.vec);
+                Trisult::Err(other_errors)
+            }
+        }
+    }
+
+    pub fn map_each_error<L>(self, func: impl Fn(E) -> L) -> Trisult<T, L> {
         match self {
             Trisult::Ok(value) => Trisult::Ok(value),
             Trisult::Par(value, errors) => {
@@ -453,12 +475,12 @@ macro_rules! query_error {
     };
 }
 
-pub trait ErrorHolder<T> {
-    fn consume(self) -> Vec<T>;
+pub trait ErrorHolder<E> {
+    fn consume(self) -> Vec<E>;
 }
 
-pub struct Errors<T> {
-    vec: Vec<T>,
+pub struct Errors<E> {
+    vec: Vec<E>,
 }
 
 impl<E> Errors<E> {
@@ -466,6 +488,8 @@ impl<E> Errors<E> {
         Self { vec: Vec::new() }
     }
 
+    /// Returns [Trisult::Ok] if no errors were collected and returns [Trisult::Par]
+    /// if there were any errors.
     pub fn value<T>(self, value: T) -> Trisult<T, E> {
         if self.vec.is_empty() {
             Trisult::Ok(value)
@@ -474,42 +498,59 @@ impl<E> Errors<E> {
         }
     }
 
+    /// Returns [Trisult::Err] with all previously collected errors.
+    ///
+    /// If you have one more error to add, use [Errors::fail] instead.
+    pub fn fail_directly<T>(mut self) -> Trisult<T, E> {
+        Trisult::Err(self.vec)
+    }
+
+    /// Returns [Trisult::Err] with all previously collected errors, but also
+    /// adds one more error.
     pub fn fail<T>(mut self, error: E) -> Trisult<T, E> {
         self.vec.push(error);
         Trisult::Err(self.vec)
     }
 }
 
-impl<T> Default for Errors<T> {
+impl<E> Default for Errors<E> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> Into<Vec<T>> for Errors<T> {
-    fn into(self) -> Vec<T> {
+impl<E> Into<Vec<E>> for Errors<E> {
+    fn into(self) -> Vec<E> {
         self.vec
     }
 }
 
-impl<T> ErrorHolder<T> for Vec<T> {
-    fn consume(self) -> Vec<T> {
+impl<E> ErrorHolder<E> for Vec<E> {
+    fn consume(self) -> Vec<E> {
         self
     }
 }
 
-impl<T> ErrorHolder<T> for Errors<T> {
-    fn consume(self) -> Vec<T> {
+impl<E> ErrorHolder<E> for Errors<E> {
+    fn consume(self) -> Vec<E> {
         self.vec
     }
 }
 
-impl<T> Errors<T> {
-    pub fn append(&mut self, context: impl ErrorHolder<T>) {
+impl<E> Errors<E> {
+    pub fn append(&mut self, context: impl ErrorHolder<E>) {
         if self.vec.is_empty() {
             self.vec = context.consume();
         } else {
             self.vec.append(&mut context.consume())
+        }
+    }
+
+    pub fn push(&mut self, error: E) {
+        if self.vec.is_empty() {
+            self.vec = vec![error];
+        } else {
+            self.vec.push(error);
         }
     }
 }

@@ -4,6 +4,8 @@ use chumsky::text::Char;
 use smol_str::SmolStr;
 use std::fmt::{Display, Formatter};
 
+pub type Error<'a> = extra::Err<Rich<'a, char>>;
+
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
     Ident(SmolStr),
@@ -33,7 +35,7 @@ impl Display for Token {
 
 const PLACEHOLDER_DELIMITER: char = '$';
 
-fn placeholder<'str>() -> impl Parser<'str, &'str str, Token> {
+fn placeholder<'str>() -> impl Parser<'str, &'str str, Token, Error<'str>> {
     any()
         .filter(|c: &char| *c == PLACEHOLDER_DELIMITER)
         .then(
@@ -53,7 +55,7 @@ fn placeholder<'str>() -> impl Parser<'str, &'str str, Token> {
         })
 }
 
-fn ident<'str>() -> impl Parser<'str, &'str str, Token> {
+fn ident<'str>() -> impl Parser<'str, &'str str, Token, Error<'str>> {
     let valid_chars = any::<&'str str, _>()
         .filter(|c| c.is_ascii_alphanumeric() || c.is_inline_whitespace() || *c == '-')
         .repeated()
@@ -70,20 +72,23 @@ fn ident<'str>() -> impl Parser<'str, &'str str, Token> {
         })
 }
 
-pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<Token>> {
+pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<(Token, SimpleSpan)>, Error<'src>> {
     let ctrl = one_of("(),").map(Token::Ctrl);
 
     // TODO Add recover_with(skip_then_retry_until([]))
     let token = choice((ident(), placeholder(), ctrl));
 
-    token.padded().repeated().collect::<Vec<_>>()
+    token
+        .padded()
+        .map_with_span(|token, span| (token, span))
+        .repeated()
+        .collect::<Vec<_>>()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::assert_iterator;
-    use crate::compiler::Text2;
     use chumsky::prelude::end;
 
     #[test]
