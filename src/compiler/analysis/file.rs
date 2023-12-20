@@ -109,7 +109,9 @@ pub(super) fn query_file(
     include_only_public: bool,
 ) -> QueryTrisult<cst::Ast> {
     let mut errors = Errors::default();
+    println!("{}", db.lookup_intern_string(path.segments[0]));
     let mut ast: cst::Ast = tri!(db.query_secondary_file(path), errors);
+    println!("Test");
 
     let import_indices: Vec<_> = ast
         .0

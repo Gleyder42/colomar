@@ -293,7 +293,9 @@ fn process_wscript(
 ) -> QueryTrisult<Option<wst::Call>> {
     let r#type = caller.cir.return_called_type(db).r#type;
 
-    match r#type {
+    // TODO should we drop the generics here?
+    // NO
+    match r#type.r#type {
         Type::Enum(enum_id) => {
             let enum_decl: cir::EnumDecl = db.lookup_intern_enum_decl(enum_id);
             db.query_wscript_enum_constant_impl(

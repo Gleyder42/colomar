@@ -6,20 +6,17 @@ extern crate salsa;
 
 use crate::compiler::language::lexer::{lexer, Token};
 use crate::compiler::language::parser::parser;
-use crate::compiler::{cst, source_cache, QueryTrisult, StructId};
-use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
+use crate::compiler::{cst, source_cache, QueryTrisult};
+use ariadne::{sources, Color, Fmt, Label, Report, ReportKind};
 use chumsky::error::RichReason;
 use chumsky::prelude::*;
 use compiler::database::CompilerDatabase;
-use compiler::error::CompilerError;
 use compiler::span::{FatSpan, Span, SpanSourceId};
 use compiler::trisult::Trisult;
-use either::Either;
 use hashlink::LinkedHashMap;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::Read;
-use std::ops::Range;
+use std::io::{stdout, Read, Write};
 use std::path::Path;
 
 use crate::compiler::analysis::decl::DeclQuery;
@@ -38,12 +35,14 @@ fn main() {
     let base_base = Path::new("docs/tutorials/example/test/src");
     for path in source_cache::read_files_to_string(&base_base).unwrap() {
         let (source, ast, parser_errors) = parse_ast(&path, &db, &mut source_map);
+        let i = parser_errors.len();
         print_parser_errors(source, &db, parser_errors);
 
         let result = path.strip_prefix(base_base).unwrap();
         let id = db.intern_string(result.file_stem().unwrap().to_string_lossy().into());
         let segments = vec![id];
 
+        println!("{:?}, {}, {i}", path, ast.is_none());
         match ast {
             Some(ast) => {
                 ast_map.insert(cst::Path { segments }, ast);
@@ -107,9 +106,12 @@ fn parse_ast<'a>(
 
     let span_source_id: SpanSourceId = db.intern_span_source(path.to_string_lossy().into());
 
-    let (tokens, _lexer_errors) = lexer(span_source_id, db)
+    let (tokens, lexer_errors) = lexer(span_source_id, db)
         .parse(source.as_str())
         .into_output_errors();
+
+    let out = compiler::loader::error_reporter::to_stdout_buffer(lexer_errors, source.as_str());
+    stdout().write(&out).unwrap();
 
     source_map.insert(span_source_id, source);
     let source = source_map.get(&span_source_id).unwrap();

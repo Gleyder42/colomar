@@ -108,14 +108,22 @@ pub struct Import {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct Type {
+    pub ident: Ident,
+    pub generics: Vec<BoundGeneric>,
+}
+
+impl Type {}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Types {
-    pub values: SmallVec<[Ident; 2]>,
+    pub values: SmallVec<[Type; 2]>,
     pub span: Span,
 }
 
 impl IntoIterator for Types {
-    type Item = Ident;
-    type IntoIter = smallvec::IntoIter<[Ident; 2]>;
+    type Item = Type;
+    type IntoIter = smallvec::IntoIter<[Type; 2]>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.values.into_iter()
@@ -162,7 +170,7 @@ pub struct PropertyDecl {
     pub is_native: SpannedBool,
     pub use_restriction: Spanned<UseRestriction>,
     pub name: Ident,
-    pub r#type: Ident,
+    pub r#type: Type,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -179,6 +187,16 @@ pub struct StructDecl {
     pub is_native: SpannedBool,
     pub name: Ident,
     pub span: Span,
+    pub generics: DeclGenerics,
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct DeclGenerics(pub Vec<Ident>);
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct BoundGeneric {
+    pub ident: Ident,
+    pub bound_generics: Vec<BoundGeneric>,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

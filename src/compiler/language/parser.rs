@@ -1,6 +1,6 @@
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{AssignMod, Ident, UseRestriction};
+use crate::compiler::{cst, AssignMod, Ident, UseRestriction};
 use chumsky::input::{SpannedInput, Stream};
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};
@@ -16,9 +16,48 @@ fn ident<'src>() -> impl Parser<'src, ParserInput, Ident, ParserExtra<'src>> + C
     }
 }
 
+fn decl_generics<'src>() -> impl Parser<'src, ParserInput, DeclGenerics, ParserExtra<'src>> {
+    ident()
+        .separated_by(just(Token::Ctrl(',')))
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::Ctrl('<')), just(Token::Ctrl('>')))
+        .map(DeclGenerics)
+        .or_not()
+        .map(|generics| generics.unwrap_or_else(|| DeclGenerics(Vec::new())))
+}
+
+fn bound_generics<'src>() -> impl Parser<'src, ParserInput, Vec<BoundGeneric>, ParserExtra<'src>> {
+    recursive(|generics| {
+        ident()
+            .then(
+                generics
+                    .or_not()
+                    .map(|generics| generics.unwrap_or_else(Vec::new)),
+            )
+            .map(|(ident, bound_generics)| BoundGeneric {
+                ident,
+                bound_generics,
+            })
+            .separated_by(just(Token::Ctrl(',')))
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::Ctrl('<')), just(Token::Ctrl('>')))
+    })
+}
+
+fn r#type<'src>() -> impl Parser<'src, ParserInput, Type, ParserExtra<'src>> {
+    let with_generics = ident()
+        .then(bound_generics())
+        .map(|(ident, generics)| Type { ident, generics });
+    let without_generics = ident().map(|ident| Type {
+        ident,
+        generics: Vec::new(),
+    });
+    with_generics.or(without_generics)
+}
+
 fn declared_arg<'src>() -> impl Parser<'src, ParserInput, Spanned<Vec<DeclArg>>, ParserExtra<'src>>
 {
-    let types = ident()
+    let types = r#type()
         .separated_by(just(Token::Ctrl('|')))
         .collect::<Vec<_>>()
         .map_with_span(|types, span| Types {
@@ -148,7 +187,7 @@ fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDecl, ParserExtra<
         .then(use_restriction)
         .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
-        .then(ident())
+        .then(r#type())
         .map(|(((is_native, property_type), name), r#type)| {
             let use_restriction = match property_type {
                 // Write a test which tries to put other tokens here
@@ -278,13 +317,15 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
 
     struct_start
         .then(ident())
+        .then(decl_generics())
         .map_with_span(
-            |(((visibility, is_partial), is_native), name), span| StructDecl {
+            |((((visibility, is_partial), is_native), name), generics), span| StructDecl {
                 visibility,
                 is_partial,
                 is_native,
                 name,
                 span,
+                generics,
             },
         )
         .then(

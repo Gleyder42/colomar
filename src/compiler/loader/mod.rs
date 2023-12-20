@@ -12,7 +12,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
 
-mod error_reporter;
+pub mod error_reporter;
 pub mod wscript_impl;
 
 #[salsa::query_group(WorkshopScriptLoaderDatabase)]

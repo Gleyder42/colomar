@@ -59,7 +59,7 @@ impl Display for Token {
     }
 }
 
-pub type LexerExtra<'a> = extra::Err<Simple<'a, char>>;
+pub type LexerExtra<'a> = extra::Err<Rich<'a, char>>;
 
 pub fn lexer<'src>(
     span_source_id: SpanSourceId,
@@ -75,7 +75,7 @@ pub fn lexer<'src>(
         .then_ignore(just('"'))
         .map(|it| Token::String(string_interner.intern_string(it)));
 
-    let ctrl = one_of("(){},.:|=;+-/*&|!").map(Token::Ctrl);
+    let ctrl = one_of("<>(){},.:|=;+-/*&|!").map(Token::Ctrl);
 
     let ident = text::ident().map(|ident: &str| match ident {
         "rule" => Token::Rule,

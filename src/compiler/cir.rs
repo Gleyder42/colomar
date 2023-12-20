@@ -8,7 +8,7 @@ use crate::compiler::{
 use colomar_macros::Interned;
 use hashlink::LinkedHashSet;
 use smallvec::SmallVec;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{write, Debug, Display, Formatter};
 use std::hash::Hash;
 
 pub type DeclArgIds = SmallVec<[DeclArgId; DECL_ARGS_LEN]>;
@@ -71,7 +71,7 @@ pub struct FunctionDecl {
     pub is_native: SpannedBool,
     pub name: Ident,
     pub args: DeclArgIds,
-    pub return_type: Type,
+    pub return_type: VirtualType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
@@ -80,7 +80,7 @@ pub struct PropertyDecl {
     pub is_native: SpannedBool,
     pub name: Ident,
     pub desc: Spanned<UseRestriction>,
-    pub r#type: Type,
+    pub r#type: VirtualType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -124,6 +124,30 @@ pub struct Enum {
     pub decl: EnumDeclId,
     pub def: EnumDef,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BoundGeneric {
+    pub r#type: Type,
+    pub generics: Vec<BoundGeneric>,
+}
+
+// TODO Virtual type is not the best description
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VirtualType {
+    pub r#type: Type,
+    pub generics: Vec<BoundGeneric>,
+}
+
+impl VirtualType {}
+
+impl From<Type> for VirtualType {
+    fn from(value: Type) -> Self {
+        VirtualType {
+            r#type: value,
+            generics: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -175,13 +199,18 @@ pub struct Predicate(pub Expr);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledType {
-    pub r#type: Type,
+    pub r#type: VirtualType,
     pub span: Span,
 }
 
 impl PartialEq<StructDeclId> for CalledType {
     fn eq(&self, other: &StructDeclId) -> bool {
-        match self.r#type {
+        if !self.r#type.generics.is_empty() {
+            return false;
+        }
+
+        // TODO how to compare generic structs
+        match self.r#type.r#type {
             Type::Enum(_) => false,
             Type::Struct(id) => id == *other,
             Type::Event(_) => false,
@@ -202,14 +231,15 @@ pub trait TypeComparison<Rhs> {
 
 impl Display for CalledType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.r#type)
+        // TODO Write a proper display
+        write!(f, "{}", self.r#type.r#type)
     }
 }
 
 impl TypeComparison<StructDeclId> for CalledType {
     fn has_same_return_type(&self, rhs: &StructDeclId) -> bool {
-        match self.r#type {
-            Type::Struct(r#struct) => r#struct == *rhs,
+        match self.r#type.r#type {
+            Type::Struct(r#struct) if self.r#type.generics.is_empty() => r#struct == *rhs,
             _ => false,
         }
     }
@@ -233,7 +263,7 @@ impl From<CalledType> for CalledTypes {
 }
 
 impl CalledTypes {
-    pub fn contains_type(&self, r#type: &Type) -> bool {
+    pub fn contains_type(&self, r#type: &VirtualType) -> bool {
         self.types.iter().any(|it| it.r#type == *r#type)
     }
 }

@@ -14,7 +14,7 @@ pub(super) fn query_function_decl(
                 instance,
                 name: function.name,
                 is_native: function.is_native,
-                return_type: Type::Unit, // TODO Add return types
+                return_type: Type::Unit.into(), // TODO Add return types
                 args: decl_args,
             }
         })

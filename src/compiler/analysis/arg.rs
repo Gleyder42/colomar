@@ -154,11 +154,12 @@ pub(super) fn query_declared_arg(
         .types
         .clone()
         .into_iter()
-        .map(|ident| {
-            db.query_namespaced_type(smallvec![Nameholder::Root], ident.clone())
+        .map(|r#type| {
+            let span = r#type.ident.span;
+            db.query_namespaced_type(smallvec![Nameholder::Root], r#type.ident.clone())
                 .map(|r#type| CalledType {
-                    r#type,
-                    span: ident.span,
+                    r#type: r#type.into(),
+                    span,
                 })
         })
         .collect::<QueryTrisult<Vec<CalledType>>>()

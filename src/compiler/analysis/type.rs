@@ -1,7 +1,60 @@
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::{cir, cst, Ident};
+use crate::compiler::{cir, cst, Ident, QueryTrisult};
 
+use crate::compiler::analysis::namespace::Nameholders;
+use crate::compiler::trisult::Errors;
+use crate::tri;
 use std::collections::HashMap;
+use std::hint::black_box;
+
+pub(super) fn query_namespaced_type2(
+    db: &dyn DeclQuery,
+    nameholders: Nameholders,
+    r#type: cst::Type,
+) -> QueryTrisult<cir::VirtualType> {
+    let mut errors = Errors::new();
+
+    let string = db.lookup_intern_string(r#type.ident.value);
+    black_box(string);
+
+    let cir_type = tri!(
+        db.query_namespaced_type(nameholders.clone(), r#type.ident),
+        errors
+    );
+    let cir_generics = tri!(db.resolve_generics(nameholders, r#type.generics), errors);
+
+    let virtual_type = cir::VirtualType {
+        r#type: cir_type,
+        generics: cir_generics,
+    };
+    errors.value(virtual_type)
+}
+
+pub(super) fn resolve_generics(
+    db: &dyn DeclQuery,
+    nameholders: Nameholders,
+    generics: Vec<cst::BoundGeneric>,
+) -> QueryTrisult<Vec<cir::BoundGeneric>> {
+    generics
+        .into_iter()
+        .map(|generic| {
+            let mut errors = Errors::new();
+
+            let r#type: cir::Type = tri!(
+                db.query_namespaced_type(nameholders.clone(), generic.ident),
+                errors
+            );
+            let generics = tri!(
+                db.resolve_generics(nameholders.clone(), generic.bound_generics),
+                errors
+            );
+
+            let bound_generic = cir::BoundGeneric { r#type, generics };
+            dbg!(&errors);
+            errors.value(bound_generic)
+        })
+        .collect()
+}
 
 pub(super) fn query_type_map(db: &dyn DeclQuery) -> HashMap<Ident, cir::Type> {
     db.query_type_items()

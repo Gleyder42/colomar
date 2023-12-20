@@ -159,7 +159,7 @@ pub(super) fn query_call_chain(
                         })
                         .map(|(function_decl, function_args)| {
                             (
-                                smallvec![function_decl.return_type.into()],
+                                smallvec![Nameholder::from(&function_decl.return_type)],
                                 cir::AValue::FunctionCall(
                                     function_decl.intern(db),
                                     function_args,

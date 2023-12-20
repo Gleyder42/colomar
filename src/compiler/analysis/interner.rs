@@ -107,13 +107,13 @@ impl IntoInternId for CalledArg {
 }
 
 impl RValue {
-    pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> Type {
+    pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> VirtualType {
         match self {
             // What is the type of type?
-            RValue::Type(r#type) => *r#type,
+            RValue::Type(r#type) => (*r#type).into(),
             RValue::EnumConstant(enum_constant_id) => {
                 let enum_constant: EnumConstant = db.lookup_intern_enum_constant(*enum_constant_id);
-                Type::Enum(enum_constant.r#enum)
+                Type::Enum(enum_constant.r#enum).into()
             }
             RValue::Property(property_decl_id) => {
                 db.lookup_intern_property_decl(*property_decl_id).r#type
@@ -153,7 +153,7 @@ impl AValue {
                 span: *span,
             },
             AValue::CValue(cvalue) => CalledType {
-                r#type: cvalue.r#type(),
+                r#type: cvalue.r#type().into(),
                 span: cvalue.span(),
             },
             AValue::FunctionCall(function_decl_id, _, span) => {
@@ -164,6 +164,12 @@ impl AValue {
                 }
             }
         }
+    }
+}
+
+impl VirtualType {
+    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
+        self.r#type.name(db)
     }
 }
 

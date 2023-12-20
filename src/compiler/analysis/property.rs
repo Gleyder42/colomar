@@ -11,7 +11,7 @@ pub(super) fn query_property(
     instance: Option<Type>,
     property_decl: cst::PropertyDecl,
 ) -> QueryTrisult<PropertyDecl> {
-    db.query_namespaced_type(smallvec![Nameholder::Root], property_decl.r#type)
+    db.query_namespaced_type2(smallvec![Nameholder::Root], property_decl.r#type)
         .map(|r#type| PropertyDecl {
             instance,
             is_native: property_decl.is_native,

@@ -9,6 +9,12 @@ Player {
     var a: bool;
     var b: bool;
     var c: bool;
+
+    var g: array<num>;
+}
+
+struct array<T> {
+
 }
 
 rule "Init" OngoingEachPlayer() {
@@ -24,6 +30,7 @@ rule "Reduce Aim Speed" OngoingEachPlayer() {
     player.aimSpeed = player.currentAimSpeed;
     player.moveSpeed = player.currentMoveSpeed;
     player.sendSmallMessage("Aim slower");
+    player.g = player.g;
 }
 
 rule "Hello World" OngoingEachPlayer() {

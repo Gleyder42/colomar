@@ -479,6 +479,7 @@ pub trait ErrorHolder<E> {
     fn consume(self) -> Vec<E>;
 }
 
+#[derive(Debug)]
 pub struct Errors<E> {
     vec: Vec<E>,
 }

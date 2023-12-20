@@ -2,7 +2,7 @@ use crate::compiler::analysis::decl::DeclQuery;
 use crate::compiler::analysis::interner::{Interner, IntoInternId};
 use crate::compiler::cir::{
     EnumConstant, EnumConstantId, EnumDeclId, EnumDef, EventDeclId, FunctionDecl, PropertyDecl,
-    RValue, StructDeclId, Type,
+    RValue, StructDeclId, Type, VirtualType,
 };
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::Trisult;
@@ -284,6 +284,18 @@ pub type Nameholders = SmallVec<[Nameholder; 2]>;
 pub enum EnumNameholder {
     ByEnum(EnumDeclId),
     ByConstant(EnumConstantId),
+}
+
+impl From<VirtualType> for Nameholder {
+    fn from(value: VirtualType) -> Self {
+        Nameholder::from(value.r#type)
+    }
+}
+
+impl From<&VirtualType> for Nameholder {
+    fn from(value: &VirtualType) -> Self {
+        Nameholder::from(value.r#type)
+    }
 }
 
 impl From<EnumNameholder> for Nameholder {

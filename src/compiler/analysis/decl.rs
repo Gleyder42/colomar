@@ -3,7 +3,7 @@ use crate::compiler::analysis::interner::Interner;
 use crate::compiler::analysis::namespace::{Nameholders, Namespace, NamespaceId};
 use crate::compiler::cir::{
     AValueChain, CalledArgs, DeclArgIds, EnumDeclId, EventDeclId, FunctionDeclIds, PropertyDeclIds,
-    PropertyDecls, StructDeclId, Type,
+    PropertyDecls, StructDeclId,
 };
 use crate::compiler::cst::{Actions, TypeRoot};
 use crate::compiler::error::CompilerError;
@@ -181,7 +181,7 @@ pub trait DeclQuery: Interner + StringInterner {
     #[salsa::invoke(function::query_function_decl)]
     fn query_function_decl(
         &self,
-        instance: Option<Type>,
+        instance: Option<cir::Type>,
         function: cst::FunctionDecl,
     ) -> QueryTrisult<cir::FunctionDecl>;
 
@@ -278,7 +278,7 @@ pub trait DeclQuery: Interner + StringInterner {
     #[salsa::invoke(property::query_property)]
     fn query_property(
         &self,
-        instance: Option<Type>,
+        instance: Option<cir::Type>,
         property_decl: cst::PropertyDecl,
     ) -> QueryTrisult<cir::PropertyDecl>;
 
@@ -311,4 +311,21 @@ pub trait DeclQuery: Interner + StringInterner {
     /// [ttype::query_type_map]
     #[salsa::invoke(ttype::query_type_map)]
     fn query_type_map(&self) -> HashMap<Ident, cir::Type>;
+
+    // TODO Move this into the namespace file
+    /// Impl [ttype::query_namespaced_type2]
+    #[salsa::invoke(ttype::query_namespaced_type2)]
+    fn query_namespaced_type2(
+        &self,
+        nameholders: Nameholders,
+        r#type: cst::Type,
+    ) -> QueryTrisult<cir::VirtualType>;
+
+    /// Impl [ttype::resolve_generics]
+    #[salsa::invoke(ttype::resolve_generics)]
+    fn resolve_generics(
+        &self,
+        nameholders: Nameholders,
+        generics: Vec<cst::BoundGeneric>,
+    ) -> QueryTrisult<Vec<cir::BoundGeneric>>;
 }
