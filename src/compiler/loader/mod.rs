@@ -1,9 +1,7 @@
 use crate::compiler::error::CompilerError;
 use crate::compiler::trisult::{Errors, Trisult};
-use crate::compiler::workshop::lexer::Token;
-use crate::compiler::{trisult, workshop, wst, HashableMap, QueryTrisult, Text2};
-use crate::{query_error, tri};
-use chumsky::error::{Rich, RichReason};
+use crate::compiler::{workshop, wst, HashableMap, QueryTrisult, Text2};
+use crate::tri;
 use chumsky::input::{Input, Stream};
 use chumsky::prelude::{end, SimpleSpan};
 use chumsky::Parser;

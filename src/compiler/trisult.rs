@@ -502,7 +502,7 @@ impl<E> Errors<E> {
     /// Returns [Trisult::Err] with all previously collected errors.
     ///
     /// If you have one more error to add, use [Errors::fail] instead.
-    pub fn fail_directly<T>(mut self) -> Trisult<T, E> {
+    pub fn fail_directly<T>(self) -> Trisult<T, E> {
         Trisult::Err(self.vec)
     }
 

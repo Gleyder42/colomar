@@ -1,6 +1,6 @@
 use crate::compiler::cst::*;
 use crate::compiler::language::lexer::Token;
-use crate::compiler::{cst, AssignMod, Ident, UseRestriction};
+use crate::compiler::{AssignMod, Ident, UseRestriction};
 use chumsky::input::{SpannedInput, Stream};
 
 use crate::compiler::span::{Span, Spanned, SpannedBool};

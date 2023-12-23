@@ -8,7 +8,7 @@ use crate::compiler::{
 use colomar_macros::Interned;
 use hashlink::LinkedHashSet;
 use smallvec::SmallVec;
-use std::fmt::{write, Debug, Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
 pub type DeclArgIds = SmallVec<[DeclArgId; DECL_ARGS_LEN]>;

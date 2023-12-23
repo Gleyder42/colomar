@@ -3,7 +3,7 @@ extern crate core;
 use crate::compiler::span::{Span, SpanLocation, SpanSourceId, StringId, StringInterner};
 use chumsky::prelude::*;
 
-use std::fmt::{write, Debug, Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::string::String;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]

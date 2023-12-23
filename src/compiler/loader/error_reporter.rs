@@ -1,7 +1,6 @@
 use ariadne::{Label, Report, ReportBuilder, ReportKind, Source, Span};
 use chumsky::error::{Rich, RichPattern, RichReason};
 use std::fmt::Debug;
-use std::io::{BufWriter, Cursor};
 use std::ops::Range;
 
 /// Converts the errors to a visual representation intended to be used with the output buffer.

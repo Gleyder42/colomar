@@ -1,13 +1,12 @@
 use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::cir::{EnumDeclId, EventDeclId, StructDeclId};
+use crate::compiler::cir::{EnumDeclId, EventDeclId};
 use crate::compiler::cst::{Def, EventDef, Root, StructDef, TypeRoot, Visibility};
 use crate::compiler::error::CompilerError;
 
 use crate::compiler::trisult::{Errors, IntoTrisult};
-use crate::compiler::{cst, Ident, QueryTrisult, SVMultiMap, SVMultiMapWrapper, StructId, Text};
+use crate::compiler::{cst, QueryTrisult, SVMultiMap, SVMultiMapWrapper, StructId, Text};
 use crate::tri;
-use either::Either;
-use smallvec::{smallvec, SmallVec};
+use smallvec::SmallVec;
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -20,7 +19,6 @@ pub enum DefKey {
 pub(super) fn query_structs(
     db: &dyn DeclQuery,
 ) -> QueryTrisult<HashMap<Text, SmallVec<[cst::Struct; 1]>>> {
-    let mut errors = Errors::default();
     let ast = db.query_main_file();
 
     let struct_decls: Vec<_> = ast
@@ -39,7 +37,7 @@ pub(super) fn query_structs(
             .push(r#struct);
     }
 
-    errors.value(struct_map)
+    QueryTrisult::Ok(struct_map)
 }
 
 pub(super) fn query_struct_by_name(

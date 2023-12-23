@@ -7,7 +7,7 @@ extern crate salsa;
 use crate::compiler::language::lexer::{lexer, Token};
 use crate::compiler::language::parser::parser;
 use crate::compiler::{cst, source_cache, QueryTrisult};
-use ariadne::{sources, Color, Fmt, Label, Report, ReportKind};
+use ariadne::{sources, Color, Label, Report, ReportKind};
 use chumsky::error::RichReason;
 use chumsky::prelude::*;
 use compiler::database::CompilerDatabase;

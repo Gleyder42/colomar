@@ -1,14 +1,10 @@
-use crate::compiler::analysis::interner::Interner;
-use crate::compiler::cir::{
-    AValue, CalledType, CalledTypes, DeclArgId, EventDeclId, StructDeclId, Type,
-};
+use crate::compiler::cir::{AValue, CalledType, CalledTypes, DeclArgId, Type};
 use crate::compiler::cst::Path;
 use crate::compiler::span::Span;
 use crate::compiler::trisult::Trisult;
 use crate::compiler::wst::partial::SaturateError;
-use crate::compiler::{workshop, Ident, QueryTrisult, StructId, Text};
+use crate::compiler::{Ident, QueryTrisult, Text};
 use crate::query_error;
-use chumsky::error::Rich;
 use either::Either;
 use std::borrow::Cow;
 
