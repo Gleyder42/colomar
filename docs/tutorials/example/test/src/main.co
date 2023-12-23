@@ -15,9 +15,11 @@ Player {
 
 struct array<T> {
 
+    native static fn new(vararg elements: num);
 }
 
 rule "Init" OngoingEachPlayer() {
+
     player.currentAimSpeed = 100;
     player.currentMoveSpeed = 100;
 }

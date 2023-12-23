@@ -176,6 +176,7 @@ pub struct PropertyDecl {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct FunctionDecl {
     pub is_native: SpannedBool,
+    pub is_static: SpannedBool,
     pub name: Ident,
     pub args: Spanned<DeclArgs>,
 }
@@ -266,6 +267,7 @@ pub struct Enum {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct DeclArg {
     pub position: usize,
+    pub is_vararg: SpannedBool,
     pub name: Ident,
     pub types: Types,
     pub default_value: Option<CallChain>,

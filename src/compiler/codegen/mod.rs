@@ -69,5 +69,6 @@ impl Caller {
 pub struct Arg {
     index: usize,
     name: Ident,
+    is_vararg: bool,
     value: cir::AValueChain,
 }

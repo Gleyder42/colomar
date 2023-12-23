@@ -125,7 +125,7 @@ fn query_wst_call_by_rvalue(
     span: Span,
 ) -> QueryTrisult<Option<wst::Call>> {
     match rvalue {
-        RValue::Type(Type::Enum(_)) => QueryTrisult::Ok(None),
+        RValue::Type(Type::Enum(_)) | RValue::Type(Type::Struct(_)) => QueryTrisult::Ok(None),
         RValue::Function(_func_id) => compiler_todo("Functions are not implemented", span),
         RValue::Property(property_id) => {
             let property = db.lookup_intern_property_decl(property_id);
@@ -188,7 +188,10 @@ fn query_wst_call_by_function_call(
     _span: Span,
 ) -> QueryTrisult<Option<wst::Call>> {
     let wscript_function: QueryTrisult<wst::partial::Call> = db.query_wscript_struct_function_impl(
-        func_decl.instance.unwrap().name(db),
+        func_decl
+            .instance
+            .expect("Function must be an instance function")
+            .name(db),
         func_decl.name.value.name(db),
     );
 
@@ -358,6 +361,7 @@ pub fn query_wst_call_from_args(
     let mut args: Vec<_> = defaulted_args
         .into_iter()
         .map(|decl_arg| Arg {
+            is_vararg: decl_arg.is_vararg,
             index: decl_arg.position,
             name: decl_arg.name,
             value: decl_arg.default_value.expect(ERROR),
@@ -365,6 +369,7 @@ pub fn query_wst_call_from_args(
         .chain(supplied_args.into_iter().map(|called_arg| {
             let decl_arg: cir::DeclArg = db.lookup_intern_decl_arg(called_arg.declared);
             Arg {
+                is_vararg: decl_arg.is_vararg,
                 index: decl_arg.position,
                 name: decl_arg.name,
                 value: called_arg.value,
@@ -385,5 +390,6 @@ pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisu
         wst::Call::Ident(ident) => QueryTrisult::Ok(ident),
         wst::Call::Property(_, _) => query_error!(CompilerError::CannotEvalAsConst),
         wst::Call::Function(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::Vararg(_) => query_error!(CompilerError::CannotEvalAsConst),
     }
 }

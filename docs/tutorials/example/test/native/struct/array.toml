@@ -1,0 +1,4 @@
+[properties]
+
+[functions]
+new = "Array($elements$)"

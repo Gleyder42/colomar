@@ -3,7 +3,7 @@ extern crate core;
 use crate::compiler::span::{Span, SpanLocation, SpanSourceId, StringId, StringInterner};
 use chumsky::prelude::*;
 
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{write, Debug, Display, Formatter};
 use std::string::String;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -24,6 +24,8 @@ pub enum Token {
     Type,
     Import,
     Pub,
+    Static,
+    Vararg,
     Ident(StringId),
     String(StringId),
     Num(StringId),
@@ -49,6 +51,8 @@ impl Display for Token {
             Token::Val => write!(f, "val"),
             Token::Var => write!(f, "var"),
             Token::Pub => write!(f, "pub"),
+            Token::Static => write!(f, "static"),
+            Token::Vararg => write!(f, "vararg"),
             Token::Import => write!(f, "import"),
             Token::Ident(string) => write!(f, "{string:?}"),
             Token::String(string) => write!(f, "{string:?}"),
@@ -94,6 +98,8 @@ pub fn lexer<'src>(
         "val" => Token::Val,
         "var" => Token::Var,
         "import" => Token::Import,
+        "vararg" => Token::Vararg,
+        "static" => Token::Static,
         _ => Token::Ident(string_interner.intern_string(ident.to_owned())),
     });
 

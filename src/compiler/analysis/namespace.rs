@@ -10,6 +10,7 @@ use crate::compiler::{flatten, HashableMap, Ident, QueryTrisult, StructId, Text}
 use crate::query_error;
 
 use crate::compiler::cst::{FunctionDecls, PropertyDecls};
+use crate::compiler::span::StringInterner;
 use colomar_macros::Interned;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
@@ -78,7 +79,7 @@ pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Text,
         .map(|namespace| {
             let mut map = HashMap::new();
             let mut add = |name: Text| {
-                if let Some(RValue::Type(r#type)) = namespace.get(&name) {
+                if let Some(RValue::Type(r#type)) = namespace.get(name) {
                     map.insert(name.clone(), r#type);
                 }
             };
@@ -181,8 +182,13 @@ pub(super) fn query_namespaced_rvalue(
 ) -> QueryTrisult<RValue> {
     db.query_namespace(nameholders).flat_map(|namespace| {
         namespace
-            .get(&ident.value)
-            .ok_or(CompilerError::CannotFindIdent(ident))
+            .get(ident.value)
+            .ok_or_else(|| {
+                println!("{}", db.lookup_intern_string(ident.value));
+                namespace.print_content(db);
+
+                dbg!(CompilerError::CannotFindIdent(ident))
+            })
             .into()
     })
 }
@@ -322,6 +328,13 @@ impl Namespace {
         }
     }
 
+    pub fn print_content(&self, db: &(impl StringInterner + Interner + ?Sized)) {
+        self.parent.iter().for_each(|it| it.print_content(db));
+        for (key, value) in &self.map {
+            println!("{} | {:?}", db.lookup_intern_string(*key), value.name(db))
+        }
+    }
+
     pub fn from_enum_def(db: &(impl Interner + ?Sized), def: EnumDef) -> Namespace {
         let map = def
             .constants
@@ -348,7 +361,7 @@ impl Namespace {
         rvalue: RValue,
         db: &I,
     ) -> Result<(), CompilerError> {
-        match (self.contains(&ident), allow_duplicates) {
+        match (self.contains(ident.value), allow_duplicates) {
             (Some(root), false) => {
                 CompilerError::DuplicateIdent {
                     first: root.name(db), // TODO How to deal with errors?
@@ -364,18 +377,18 @@ impl Namespace {
         }
     }
 
-    fn get(&self, ident_value: &Text) -> Option<RValue> {
-        self.map.get(ident_value).cloned()
+    fn get(&self, ident_value: Text) -> Option<RValue> {
+        self.contains(ident_value)
     }
 
-    fn contains(&self, ident: &Ident) -> Option<RValue> {
-        let option = self.map.get(&ident.value).cloned();
+    fn contains(&self, ident_value: Text) -> Option<RValue> {
+        let option = self.map.get(&ident_value).cloned();
         if option.is_some() {
             option
         } else {
             self.parent
                 .iter()
-                .map(|it| it.contains(ident))
+                .map(|it| it.contains(ident_value))
                 .filter(|it| it.is_some())
                 .flatten()
                 .collect::<Vec<_>>()

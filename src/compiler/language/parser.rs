@@ -68,11 +68,14 @@ fn declared_arg<'src>() -> impl Parser<'src, ParserInput, Spanned<Vec<DeclArg>>,
         .ignore_then(chain().ident_chain())
         .or_not();
 
-    ident()
+    vararg()
+        .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
         .then(types)
         .then(default_value)
-        .map_with_span(|((name, types), default_value), span| (name, types, default_value, span))
+        .map_with_span(|(((is_vararg, name), types), default_value), span| {
+            (is_vararg, name, types, default_value, span)
+        })
         .separated_by(just(Token::Ctrl(',')))
         .collect::<Vec<_>>()
         .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
@@ -80,13 +83,16 @@ fn declared_arg<'src>() -> impl Parser<'src, ParserInput, Spanned<Vec<DeclArg>>,
             arg_tuples
                 .into_iter()
                 .enumerate()
-                .map(|(position, (name, types, default_value, span))| DeclArg {
-                    position,
-                    name,
-                    types,
-                    default_value,
-                    span,
-                })
+                .map(
+                    |(position, (is_vararg, name, types, default_value, span))| DeclArg {
+                        is_vararg,
+                        position,
+                        name,
+                        types,
+                        default_value,
+                        span,
+                    },
+                )
                 .collect::<Vec<_>>()
         })
         .map_with_span(Spanned::new)
@@ -118,10 +124,7 @@ fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
         .then(by)
         .validate(|((event_decl, decl_args), by), span, emitter| {
             if event_decl.is_native.is_some() && by.is_some() {
-                emitter.emit(Rich::custom(
-                    span,
-                    "native functions cannot have a by clause",
-                ));
+                emitter.emit(Rich::custom(span, "native events cannot have a by clause"));
             }
             ((event_decl, decl_args), by)
         })
@@ -172,6 +175,22 @@ fn r#enum<'src>() -> impl Parser<'src, ParserInput, Enum, ParserExtra<'src>> {
             def: EnumDef { constants },
             span,
         })
+}
+
+fn spanned_bool<'src>(
+    token: Token,
+) -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    just(token)
+        .or_not()
+        .map_with_span(|it, span| it.map(|_| Spanned::new((), span)))
+}
+
+fn r#static<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    spanned_bool(Token::Static)
+}
+
+fn vararg<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    spanned_bool(Token::Vararg)
 }
 
 fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDecl, ParserExtra<'src>> {
@@ -283,17 +302,22 @@ fn import<'src>() -> impl Parser<'src, ParserInput, Import, ParserExtra<'src>> {
         .map_with_span(|path, span| Import { path, span })
 }
 
-fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>> {
-    let member_function = native()
+fn function_decl<'src>() -> impl Parser<'src, ParserInput, FunctionDecl, ParserExtra<'src>> {
+    native()
+        .then(r#static())
         .then_ignore(just(Token::Fn))
         .then(ident())
         .then(declared_arg())
-        .map(|((is_native, name), args)| FunctionDecl {
+        .map(|(((is_native, is_static), name), args)| FunctionDecl {
             name,
             is_native,
+            is_static,
             args: args.inner_into(),
-        });
+        })
+}
 
+fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>> {
+    let member_function = function_decl();
     enum StructMember {
         Property(PropertyDecl),
         Function(FunctionDecl),

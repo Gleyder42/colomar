@@ -98,7 +98,7 @@ pub(super) fn check_equal_return_avalue(
 
 pub(super) fn query_call_chain(
     db: &dyn DeclQuery,
-    inital_nameholders: Nameholders,
+    initial_nameholders: Nameholders,
     call_chain: cst::CallChain,
 ) -> QueryTrisult<AValueChain> {
     assert!(
@@ -108,7 +108,7 @@ pub(super) fn query_call_chain(
     let span = call_chain.span;
 
     QueryTrisult::Ok(call_chain.value).fold_flat_map(
-        (inital_nameholders.clone(), Vec::<cir::AValue>::new()),
+        (initial_nameholders.clone(), Vec::<cir::AValue>::new()),
         // func refers to the closure processing the call.
         // map_func refers to the closure unwrapping the value .
         //
@@ -139,7 +139,7 @@ pub(super) fn query_call_chain(
                                 .into_iter()
                                 .map(|call_arg| {
                                     db.query_call_chain(
-                                        inital_nameholders.clone(),
+                                        initial_nameholders.clone(),
                                         // TODO Call argument should also hava an expression
                                         call_arg.clone().call_chain(),
                                     )

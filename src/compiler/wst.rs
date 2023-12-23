@@ -2,7 +2,7 @@ use crate::compiler;
 use crate::compiler::span::StringInterner;
 use crate::compiler::{Op, Text, Text2};
 use smol_str::SmolStr;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 pub mod partial {
     use crate::compiler::{wst, Op};
@@ -30,6 +30,10 @@ pub mod partial {
         CannotFindReplace,
     }
 
+    /// A partial call is almost identical to a regular [wst::Call].
+    /// The difference is that a partial call can contain placeholder.
+    /// A placeholder is not valid workshop code, and must be 'saturated' with values into a [wst::Call].
+    /// Use [Call::saturate] or [Call::saturate_with] for that.
     #[derive(Clone, Debug, Hash, Eq, PartialEq)]
     pub enum Call {
         Condition(Condition),
@@ -41,6 +45,9 @@ pub mod partial {
     }
 
     impl Call {
+        /// Converts a partial call into a [wst::Call] without replacing placeholder.
+        ///
+        /// If you have a replace map, use [Call::saturate] or [Call::saturate_with] instead.
         pub fn complete(self) -> Result<wst::Call, SaturateError> {
             self.saturate_with(|placeholder| {
                 let error = SaturateError(placeholder, SaturateErrorReason::WasPartial);
@@ -170,6 +177,7 @@ pub enum Call {
     Boolean(bool),
     Property(Ident, Ident),
     Function(Function),
+    Vararg(Vec<Call>),
 }
 
 impl Call {
@@ -196,6 +204,7 @@ impl Display for Call {
             Call::String(it) => format!("\"{}\"", it.to_string()),
             Call::Number(it) => it.to_string(),
             Call::Ident(it) => it.to_string(),
+            Call::Vararg(calls) => return calls.iter().map(|it| Debug::fmt(&it, f)).collect(),
             Call::Boolean(it) => match *it {
                 true => "True".to_owned(),
                 false => "False".to_owned(),

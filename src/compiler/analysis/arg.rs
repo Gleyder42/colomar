@@ -165,6 +165,7 @@ pub(super) fn query_declared_arg(
         .collect::<QueryTrisult<Vec<CalledType>>>()
         .and_maybe(default_value_option)
         .map(|(types, default_value)| cir::DeclArg {
+            is_vararg: decl_arg.is_vararg.is_some(),
             position: decl_arg.position,
             name: decl_arg.name,
             types: CalledTypes {

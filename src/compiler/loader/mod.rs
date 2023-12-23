@@ -46,6 +46,7 @@ pub trait WorkshopScriptLoader {
         property_name: Text2,
     ) -> QueryTrisult<wst::partial::Call>;
 
+    /// Queries the workshop code of a colomar struct function.
     fn query_wscript_struct_function_impl(
         &self,
         struct_name: Text2,

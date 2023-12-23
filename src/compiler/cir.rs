@@ -292,6 +292,7 @@ pub struct CalledArg {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct DeclArg {
     pub name: Ident,
+    pub is_vararg: bool,
     pub position: usize,
     pub types: CalledTypes,
     pub default_value: Option<AValueChain>,
