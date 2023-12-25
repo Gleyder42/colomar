@@ -1,8 +1,8 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::cir::{EventDeclId, StructDeclId};
-use crate::compiler::cst::Conditions;
-use crate::compiler::QueryTrisult;
-use crate::compiler::{cir, cst};
+use super::super::analysis::decl::DeclQuery;
+use super::super::cir::{EventDeclId, StructDeclId};
+use super::super::cst::Conditions;
+use super::super::QueryTrisult;
+use super::super::{cir, cst};
 use hashlink::LinkedHashSet;
 
 use super::event;

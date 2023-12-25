@@ -1,9 +1,9 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::interner::IntoInternId;
-use crate::compiler::cir::{EnumConstant, EnumConstants, EnumDeclId};
-use crate::compiler::error::CompilerError;
-use crate::compiler::trisult::Trisult;
-use crate::compiler::{cir, cst, Ident, QueryTrisult};
+use super::super::analysis::decl::DeclQuery;
+use super::super::analysis::interner::IntoInternId;
+use super::super::cir::{EnumConstant, EnumConstants, EnumDeclId};
+use super::super::error::CompilerError;
+use super::super::trisult::Trisult;
+use super::super::{cir, cst, Ident, QueryTrisult};
 
 use std::collections::HashMap;
 

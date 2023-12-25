@@ -2,11 +2,11 @@ mod call;
 mod rule;
 mod variables;
 
-use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::analysis::interner::Interner as AnalysisInterner;
-use crate::compiler::loader::WorkshopScriptLoader;
-use crate::compiler::wst::Variable;
-use crate::compiler::{cir, wst, AssignMod, Ident, QueryTrisult};
+use super::analysis::def::DefQuery;
+use super::analysis::interner::Interner as AnalysisInterner;
+use super::loader::WorkshopScriptLoader;
+use super::wst::Variable;
+use super::{cir, wst, AssignMod, Ident, QueryTrisult};
 
 const CALLER_PLACEHOLDER: &str = "$caller$";
 const ASSIGMENT_PLACEHOLDER: &str = "$value$";

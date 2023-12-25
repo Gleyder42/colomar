@@ -1,6 +1,6 @@
-use crate::compiler::workshop::lexer::Token;
-use crate::compiler::wst::partial::Placeholder;
-use crate::compiler::wst::{partial, Ident};
+use super::super::workshop::lexer::Token;
+use super::super::wst::partial::Placeholder;
+use super::super::wst::{partial, Ident};
 use chumsky::error::Error;
 use chumsky::input::{SpannedInput, Stream};
 

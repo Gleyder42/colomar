@@ -1,4 +1,4 @@
-use crate::compiler::{HashableMap, Op, Text, Text2};
+use super::{FullText, HashableMap, Op, TextId};
 use colomar_macros::Interned;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -18,10 +18,10 @@ pub enum Owscript {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct LiteralOwscript(pub Text2);
+pub struct LiteralOwscript(pub FullText);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct PlaceholderOwscript(Text2);
+pub struct PlaceholderOwscript(FullText);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct NativeFunc {
@@ -43,7 +43,7 @@ pub struct CallNativeEvent {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Rule {
-    name: Text,
+    name: TextId,
     event: CallNativeEvent,
     conditions: Vec<Condition>,
     actions: Vec<Call>,
@@ -62,11 +62,11 @@ pub enum Call {
         name: NativeFuncId,
         args: HashableMap<String, Box<Call>>,
     },
-    Property(Text),
-    Variable(Text),
+    Property(TextId),
+    Variable(TextId),
     Condition(Condition),
-    String(Text),
-    Number(Text),
+    String(TextId),
+    Number(TextId),
     Boolean(bool),
 }
 
@@ -75,7 +75,7 @@ lazy_static! {
 }
 
 impl LiteralOwscript {
-    pub fn new(text: impl Into<Text2>) -> Self {
+    pub fn new(text: impl Into<FullText>) -> Self {
         LiteralOwscript(text.into())
     }
 }
@@ -92,8 +92,8 @@ impl Owscript {
     }
 }
 
-impl From<Text2> for LiteralOwscript {
-    fn from(value: Text2) -> Self {
+impl From<FullText> for LiteralOwscript {
+    fn from(value: FullText) -> Self {
         LiteralOwscript(value)
     }
 }
@@ -108,9 +108,9 @@ impl From<String> for Owscript {
     }
 }
 
-impl From<LiteralOwscript> for Text2 {
+impl From<LiteralOwscript> for FullText {
     fn from(value: LiteralOwscript) -> Self {
-        Text2::from(value.0)
+        FullText::from(value.0)
     }
 }
 

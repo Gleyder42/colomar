@@ -1,7 +1,7 @@
-use crate::compiler::analysis::namespace::{Namespace, NamespaceId};
-use crate::compiler::cir::*;
-use crate::compiler::trisult::Trisult;
-use crate::compiler::Ident;
+use super::super::analysis::namespace::{Namespace, NamespaceId};
+use super::super::cir::*;
+use super::super::trisult::Trisult;
+use super::super::Ident;
 
 use crate::compiler::span::StringInterner;
 use std::rc::Rc;

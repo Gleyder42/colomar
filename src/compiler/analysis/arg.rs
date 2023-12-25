@@ -1,11 +1,11 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::cir::{AValueChain, CalledArgs, CalledType, CalledTypes, DeclArgIds};
-use crate::compiler::error::CompilerError;
+use super::super::analysis::decl::DeclQuery;
+use super::super::analysis::namespace::Nameholder;
+use super::super::cir::{AValueChain, CalledArgs, CalledType, CalledTypes, DeclArgIds};
+use super::super::error::CompilerError;
 
-use crate::compiler::{cir, cst, Ident, QueryTrisult, Text};
+use super::super::{cir, cst, Ident, QueryTrisult, TextId};
 
-use crate::compiler::span::Spanned;
+use super::super::span::Spanned;
 use either::Either;
 use hashlink::LinkedHashSet;
 use smallvec::smallvec;
@@ -26,7 +26,7 @@ pub(super) fn query_called_args(
     called_arg_avalues: Spanned<Vec<(Option<Ident>, AValueChain)>>,
     decl_arg_ids: DeclArgIds,
 ) -> QueryTrisult<CalledArgs> {
-    let mut decl_args_map: HashMap<Text, (usize, cir::DeclArgId)> = decl_arg_ids
+    let mut decl_args_map: HashMap<TextId, (usize, cir::DeclArgId)> = decl_arg_ids
         .iter()
         .enumerate()
         .map(|(index, id)| {

@@ -1,16 +1,16 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::interner::{Interner, IntoInternId};
-use crate::compiler::cir::{
+use super::super::analysis::decl::DeclQuery;
+use super::super::analysis::interner::{Interner, IntoInternId};
+use super::super::cir::{
     EnumConstant, EnumConstantId, EnumDeclId, EnumDef, EventDeclId, FunctionDecl, PropertyDecl,
     RValue, StructDeclId, Type, VirtualType,
 };
-use crate::compiler::error::CompilerError;
-use crate::compiler::trisult::Trisult;
-use crate::compiler::{flatten, HashableMap, Ident, QueryTrisult, StructId, Text};
+use super::super::error::CompilerError;
+use super::super::trisult::Trisult;
+use super::super::{flatten, HashableMap, Ident, QueryTrisult, StructId, TextId};
 use crate::query_error;
 
-use crate::compiler::cst::{FunctionDecls, PropertyDecls};
-use crate::compiler::span::StringInterner;
+use super::super::cst::{FunctionDecls, PropertyDecls};
+use super::super::span::StringInterner;
 use colomar_macros::Interned;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
@@ -62,23 +62,23 @@ pub(super) fn query_event_namespace(
         })
 }
 
-pub(super) fn query_bool_name(db: &dyn DeclQuery) -> Text {
+pub(super) fn query_bool_name(db: &dyn DeclQuery) -> TextId {
     db.intern_string("bool".to_owned())
 }
 
-pub(super) fn query_string_name(db: &dyn DeclQuery) -> Text {
+pub(super) fn query_string_name(db: &dyn DeclQuery) -> TextId {
     db.intern_string("string".to_owned())
 }
 
-pub(super) fn query_number_name(db: &dyn DeclQuery) -> Text {
+pub(super) fn query_number_name(db: &dyn DeclQuery) -> TextId {
     db.intern_string("num".to_owned())
 }
 
-pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Text, Type>> {
+pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<TextId, Type>> {
     db.query_namespace(smallvec![Nameholder::Root])
         .map(|namespace| {
             let mut map = HashMap::new();
-            let mut add = |name: Text| {
+            let mut add = |name: TextId| {
                 if let Some(RValue::Type(r#type)) = namespace.get(name) {
                     map.insert(name.clone(), r#type);
                 }
@@ -313,7 +313,7 @@ impl From<EnumNameholder> for Nameholder {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct Namespace {
     parent: Vec<Rc<Namespace>>,
-    map: HashableMap<Text, RValue>,
+    map: HashableMap<TextId, RValue>,
 }
 
 pub fn empty_namespace(db: &(impl Interner + ?Sized)) -> NamespaceId {
@@ -377,11 +377,11 @@ impl Namespace {
         }
     }
 
-    fn get(&self, ident_value: Text) -> Option<RValue> {
+    fn get(&self, ident_value: TextId) -> Option<RValue> {
         self.contains(ident_value)
     }
 
-    fn contains(&self, ident_value: Text) -> Option<RValue> {
+    fn contains(&self, ident_value: TextId) -> Option<RValue> {
         let option = self.map.get(&ident_value).cloned();
         if option.is_some() {
             option

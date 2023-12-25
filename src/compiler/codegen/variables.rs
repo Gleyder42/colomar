@@ -1,7 +1,7 @@
-use crate::compiler::cir::Type;
-use crate::compiler::codegen::Codegen;
-use crate::compiler::wst::Ident;
-use crate::compiler::{cir, cst, wst, QueryTrisult};
+use super::super::cir::Type;
+use super::super::codegen::Codegen;
+use super::super::wst::Ident;
+use super::super::{cir, cst, wst, QueryTrisult};
 
 pub(super) fn query_player_variables(db: &dyn Codegen) -> QueryTrisult<Vec<wst::Variable>> {
     let player_struct: cst::Struct = db.query_player_struct_def();

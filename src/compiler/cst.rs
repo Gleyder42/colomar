@@ -1,7 +1,7 @@
-use crate::compiler::span::{Span, Spanned, SpannedBool};
-use crate::compiler::trisult::Trisult;
-use crate::compiler::{
-    AssignMod, Ident, Text, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN,
+use super::span::{Span, Spanned, SpannedBool};
+use super::trisult::Trisult;
+use super::{
+    AssignMod, Ident, TextId, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use smallvec::SmallVec;
@@ -98,7 +98,7 @@ pub enum Action {
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Path {
-    pub segments: Vec<Text>,
+    pub segments: Vec<TextId>,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -277,7 +277,7 @@ pub struct DeclArg {
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Rule {
     pub visibility: Visibility,
-    pub name: Spanned<Text>,
+    pub name: Spanned<TextId>,
     pub event: Ident,
     pub args: CallArgs,
     pub conditions: Conditions,
@@ -373,13 +373,13 @@ pub enum Call {
     /// ## Example
     /// - "Hello World"
     /// - "Greetings"
-    String(Text, Span),
+    String(TextId, Span),
     /// A number literal
     /// ## Example
     /// - 12
     /// - 1.5
     /// - 0
-    Number(Text, Span),
+    Number(TextId, Span),
 }
 
 impl From<Ident> for Box<Call> {

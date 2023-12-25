@@ -1,7 +1,7 @@
-use crate::compiler::codegen::{Caller, Codegen};
-use crate::compiler::error::CompilerError;
-use crate::compiler::trisult::IntoTrisult;
-use crate::compiler::{cir, wst, Op, QueryTrisult};
+use super::super::codegen::{Caller, Codegen};
+use super::super::error::CompilerError;
+use super::super::trisult::IntoTrisult;
+use super::super::{cir, wst, Op, QueryTrisult};
 
 use std::collections::{HashMap, VecDeque};
 

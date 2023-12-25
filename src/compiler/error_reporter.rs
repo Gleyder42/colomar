@@ -1,8 +1,8 @@
-use crate::compiler::cir::{CalledType, CalledTypes, Type};
-use crate::compiler::database::CompilerDatabase;
-use crate::compiler::error::CompilerError;
-use crate::compiler::span::{FatSpan, Span, SpanSourceId};
-use crate::compiler::{Ident, Text};
+use super::cir::{CalledType, CalledTypes, Type};
+use super::database::CompilerDatabase;
+use super::error::CompilerError;
+use super::span::{FatSpan, Span, SpanSourceId};
+use super::{Ident, TextId};
 use ariadne::{sources, Color, Fmt, Label, Report, ReportKind, Source};
 use either::Either;
 use std::borrow::Cow;
@@ -95,7 +95,7 @@ pub fn print_errors(
     }
 }
 
-fn print_cannot_find_primitive_decl(db: &mut CompilerDatabase, error_code: u16, name: Text) {
+fn print_cannot_find_primitive_decl(db: &mut CompilerDatabase, error_code: u16, name: TextId) {
     /// We use ariadne to print the compiler error, even though we have no span
     /// nor source message.
     /// If want to have a consistent error reporting so I use ariadne instead of

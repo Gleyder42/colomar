@@ -1,8 +1,8 @@
-use crate::compiler::analysis::interner::Interner;
-use crate::compiler::span::{CopyRange, Span, Spanned, SpannedBool};
-use crate::compiler::{AssignMod, UseRestriction};
-use crate::compiler::{
-    Ident, Text, CALLED_ARGS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN, ENUM_CONSTANTS_LEN,
+use super::analysis::interner::Interner;
+use super::span::{CopyRange, Span, Spanned, SpannedBool};
+use super::{AssignMod, UseRestriction};
+use super::{
+    Ident, TextId, CALLED_ARGS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN, ENUM_CONSTANTS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use colomar_macros::Interned;
@@ -320,7 +320,7 @@ pub type Actions = Vec<Action>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rule {
-    pub title: Text,
+    pub title: TextId,
     pub event: EventDeclId,
     pub args: CalledArgs,
     pub conditions: Predicates,
@@ -461,8 +461,8 @@ impl AValue {
 /// Represent a value which is known at compile time
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CValue {
-    String(Text, StructDeclId, Span),
-    Number(Text, StructDeclId, Span),
+    String(TextId, StructDeclId, Span),
+    Number(TextId, StructDeclId, Span),
 }
 
 impl CValue {

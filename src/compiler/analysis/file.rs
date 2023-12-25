@@ -1,10 +1,10 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::cir::{EnumDeclId, EventDeclId};
-use crate::compiler::cst::{Def, EventDef, Root, StructDef, TypeRoot, Visibility};
-use crate::compiler::error::CompilerError;
+use super::super::analysis::decl::DeclQuery;
+use super::super::cir::{EnumDeclId, EventDeclId};
+use super::super::cst::{Def, EventDef, Root, StructDef, TypeRoot, Visibility};
+use super::super::error::CompilerError;
 
-use crate::compiler::trisult::{Errors, IntoTrisult};
-use crate::compiler::{cst, QueryTrisult, SVMultiMap, SVMultiMapWrapper, StructId, Text};
+use super::super::trisult::{Errors, IntoTrisult};
+use super::super::{cst, QueryTrisult, SVMultiMap, SVMultiMapWrapper, StructId, TextId};
 use crate::tri;
 use smallvec::SmallVec;
 use std::collections::HashMap;
@@ -18,7 +18,7 @@ pub enum DefKey {
 
 pub(super) fn query_structs(
     db: &dyn DeclQuery,
-) -> QueryTrisult<HashMap<Text, SmallVec<[cst::Struct; 1]>>> {
+) -> QueryTrisult<HashMap<TextId, SmallVec<[cst::Struct; 1]>>> {
     let ast = db.query_main_file();
 
     let struct_decls: Vec<_> = ast
@@ -42,7 +42,7 @@ pub(super) fn query_structs(
 
 pub(super) fn query_struct_by_name(
     db: &dyn DeclQuery,
-    text: Text,
+    text: TextId,
 ) -> QueryTrisult<SmallVec<[cst::Struct; 1]>> {
     db.query_structs().flat_map(|mut struct_map| {
         struct_map

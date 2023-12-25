@@ -1,6 +1,5 @@
-use crate::compiler;
-use crate::compiler::span::StringInterner;
-use crate::compiler::{Op, Text, Text2};
+use super::span::StringInterner;
+use super::{FullText, Op, TextId};
 use smol_str::SmolStr;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -132,7 +131,7 @@ pub mod partial {
 pub struct Ident(pub SmolStr);
 
 impl Ident {
-    pub fn from_ident(ident: compiler::Ident, interner: &(impl StringInterner + ?Sized)) -> Self {
+    pub fn from_ident(ident: super::Ident, interner: &(impl StringInterner + ?Sized)) -> Self {
         Self(interner.lookup_intern_string(ident.value).into())
     }
 }
@@ -171,8 +170,8 @@ impl Display for Variable {
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Call {
     Condition(Condition),
-    String(Text2),
-    Number(Text2),
+    String(FullText),
+    Number(FullText),
     Ident(Ident),
     Boolean(bool),
     Property(Ident, Ident),
@@ -282,7 +281,7 @@ impl Display for Condition {
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Rule {
-    pub title: Text,
+    pub title: TextId,
     pub event: Event,
     pub conditions: Vec<Condition>,
     pub actions: Vec<Function>,

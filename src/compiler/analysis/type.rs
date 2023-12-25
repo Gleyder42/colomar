@@ -1,8 +1,8 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::{cir, cst, Ident, QueryTrisult};
+use super::super::analysis::decl::DeclQuery;
+use super::super::{cir, cst, Ident, QueryTrisult};
 
-use crate::compiler::analysis::namespace::Nameholders;
-use crate::compiler::trisult::Errors;
+use super::super::analysis::namespace::Nameholders;
+use super::super::trisult::Errors;
 use crate::tri;
 use std::collections::HashMap;
 use std::hint::black_box;

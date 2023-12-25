@@ -1,6 +1,6 @@
-use crate::compiler::cir::Root;
-use crate::compiler::codegen::Codegen;
-use crate::compiler::{wst, QueryTrisult};
+use super::cir::Root;
+use super::codegen::Codegen;
+use super::{wst, QueryTrisult};
 
 #[salsa::query_group(PrinterDatabase)]
 pub trait PrinterQuery: Codegen {

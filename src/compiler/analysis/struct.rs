@@ -1,11 +1,11 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::analysis::interner::IntoInternId;
-use crate::compiler::cir::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, Type};
-use crate::compiler::QueryTrisult;
-use crate::compiler::{cir, cst, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
+use super::super::analysis::decl::DeclQuery;
+use super::super::analysis::def::DefQuery;
+use super::super::analysis::interner::IntoInternId;
+use super::super::cir::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, Type};
+use super::super::QueryTrisult;
+use super::super::{cir, cst, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
 
-use crate::compiler::trisult::Errors;
+use super::super::trisult::Errors;
 use crate::tri;
 use smallvec::SmallVec;
 

@@ -1,13 +1,13 @@
-use crate::compiler::cir::{AValueChain, CValue, RValue, Type};
-use crate::compiler::codegen::{
+use super::super::cir::{AValueChain, CValue, RValue, Type};
+use super::super::codegen::{
     Arg, Assigner, Caller, Codegen, ASSIGMENT_PLACEHOLDER, CALLER_PLACEHOLDER,
 };
-use crate::compiler::error::CompilerError;
+use super::super::error::CompilerError;
 
-use crate::compiler::span::Span;
-use crate::compiler::wst::partial::Placeholder;
-use crate::compiler::wst::Ident;
-use crate::compiler::{cir, compiler_todo, wst, Op, QueryTrisult};
+use super::super::span::Span;
+use super::super::wst::partial::Placeholder;
+use super::super::wst::Ident;
+use super::super::{cir, compiler_todo, wst, Op, QueryTrisult};
 use crate::query_error;
 use cir::{CalledArgs, FunctionDecl};
 use std::collections::{HashMap, HashSet};

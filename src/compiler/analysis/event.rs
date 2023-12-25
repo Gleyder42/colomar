@@ -1,10 +1,10 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::analysis::interner::IntoInternId;
-use crate::compiler::cir::{EventDeclId, PropertyDecls};
-use crate::compiler::cst::{Action, Actions};
-use crate::compiler::QueryTrisult;
-use crate::compiler::{cir, cst};
+use super::super::analysis::decl::DeclQuery;
+use super::super::analysis::def::DefQuery;
+use super::super::analysis::interner::IntoInternId;
+use super::super::cir::{EventDeclId, PropertyDecls};
+use super::super::cst::{Action, Actions};
+use super::super::QueryTrisult;
+use super::super::{cir, cst};
 
 pub(super) fn query_event_def_by_id(
     db: &dyn DefQuery,

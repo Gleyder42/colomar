@@ -1,6 +1,6 @@
-use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::QueryTrisult;
-use crate::compiler::{cir, cst};
+use super::super::analysis::def::DefQuery;
+use super::super::QueryTrisult;
+use super::super::{cir, cst};
 
 pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
     db.query_action_items()

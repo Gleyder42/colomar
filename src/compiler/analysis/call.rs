@@ -1,12 +1,12 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::interner::IntoInternId;
-use crate::compiler::analysis::namespace::{Nameholder, Nameholders};
-use crate::compiler::cir::{AValueChain, CValue, TypeComparison};
-use crate::compiler::cst::CallArg;
-use crate::compiler::error::CompilerError;
-use crate::compiler::span::Spanned;
-use crate::compiler::QueryTrisult;
-use crate::compiler::{cir, cst};
+use super::super::analysis::decl::DeclQuery;
+use super::super::analysis::interner::IntoInternId;
+use super::super::analysis::namespace::{Nameholder, Nameholders};
+use super::super::cir::{AValueChain, CValue, TypeComparison};
+use super::super::cst::CallArg;
+use super::super::error::CompilerError;
+use super::super::span::Spanned;
+use super::super::QueryTrisult;
+use super::super::{cir, cst};
 use either::Either;
 use smallvec::smallvec;
 

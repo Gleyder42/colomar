@@ -1,15 +1,15 @@
-use crate::compiler::analysis::file::DefKey;
-use crate::compiler::analysis::interner::Interner;
-use crate::compiler::analysis::namespace::{Nameholders, Namespace, NamespaceId};
-use crate::compiler::cir::{
+use super::super::analysis::file::DefKey;
+use super::super::analysis::interner::Interner;
+use super::super::analysis::namespace::{Nameholders, Namespace, NamespaceId};
+use super::super::cir::{
     AValueChain, CalledArgs, DeclArgIds, EnumDeclId, EventDeclId, FunctionDeclIds, PropertyDeclIds,
     PropertyDecls, StructDeclId,
 };
-use crate::compiler::cst::{Actions, TypeRoot};
-use crate::compiler::error::CompilerError;
-use crate::compiler::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, Text};
+use super::super::cst::{Actions, TypeRoot};
+use super::super::error::CompilerError;
+use super::super::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, TextId};
 
-use crate::compiler::span::{Spanned, StringInterner};
+use super::super::span::{Spanned, StringInterner};
 use cir::DeclArgId;
 use cst::Ast;
 use hashlink::LinkedHashMap;
@@ -52,11 +52,11 @@ pub trait DeclQuery: Interner + StringInterner {
 
     /// Impl [file::query_struct_decls]
     #[salsa::invoke(file::query_structs)]
-    fn query_structs(&self) -> QueryTrisult<HashMap<Text, SmallVec<[cst::Struct; 1]>>>;
+    fn query_structs(&self) -> QueryTrisult<HashMap<TextId, SmallVec<[cst::Struct; 1]>>>;
 
     /// Impl [file::query_struct_by_name]
     #[salsa::invoke(file::query_struct_by_name)]
-    fn query_struct_by_name(&self, text: Text) -> QueryTrisult<SmallVec<[cst::Struct; 1]>>;
+    fn query_struct_by_name(&self, text: TextId) -> QueryTrisult<SmallVec<[cst::Struct; 1]>>;
 
     /// Impl: [file::query_type_items]
     #[salsa::invoke(file::query_type_items)]
@@ -194,19 +194,19 @@ pub trait DeclQuery: Interner + StringInterner {
 
     /// [namespace::query_bool_name]
     #[salsa::invoke(namespace::query_bool_name)]
-    fn query_bool_name(&self) -> Text;
+    fn query_bool_name(&self) -> TextId;
 
     /// [namespace::query_string_name]
     #[salsa::invoke(namespace::query_string_name)]
-    fn query_string_name(&self) -> Text;
+    fn query_string_name(&self) -> TextId;
 
     /// [namespace::query_number_name]
     #[salsa::invoke(namespace::query_number_name)]
-    fn query_number_name(&self) -> Text;
+    fn query_number_name(&self) -> TextId;
 
     /// [namespace::query_primitives]
     #[salsa::invoke(namespace::query_primitives)]
-    fn query_primitives(&self) -> QueryTrisult<HashMap<Text, cir::Type>>;
+    fn query_primitives(&self) -> QueryTrisult<HashMap<TextId, cir::Type>>;
 
     /// [namespace::query_bool_type]
     #[salsa::invoke(namespace::query_bool_type)]

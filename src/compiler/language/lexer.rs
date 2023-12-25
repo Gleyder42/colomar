@@ -1,6 +1,6 @@
 extern crate core;
 
-use crate::compiler::span::{Span, SpanLocation, SpanSourceId, StringId, StringInterner};
+use super::super::span::{Span, SpanLocation, SpanSourceId, StringId, StringInterner};
 use chumsky::prelude::*;
 
 use std::fmt::{Debug, Display, Formatter};

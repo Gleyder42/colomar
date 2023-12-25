@@ -1,8 +1,8 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::cir::{PropertyDecl, Type};
-use crate::compiler::cst;
-use crate::compiler::QueryTrisult;
+use super::super::analysis::decl::DeclQuery;
+use super::super::analysis::namespace::Nameholder;
+use super::super::cir::{PropertyDecl, Type};
+use super::super::cst;
+use super::super::QueryTrisult;
 
 use smallvec::smallvec;
 

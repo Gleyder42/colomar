@@ -1,10 +1,10 @@
-use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::analysis::namespace::Nameholder;
-use crate::compiler::cir::{AValueChain, EventDeclId, Predicate, RValue};
-use crate::compiler::cst::{Action, Actions, CallArg, Conditions};
-use crate::compiler::{cir, cst, QueryTrisult};
+use super::super::analysis::def::DefQuery;
+use super::super::analysis::namespace::Nameholder;
+use super::super::cir::{AValueChain, EventDeclId, Predicate, RValue};
+use super::super::cst::{Action, Actions, CallArg, Conditions};
+use super::super::{cir, cst, QueryTrisult};
 
-use crate::compiler::analysis::interner::IntoInternId;
+use super::super::analysis::interner::IntoInternId;
 use smallvec::smallvec;
 
 pub(super) fn query_rule_actions(

@@ -1,4 +1,4 @@
-use crate::compiler::wst::partial::Placeholder;
+use super::super::wst::partial::Placeholder;
 use chumsky::prelude::*;
 use chumsky::text::Char;
 use smol_str::SmolStr;

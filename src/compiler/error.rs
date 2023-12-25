@@ -1,9 +1,9 @@
-use crate::compiler::cir::{AValue, CalledType, CalledTypes, DeclArgId, Type};
-use crate::compiler::cst::Path;
-use crate::compiler::span::Span;
-use crate::compiler::trisult::Trisult;
-use crate::compiler::wst::partial::SaturateError;
-use crate::compiler::{Ident, QueryTrisult, Text};
+use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, Type};
+use super::cst::Path;
+use super::span::Span;
+use super::trisult::Trisult;
+use super::wst::partial::SaturateError;
+use super::{Ident, QueryTrisult, TextId};
 use crate::query_error;
 use either::Either;
 use std::borrow::Cow;
@@ -22,7 +22,7 @@ pub enum CompilerError {
         actual: CalledType,
         expected: Either<Type, CalledTypes>,
     },
-    CannotFindPrimitiveDecl(Text),
+    CannotFindPrimitiveDecl(TextId),
     CannotFindNativeDef(String),
     PlaceholderError(SaturateError),
     // TODO Add any information
@@ -40,7 +40,7 @@ pub enum CompilerError {
     CannotEvalAsConst,
     WrongTypeInBinaryExpr(AValue, AValue),
     CannotFindFile(Path),
-    CannotFindStruct(Text),
+    CannotFindStruct(TextId),
 }
 
 impl CompilerError {

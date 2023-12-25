@@ -1,11 +1,11 @@
-use crate::compiler::analysis::decl::DeclDatabase;
-use crate::compiler::analysis::def::DefDatabase;
-use crate::compiler::analysis::interner::InternerDatabase;
-use crate::compiler::codegen::CodegenDatabase;
-use crate::compiler::loader::WorkshopScriptLoaderDatabase;
-use crate::compiler::printer::PrinterDatabase;
-use crate::compiler::span::SpanInternerDatabase;
-use crate::compiler::span::StringInternerDatabase;
+use super::analysis::decl::DeclDatabase;
+use super::analysis::def::DefDatabase;
+use super::analysis::interner::InternerDatabase;
+use super::codegen::CodegenDatabase;
+use super::loader::WorkshopScriptLoaderDatabase;
+use super::printer::PrinterDatabase;
+use super::span::SpanInternerDatabase;
+use super::span::StringInternerDatabase;
 
 #[salsa::database(
     DeclDatabase,

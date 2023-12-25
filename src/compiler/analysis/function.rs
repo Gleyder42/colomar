@@ -1,7 +1,7 @@
-use crate::compiler::analysis::decl::DeclQuery;
-use crate::compiler::cir::Type;
-use crate::compiler::QueryTrisult;
-use crate::compiler::{cir, cst};
+use super::super::analysis::decl::DeclQuery;
+use super::super::cir::Type;
+use super::super::QueryTrisult;
+use super::super::{cir, cst};
 
 pub(super) fn query_function_decl(
     db: &dyn DeclQuery,

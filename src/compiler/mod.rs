@@ -1,13 +1,13 @@
-use crate::compiler::span::StringId;
-use crate::compiler::trisult::Trisult;
 use error::CompilerError;
 use hashlink::LinkedHashMap;
 use smallvec::SmallVec;
 use span::Span;
+use span::StringId;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
+use trisult::Trisult;
 
 pub mod analysis;
 pub mod cir;
@@ -27,9 +27,9 @@ pub mod wir;
 pub mod workshop;
 pub mod wst;
 
-pub type Text2 = String;
+pub type FullText = String;
+pub type TextId = StringId;
 
-pub type Text = StringId;
 pub type HashableMap<K, V> = LinkedHashMap<K, V>;
 pub type QueryTrisult<T> = Trisult<T, CompilerError>;
 
@@ -41,7 +41,7 @@ pub const PROPERTY_DECLS_LEN: usize = 4;
 pub const FUNCTIONS_DECLS_LEN: usize = 6;
 pub const ENUM_CONSTANTS_LEN: usize = 8;
 pub const CALLED_ARGS_LEN: usize = DECL_ARGS_LEN;
-pub type StructId = Text;
+pub type StructId = TextId;
 pub type SVMultiMap<K, V, const N: usize> = HashMap<K, SmallVec<[V; N]>>;
 
 pub struct SVMultiMapWrapper<K, V, const N: usize>(SVMultiMap<K, V, N>);
@@ -104,7 +104,7 @@ pub fn flatten<LR, L, R, const LN: usize, const RN: usize>(
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Ident {
-    pub value: Text,
+    pub value: TextId,
     pub span: Span,
 }
 

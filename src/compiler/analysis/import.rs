@@ -1,6 +1,6 @@
-use crate::compiler::analysis::def::DefQuery;
-use crate::compiler::cst::Path;
-use crate::compiler::{cst, QueryTrisult};
+use super::super::analysis::def::DefQuery;
+use super::super::cst::Path;
+use super::super::{cst, QueryTrisult};
 use hashlink::LinkedHashSet;
 
 pub(super) fn load_imports(

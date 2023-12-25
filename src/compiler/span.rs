@@ -1,4 +1,4 @@
-use crate::compiler::Text2;
+use super::FullText;
 use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
 use smol_str::SmolStr;
@@ -80,7 +80,7 @@ pub trait StringInterner {
 }
 
 impl StringId {
-    pub fn name(&self, interner: &(impl StringInterner + ?Sized)) -> Text2 {
+    pub fn name(&self, interner: &(impl StringInterner + ?Sized)) -> FullText {
         interner.lookup_intern_string(*self)
     }
 }
