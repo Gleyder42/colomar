@@ -6,25 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = ["colomar_macros", "compiler", "codegen"]
+members = ["colomar_macros", "compiler"]
 
 [dependencies]
-chumsky = "1.0.0-alpha.4" # compiler
-salsa = "0.17.0-pre.2" # compiler
-smol_str = "0.2.0" # compiler
-either = "1.8.1" # base
-ariadne = "0.3.0" # reporting, compiler
-smallvec = { version = "1.10.0", features = ["const_generics", "union"] } # compiler
-serde = { version = "1.0.163", features = ["derive"] } # codegen
-toml = "0.8.8" # codegen
-regex = "1.8.4" # codegen
-hashlink = { version = "0.8.3", features = ["serde_impl"] } # codegen
-lazy_static = "1.4.0" # compiler
-colomar_macros = { path = "colomar_macros" } # compiler
-
-[dev-dependencies]
-serde_yaml = "0.9.21"
-test-case = "3.1.0"
-derive-new = "0.6.0"
-anyhow = "1.0.71"
-pretty_assertions = "1.4.0"
+compiler = { path = "compiler" } # compiler

@@ -1,0 +1,1025 @@
+use super::super::cst::*;
+use super::super::language::lexer::Token;
+use super::super::{AssignMod, Ident, UseRestriction};
+use chumsky::input::{SpannedInput, Stream};
+
+use super::super::span::{Span, Spanned, SpannedBool};
+use chumsky::prelude::*;
+use smallvec::SmallVec;
+
+pub type ParserInput = SpannedInput<Token, Span, Stream<std::vec::IntoIter<(Token, Span)>>>;
+pub type ParserExtra<'a> = extra::Err<Rich<'a, Token, Span>>;
+
+fn ident<'src>() -> impl Parser<'src, ParserInput, Ident, ParserExtra<'src>> + Clone {
+    select! {
+        Token::Ident(ident) = span => Ident { value: ident, span }
+    }
+}
+
+fn decl_generics<'src>() -> impl Parser<'src, ParserInput, DeclGenerics, ParserExtra<'src>> {
+    ident()
+        .separated_by(just(Token::Ctrl(',')))
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::Ctrl('<')), just(Token::Ctrl('>')))
+        .map(DeclGenerics)
+        .or_not()
+        .map(|generics| generics.unwrap_or_else(|| DeclGenerics(Vec::new())))
+}
+
+fn bound_generics<'src>() -> impl Parser<'src, ParserInput, Vec<BoundGeneric>, ParserExtra<'src>> {
+    recursive(|generics| {
+        ident()
+            .then(
+                generics
+                    .or_not()
+                    .map(|generics| generics.unwrap_or_else(Vec::new)),
+            )
+            .map(|(ident, bound_generics)| BoundGeneric {
+                ident,
+                bound_generics,
+            })
+            .separated_by(just(Token::Ctrl(',')))
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::Ctrl('<')), just(Token::Ctrl('>')))
+    })
+}
+
+fn r#type<'src>() -> impl Parser<'src, ParserInput, Type, ParserExtra<'src>> {
+    let with_generics = ident()
+        .then(bound_generics())
+        .map(|(ident, generics)| Type { ident, generics });
+    let without_generics = ident().map(|ident| Type {
+        ident,
+        generics: Vec::new(),
+    });
+    with_generics.or(without_generics)
+}
+
+fn declared_arg<'src>() -> impl Parser<'src, ParserInput, Spanned<Vec<DeclArg>>, ParserExtra<'src>>
+{
+    let types = r#type()
+        .separated_by(just(Token::Ctrl('|')))
+        .collect::<Vec<_>>()
+        .map_with_span(|types, span| Types {
+            values: types.into(),
+            span,
+        });
+    let default_value = just(Token::Ctrl('='))
+        .ignore_then(chain().ident_chain())
+        .or_not();
+
+    vararg()
+        .then(ident())
+        .then_ignore(just(Token::Ctrl(':')))
+        .then(types)
+        .then(default_value)
+        .map_with_span(|(((is_vararg, name), types), default_value), span| {
+            (is_vararg, name, types, default_value, span)
+        })
+        .separated_by(just(Token::Ctrl(',')))
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
+        .map(|arg_tuples| {
+            arg_tuples
+                .into_iter()
+                .enumerate()
+                .map(
+                    |(position, (is_vararg, name, types, default_value, span))| DeclArg {
+                        is_vararg,
+                        position,
+                        name,
+                        types,
+                        default_value,
+                        span,
+                    },
+                )
+                .collect::<Vec<_>>()
+        })
+        .map_with_span(Spanned::new)
+}
+
+fn native<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    just(Token::Native)
+        .or_not()
+        .map_with_span(Spanned::ignore_value)
+}
+
+fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
+    let by = just(Token::By)
+        .ignore_then(ident())
+        .then(chain().args())
+        .or_not();
+
+    visibility()
+        .then(native())
+        .then_ignore(just(Token::Event))
+        .then(ident())
+        .map_with_span(|((visibility, is_native), name), span| EventDecl {
+            visibility,
+            is_native,
+            name,
+            span,
+        })
+        .then(declared_arg())
+        .then(by)
+        .validate(|((event_decl, decl_args), by), span, emitter| {
+            if event_decl.is_native.is_some() && by.is_some() {
+                emitter.emit(Rich::custom(span, "native events cannot have a by clause"));
+            }
+            ((event_decl, decl_args), by)
+        })
+        .then(block())
+        .map_with_span(|(((decl, args), by), block), span| Event {
+            decl,
+            def: EventDef {
+                actions: block.actions,
+                conditions: block.conditions,
+                by,
+                args: args.inner_into(),
+            },
+            span,
+        })
+}
+
+fn visibility<'src>() -> impl Parser<'src, ParserInput, Visibility, ParserExtra<'src>> {
+    just(Token::Pub)
+        .or_not()
+        .map(|token| {
+            match token {
+                Some(Token::Pub) => Visibility::Public,
+                None => Visibility::Private,
+                Some(token) => panic!("Error while parsing visibility. Expected is `pub` or nothing, but somehow it was {token}.")
+            }
+        })
+}
+
+fn r#enum<'src>() -> impl Parser<'src, ParserInput, Enum, ParserExtra<'src>> {
+    let constants = ident()
+        .separated_by(just(Token::Ctrl(',')))
+        .allow_trailing()
+        .collect::<Vec<_>>();
+
+    visibility()
+        .then(native())
+        .then_ignore(just(Token::Enum))
+        .then(ident())
+        .map_with_span(|((visibility, is_native), name), span| EnumDecl {
+            visibility,
+            is_native,
+            name,
+            span,
+        })
+        .then(constants.delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))))
+        .map_with_span(|(decl, constants), span| Enum {
+            decl,
+            def: EnumDef { constants },
+            span,
+        })
+}
+
+fn spanned_bool<'src>(
+    token: Token,
+) -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    just(token)
+        .or_not()
+        .map_with_span(|it, span| it.map(|_| Spanned::new((), span)))
+}
+
+fn r#static<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    spanned_bool(Token::Static)
+}
+
+fn vararg<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    spanned_bool(Token::Vararg)
+}
+
+fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDecl, ParserExtra<'src>> {
+    let use_restriction_tokens = (
+        just(Token::GetVar),
+        just(Token::SetVar),
+        just(Token::Val),
+        just(Token::Var),
+    );
+    let use_restriction = choice(use_restriction_tokens).map_with_span(Spanned::new);
+
+    native()
+        .then(use_restriction)
+        .then(ident())
+        .then_ignore(just(Token::Ctrl(':')))
+        .then(r#type())
+        .map(|(((is_native, property_type), name), r#type)| {
+            let use_restriction = match property_type {
+                // Write a test which tries to put other tokens here
+                Spanned {
+                    value: Token::GetVar,
+                    span,
+                } => Spanned::new(UseRestriction::GetVar, span),
+                Spanned {
+                    value: Token::SetVar,
+                    span,
+                } => Spanned::new(UseRestriction::SetVar, span),
+                Spanned {
+                    value: Token::Var,
+                    span,
+                } => Spanned::new(UseRestriction::Var, span),
+                Spanned {
+                    value: Token::Val,
+                    span,
+                } => Spanned::new(UseRestriction::Val, span),
+                _ => panic!(
+                    "Compiler Error: Unexpected token as property type {:?}",
+                    property_type
+                ),
+            };
+            PropertyDecl {
+                name,
+                is_native,
+                use_restriction,
+                r#type,
+            }
+        })
+}
+
+macro_rules! dup_op {
+    ($lit:literal) => {
+        just(Token::Ctrl($lit))
+            .repeated()
+            .exactly(2)
+            .collect_exactly::<[_; 2]>()
+    };
+}
+
+fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>> {
+    recursive(|expr| {
+        let chain = chain().ident_chain().map(Expr::Chain);
+
+        let atom = chain.or(expr.delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')'))));
+
+        let op = |c| just(Token::Ctrl(c));
+
+        let neg = op('!')
+            .repeated()
+            .foldr(atom, |_, rhs| Expr::Neg(Box::new(rhs)));
+
+        let and = neg.clone().foldl(
+            dup_op!('&')
+                .to(Expr::And as fn(_, _) -> _)
+                .then(neg)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+
+        let or = and.clone().foldl(
+            dup_op!('|')
+                .to(Expr::Or as fn(_, _) -> _)
+                .then(and)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+
+        or
+    })
+}
+
+fn partial<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+    just(Token::Partial)
+        .or_not()
+        .map_with_span(Spanned::ignore_value)
+}
+
+fn path<'src>() -> impl Parser<'src, ParserInput, Path, ParserExtra<'src>> {
+    ident()
+        .map(|it| it.value)
+        .separated_by(dup_op!(':'))
+        .collect::<Vec<_>>()
+        .map_with_span(|segments, span| Path {
+            name: PathName { segments },
+            span,
+        })
+}
+
+fn import<'src>() -> impl Parser<'src, ParserInput, Import, ParserExtra<'src>> {
+    just(Token::Import)
+        .ignore_then(path())
+        .then_ignore(just(Token::Ctrl(';')))
+        .map_with_span(|path, span| Import { path, span })
+}
+
+fn function_decl<'src>() -> impl Parser<'src, ParserInput, FunctionDecl, ParserExtra<'src>> {
+    native()
+        .then(r#static())
+        .then_ignore(just(Token::Fn))
+        .then(ident())
+        .then(declared_arg())
+        .map(|(((is_native, is_static), name), args)| FunctionDecl {
+            name,
+            is_native,
+            is_static,
+            args: args.inner_into(),
+        })
+}
+
+fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>> {
+    let member_function = function_decl();
+    enum StructMember {
+        Property(PropertyDecl),
+        Function(FunctionDecl),
+    }
+
+    let property = property().map(StructMember::Property);
+    let member_function = member_function.map(StructMember::Function);
+
+    let struct_start = visibility()
+        .then(partial())
+        .then(native())
+        .then_ignore(just(Token::Struct))
+        .or_not()
+        .map_with_span(|it, span| match it {
+            Some(it) => it,
+            None => (
+                (Visibility::Public, Some(Spanned::new((), span))),
+                Some(Spanned::new((), span)),
+            ),
+        });
+
+    struct_start
+        .then(ident())
+        .then(decl_generics())
+        .map_with_span(
+            |((((visibility, is_partial), is_native), name), generics), span| StructDecl {
+                visibility,
+                is_partial,
+                is_native,
+                name,
+                span,
+                generics,
+            },
+        )
+        .then(
+            choice((property, member_function))
+                .then_ignore(just(Token::Ctrl(';')))
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}'))),
+        )
+        .map_with_span(|(decl, members), span| {
+            let mut functions: FunctionDecls = SmallVec::new();
+            let mut properties: PropertyDecls = SmallVec::new();
+            for member in members {
+                match member {
+                    StructMember::Function(function) => functions.push(function),
+                    StructMember::Property(property) => properties.push(property),
+                };
+            }
+
+            Struct {
+                decl,
+                def: StructDef {
+                    properties,
+                    functions,
+                },
+                span,
+            }
+        })
+}
+
+struct IdentChainParserResult<'src, 'a> {
+    ident_chain: Boxed<'src, 'a, ParserInput, CallChain, ParserExtra<'src>>,
+    args: Boxed<'src, 'a, ParserInput, CallArgs, ParserExtra<'src>>,
+}
+
+impl<'src, 'a> IdentChainParserResult<'src, 'a> {
+    fn ident_chain(self) -> Boxed<'src, 'a, ParserInput, CallChain, ParserExtra<'src>> {
+        self.ident_chain
+    }
+
+    fn args(self) -> Boxed<'src, 'a, ParserInput, CallArgs, ParserExtra<'src>> {
+        self.args
+    }
+}
+
+fn chain<'src: 'a, 'a>() -> IdentChainParserResult<'src, 'a> {
+    let mut ident_chain = Recursive::declare();
+
+    let arg_name_or_not = ident().then_ignore(just(Token::Ctrl('='))).or_not();
+    let args = arg_name_or_not
+        .then(ident_chain.clone())
+        .map_with_span(|(named, call_chain), span| match named {
+            Some(name) => CallArg::Named(name, call_chain, span),
+            None => CallArg::Pos(call_chain),
+        })
+        .separated_by(just(Token::Ctrl(',')))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::Ctrl('(')), just(Token::Ctrl(')')))
+        .map_with_span(CallArgs::new);
+
+    let literal = select! {
+        Token::String(string) = span => Box::new(Call::String(string, span)),
+        Token::Num(number) = span => Box::new(Call::Number(number, span)),
+    };
+
+    ident_chain.define(
+        ident()
+            .then(args.clone().or_not())
+            .map_with_span(|(ident, args), span| {
+                let call = match args {
+                    Some(args) => Call::IdentArgs {
+                        name: ident,
+                        args,
+                        span,
+                    },
+                    None => Call::Ident(ident),
+                };
+                Box::new(call)
+            })
+            .or(literal)
+            .separated_by(just(Token::Ctrl('.')))
+            .at_least(1)
+            .collect()
+            .map_with_span(CallChain::new),
+    );
+
+    IdentChainParserResult {
+        ident_chain: ident_chain.boxed(),
+        args: args.boxed(),
+    }
+}
+
+fn assigment<'src>() -> impl Parser<'src, ParserInput, Action, ParserExtra<'src>> {
+    let ident_chain = || chain().ident_chain();
+
+    let assign_mods = (
+        just(Token::Ctrl('+')),
+        just(Token::Ctrl('-')),
+        just(Token::Ctrl('*')),
+        just(Token::Ctrl('/')),
+    );
+    let assign_mod = choice(assign_mods)
+        .map(|token| match token {
+            Token::Ctrl('+') => AssignMod::Add,
+            Token::Ctrl('-') => AssignMod::Sub,
+            Token::Ctrl('*') => AssignMod::Mul,
+            Token::Ctrl('/') => AssignMod::Div,
+            _ => unreachable!(),
+        })
+        .or_not();
+
+    ident_chain()
+        .then(assign_mod)
+        .then_ignore(just(Token::Ctrl('=')))
+        .then(ident_chain())
+        .map(|((left, assign_mod), right)| Action::Assignment(left, right, assign_mod))
+}
+
+fn block<'src>() -> impl Parser<'src, ParserInput, Block, ParserExtra<'src>> {
+    let cond = just(Token::Cond).ignore_then(expression());
+
+    let action = choice((
+        assigment(),
+        chain().ident_chain().map(Action::CallChain),
+        property().map(Action::Property),
+    ));
+
+    let conditions = cond
+        .then_ignore(just(Token::Ctrl(';')))
+        .repeated()
+        .collect::<Vec<_>>();
+    let actions = action
+        .then_ignore(just(Token::Ctrl(';')))
+        .repeated()
+        .collect::<Vec<_>>();
+
+    conditions
+        .then(actions)
+        .delimited_by(just(Token::Ctrl('{')), just(Token::Ctrl('}')))
+        .map_with_span(|(conditions, actions), span| Block {
+            actions: actions.into(),
+            conditions: conditions.into(),
+            span,
+        })
+}
+
+fn rule<'src>() -> impl Parser<'src, ParserInput, Rule, ParserExtra<'src>> {
+    let rule_name = select! {
+        Token::String(string) = span => Spanned::new(string, span)
+    };
+
+    visibility()
+        .then_ignore(just(Token::Rule))
+        .then(rule_name)
+        .then(ident())
+        .then(chain().args())
+        .then(block())
+        .map_with_span(
+            |((((visibility, rule_name), ident), args), block), _span| Rule {
+                visibility,
+                conditions: block.conditions,
+                actions: block.actions,
+                name: rule_name,
+                event: ident,
+                args,
+            },
+        )
+}
+
+pub fn parser<'src>() -> impl Parser<'src, ParserInput, Ast, ParserExtra<'src>> {
+    let rule_parser = rule().map(Root::Rule);
+    let event_parser = event().map(Root::Event);
+    let enum_parser = r#enum().map(Root::Enum);
+    let struct_parser = r#struct().map(Root::Struct);
+    let import_parser = import().map(Root::Import);
+
+    choice((
+        rule_parser,
+        event_parser,
+        enum_parser,
+        struct_parser,
+        import_parser,
+    ))
+    .repeated()
+    .collect::<Vec<_>>()
+    .then_ignore(end())
+    .map(Ast)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::assert_iterator;
+    use crate::cst::{Call, DeclArg, Rule};
+    use crate::database::test::TestDatabase;
+    use crate::language::lexer::{lexer, Token};
+    use crate::source_cache::visit_dirs;
+    use crate::span::{CopyRange, SpanInterner, StringInterner};
+    use crate::span::{Span, SpanLocation, SpanSourceId, Spanned};
+    use anyhow::anyhow;
+    use chumsky::prelude::end;
+    use chumsky::Parser;
+    use serde::Deserialize;
+    use std::fmt::Debug;
+    use std::fs;
+    use std::fs::DirEntry;
+    use std::path::PathBuf;
+
+    #[derive(Debug)]
+    struct ResKey {
+        directory: PathBuf,
+        name: &'static str,
+    }
+
+    impl ResKey {
+        fn new(
+            base: impl Into<PathBuf>,
+            directory: impl Into<PathBuf>,
+            name: impl Into<&'static str>,
+        ) -> ResKey {
+            ResKey {
+                directory: base.into().join(directory.into()),
+                name: name.into(),
+            }
+        }
+
+        fn whole_path(&self) -> PathBuf {
+            self.directory.join(self.name).with_extension("yaml")
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct BaseTestData<T> {
+        code: String,
+        expected: Option<T>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct EnumTestData {
+        #[serde(default)]
+        is_native: bool,
+        #[serde(default)]
+        constants: Vec<String>,
+    }
+
+    type VarIdent = VarLen<IdentTestData>;
+
+    #[derive(Debug, Deserialize)]
+    #[serde(untagged)]
+    enum VarLen<T> {
+        Single(T),
+        Many(Vec<T>),
+    }
+
+    impl<T> VarLen<T> {
+        fn len(&self) -> usize {
+            match self {
+                VarLen::Single(_) => 1,
+                VarLen::Many(many) => many.len(),
+            }
+        }
+    }
+
+    impl<T> IntoIterator for VarLen<T> {
+        type Item = T;
+        type IntoIter = std::vec::IntoIter<Self::Item>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            match self {
+                VarLen::Single(single) => vec![single].into_iter(),
+                VarLen::Many(many) => many.into_iter(),
+            }
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(untagged)]
+    enum IdentTestData {
+        Ident(String),
+        IdentWithArgs { ident: String, args: Vec<VarIdent> },
+    }
+
+    #[derive(Default, Debug, Deserialize)]
+    struct CallChainTestData {
+        idents: Vec<IdentTestData>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct RuleTestData {
+        name: String,
+        event: String,
+
+        #[serde(default)]
+        args: Vec<VarIdent>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct DeclArgsTestData {
+        args: Vec<DeclArgTestData>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    enum ExprTestData {
+        Chain(CallChainTestData),
+        Neg {
+            value: Box<ExprTestData>,
+        },
+        And {
+            lhs: Box<ExprTestData>,
+            rhs: Box<ExprTestData>,
+        },
+        Or {
+            lhs: Box<ExprTestData>,
+            rhs: Box<ExprTestData>,
+        },
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct DeclArgTestData {
+        name: String,
+        r#type: VarLen<String>,
+        default: Option<CallChainTestData>,
+    }
+
+    fn read_test_data<T: for<'a> serde::Deserialize<'a>>(
+        path_buf: &PathBuf,
+    ) -> anyhow::Result<Vec<BaseTestData<T>>> {
+        let input = fs::read_to_string(path_buf)?;
+        let vec = input
+            .split("---")
+            .enumerate()
+            .filter(|(_, it)| !it.is_empty())
+            .map(|(index, it)| {
+                serde_yaml::from_str(it).expect(&format!("{index}: Cannot read {it}"))
+            })
+            .collect::<Vec<_>>();
+        Ok(vec)
+    }
+
+    fn parse_code<'src, T>(
+        span_source_id: SpanSourceId,
+        interner: &(impl StringInterner + SpanInterner + ?Sized),
+        code: &str,
+        parser: &impl Parser<'src, ParserInput, T, ParserExtra<'src>>,
+    ) -> anyhow::Result<T> {
+        let tokens: Vec<_> = lex_code(span_source_id, interner, code)?;
+        let eoi = Span::new(
+            span_source_id,
+            SpanLocation::from(CopyRange::from(tokens.len()..tokens.len() + 1)),
+        );
+        let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
+
+        parser
+            .then_ignore(end())
+            .parse(stream)
+            .into_result()
+            .map_err(|_| anyhow!("Cannot parse '{code}'"))
+    }
+
+    fn lex_code(
+        span_source_id: SpanSourceId,
+        interner: &(impl StringInterner + ?Sized),
+        code: &str,
+    ) -> anyhow::Result<Vec<(Token, Span)>> {
+        lexer(span_source_id, interner)
+            .parse(code)
+            .into_result()
+            .map_err(|errors| {
+                let error_message = errors
+                    .into_iter()
+                    .map(|it| it.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n");
+                anyhow!(error_message)
+            })
+    }
+
+    fn test_parser_result<'src, Ex, Ac, F>(
+        key: &ResKey,
+        should_panic: bool,
+        parser: impl Parser<'src, ParserInput, Ac, ParserExtra<'src>>,
+        assertion: F,
+        interner: &(impl StringInterner + SpanInterner + ?Sized),
+    ) where
+        Ac: Debug,
+        Ex: for<'a> serde::Deserialize<'a>,
+        F: Fn(Ex, Ac),
+    {
+        let path_buf = key.whole_path();
+        let data = read_test_data(&path_buf).unwrap();
+        let span_source_id = interner.intern_span_source(path_buf);
+
+        let results = data
+            .into_iter()
+            .map(|test_data| {
+                let code = parse_code::<Ac>(span_source_id, interner, &test_data.code, &parser);
+                let code = match code {
+                    Ok(code) => code,
+                    Err(error) => return Err(error),
+                };
+
+                if let Some(expected) = test_data.expected {
+                    assertion(expected, code);
+                }
+                Ok(())
+            })
+            .collect::<Vec<_>>();
+
+        let error_messages = results
+            .iter()
+            .map(|it| match it {
+                Ok(_) => "Successful".to_string(),
+                Err(error) => format!("Error: {:?}", error),
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        println!("{}", error_messages);
+        if should_panic {
+            if results.iter().any(|it| it.is_ok()) {
+                panic!("There were some successful tests, but were expected to fail");
+            }
+        } else {
+            if results.iter().any(|it| it.is_err()) {
+                panic!("There were some failed tests, but were expected to pass")
+            }
+        }
+    }
+
+    fn nothing<A, B>(_: A, _: B) {}
+
+    const TEST_DIR: &str = "../res/test";
+
+    fn assert_call_chain(
+        expected: impl IntoIterator<Item = IdentTestData>,
+        actual: impl IntoIterator<Item = Box<Call>>,
+        db: &impl StringInterner,
+    ) {
+        actual.into_iter()
+            .zip(expected)
+            .for_each(|(call, test_data)| {
+                match *call {
+                    Call::IdentArgs { name: actual_ident, args: actual_args, .. } => {
+                        match test_data {
+                            IdentTestData::IdentWithArgs { ident: expected_ident, args: expected_args } => {
+                                assert_eq!(expected_ident, actual_ident.value.name(db), "Check if idents are equal");
+                                expected_args.into_iter()
+                                    .zip(actual_args)
+                                    .for_each(|(expected, actual)| {
+                                        assert_call_chain(expected, actual.call_chain(), db);
+                                    })
+                            }
+                            IdentTestData::Ident(expected) => {
+                                panic!("The actual ident was {actual_ident:?} with {actual_args:?}, but an ident {expected:?} was expected");
+                            }
+                        }
+                    }
+                    Call::Ident(actual_ident) => {
+                        match test_data {
+                            IdentTestData::Ident(expected_ident) => {
+                                assert_eq!(expected_ident, actual_ident.value.name(db), "Check if idents are equal")
+                            }
+                            IdentTestData::IdentWithArgs { ident: expected_ident, args: expected_args } => {
+                                panic!("The actual ident was {actual_ident:?} but expected was an ident {expected_ident:?} with args {expected_args:?}")
+                            }
+                        }
+                    }
+                    Call::String(actual_ident, _) | Call::Number(actual_ident, _) => {
+                        match test_data {
+                            IdentTestData::Ident(expected_ident) => {
+                                assert_eq!(expected_ident, actual_ident.name(db), "Check if idents are equal")
+                            }
+                            IdentTestData::IdentWithArgs { ident: expected_ident, args: expected_args } => {
+                                panic!("The actual ident was {actual_ident:?} but expected was an ident {expected_ident:?} with args {expected_args:?}")
+                            }
+                        }
+                    }
+                }
+            })
+    }
+
+    #[test]
+    fn test_valid_enum() {
+        let key = ResKey::new(TEST_DIR, "enum", "valid");
+        let db = TestDatabase::default();
+
+        test_parser_result(
+            &key,
+            false,
+            r#enum(),
+            |expected: EnumTestData, actual| {
+                assert_eq!(expected.is_native, actual.decl.is_native.is_some());
+                assert_eq!(
+                    expected.constants,
+                    actual
+                        .def
+                        .constants
+                        .into_iter()
+                        .map(|it| it.value.name(&db))
+                        .collect::<Vec<_>>()
+                );
+            },
+            &db,
+        )
+    }
+
+    #[test]
+    fn test_invalid_enum() {
+        let key = ResKey::new(TEST_DIR, "enum", "invalid");
+        let db = TestDatabase::default();
+
+        test_parser_result(&key, true, r#enum(), nothing::<EnumTestData, _>, &db);
+    }
+
+    #[test]
+    fn test_valid_ident_chain() {
+        let key = ResKey::new(TEST_DIR, "ident_chain", "valid");
+        let db = TestDatabase::default();
+
+        test_parser_result(
+            &key,
+            false,
+            chain().ident_chain(),
+            |expected: CallChainTestData, actual| {
+                assert_call_chain(expected.idents, actual, &db);
+            },
+            &db,
+        );
+    }
+
+    #[test]
+    fn test_invalid_ident_chain() {
+        let key = ResKey::new(TEST_DIR, "ident_chain", "invalid");
+        let db = TestDatabase::default();
+
+        test_parser_result(
+            &key,
+            true,
+            chain().ident_chain(),
+            nothing::<CallChainTestData, _>,
+            &db,
+        );
+    }
+
+    #[test]
+    fn test_valid_rule() {
+        let key = ResKey::new(TEST_DIR, "rule", "valid");
+        let db = TestDatabase::default();
+
+        test_parser_result(
+            &key,
+            false,
+            rule(),
+            |expected: RuleTestData, actual: Rule| {
+                assert_eq!(expected.name, actual.name.value.name(&db));
+                assert_eq!(expected.event, actual.event.value.name(&db));
+                expected
+                    .args
+                    .into_iter()
+                    .zip(actual.args)
+                    .for_each(|(actual, expected)| {
+                        assert_call_chain(actual, expected.call_chain(), &db)
+                    })
+            },
+            &db,
+        );
+    }
+
+    #[test]
+    fn test_invalid_decl_args() {
+        let key = ResKey::new(TEST_DIR, "decl_args", "invalid");
+        let db = TestDatabase::default();
+
+        test_parser_result(
+            &key,
+            true,
+            declared_arg(),
+            nothing::<DeclArgsTestData, _>,
+            &db,
+        )
+    }
+
+    #[test]
+    fn test_valid_expr() {
+        let key = ResKey::new(TEST_DIR, "expr", "valid");
+        let db = TestDatabase::default();
+
+        fn assertion(expected: ExprTestData, actual: Expr, db: &impl StringInterner) {
+            match (expected, actual) {
+                (ExprTestData::Chain(expected), Expr::Chain(actual)) => {
+                    assert_call_chain(expected.idents.into_iter(), actual, db);
+                }
+                (
+                    ExprTestData::And {
+                        lhs: ex_lhs,
+                        rhs: ex_rhs,
+                    },
+                    Expr::And(ac_lhs, ac_rhs),
+                ) => {
+                    assertion(*ex_lhs, *ac_lhs, db);
+                    assertion(*ex_rhs, *ac_rhs, db);
+                }
+                (
+                    ExprTestData::Or {
+                        lhs: ex_lhs,
+                        rhs: ex_rhs,
+                    },
+                    Expr::Or(ac_lhs, ac_rhs),
+                ) => {
+                    assertion(*ex_lhs, *ac_lhs, db);
+                    assertion(*ex_rhs, *ac_rhs, db);
+                }
+                (ExprTestData::Neg { value: ex }, Expr::Neg(ac)) => {
+                    assertion(*ex, *ac, db);
+                }
+                (expected, actual) => {
+                    assert!(
+                        false,
+                        "Actual {actual:#?} and expected {expected:#?} are different"
+                    )
+                }
+            }
+        }
+
+        test_parser_result(
+            &key,
+            false,
+            expression(),
+            |expected, actual| assertion(expected, actual, &db),
+            &db,
+        );
+    }
+
+    #[test]
+    fn test_valid_decl_args() {
+        let key = ResKey::new(TEST_DIR, "decl_args", "valid");
+        let db = TestDatabase::default();
+
+        test_parser_result(
+            &key,
+            false,
+            declared_arg(),
+            |expected: DeclArgsTestData, actual: Spanned<Vec<DeclArg>>| {
+                expected
+                    .args
+                    .into_iter()
+                    .zip(actual)
+                    .for_each(|(expected, actual)| {
+                        assert_eq!(expected.name, actual.name.value.name(&db));
+
+                        let actual_types = actual
+                            .types
+                            .into_iter()
+                            .map(|it| it.ident.value.name(&db))
+                            .collect::<Vec<_>>();
+
+                        assert_iterator!(expected.r#type, actual_types);
+                        if let (Some(expected), Some(actual)) =
+                            (expected.default, actual.default_value)
+                        {
+                            assert_call_chain(expected.idents, actual, &db)
+                        }
+                    })
+            },
+            &db,
+        )
+    }
+}
