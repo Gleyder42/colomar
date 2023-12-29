@@ -65,10 +65,10 @@ impl Display for Token {
 
 pub type LexerExtra<'a> = extra::Err<Rich<'a, char>>;
 
-pub fn lexer<'src>(
+pub fn lexer(
     span_source_id: SpanSourceId,
-    string_interner: &'src (impl StringInterner + ?Sized),
-) -> impl Parser<'src, &'src str, Vec<(Token, Span)>, LexerExtra<'src>> {
+    string_interner: &(impl StringInterner + ?Sized),
+) -> impl Parser<&str, Vec<(Token, Span)>, LexerExtra> {
     let num = text::int(10)
         .then(just('.').then(text::digits(10)).or_not())
         .slice()

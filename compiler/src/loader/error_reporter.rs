@@ -11,7 +11,7 @@ pub fn to_stdout_buffer<T: Debug>(errors: Vec<Rich<T>>, source: &str) -> Vec<u8>
     for error in errors {
         let span = error.span().into_range();
         let report = Report::build(ReportKind::Error, (), span.start());
-        let report = to_report(report, error.reason(), span, source);
+        let report = to_report(report, error.reason(), span);
 
         report
             .finish()
@@ -21,12 +21,11 @@ pub fn to_stdout_buffer<T: Debug>(errors: Vec<Rich<T>>, source: &str) -> Vec<u8>
     buffer
 }
 
-fn to_report<'a, T: Debug>(
-    report: ReportBuilder<'a, Range<usize>>,
+pub fn to_report<'a, T: Debug, S: Span + Clone>(
+    report: ReportBuilder<'a, S>,
     reason: &RichReason<'a, T>,
-    span: Range<usize>,
-    source: &'a str,
-) -> ReportBuilder<'a, Range<usize>> {
+    span: S,
+) -> ReportBuilder<'a, S> {
     match reason {
         RichReason::ExpectedFound { found, expected } => {
             let message = match found {
@@ -66,7 +65,7 @@ fn to_report<'a, T: Debug>(
         RichReason::Many(errors) => {
             let mut report = report;
             for reason in errors {
-                report = to_report(report, reason, span.clone(), source);
+                report = to_report(report, reason, span.clone());
             }
             report
         }

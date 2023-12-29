@@ -1,3 +1,4 @@
+use crate::database::CompilerDatabase;
 use crate::span::{SpanInterner, SpanSource, SpanSourceId};
 use ariadne::Source;
 use std::collections::HashMap;
@@ -75,9 +76,9 @@ impl SourceCache {
     }
 }
 
-pub struct LookupSourceCache<'a, I: SpanInterner> {
+pub struct LookupSourceCache<'a> {
     pub source_cache: &'a SourceCache,
-    pub interner: &'a I,
+    pub interner: &'a CompilerDatabase,
     pub src_dir: &'a PathBuf,
 }
 
@@ -99,7 +100,7 @@ impl ariadne::Cache<SpanSourceId> for EmptyLookupSource {
     }
 }
 
-impl<'a, I: SpanInterner> ariadne::Cache<SpanSourceId> for LookupSourceCache<'a, I> {
+impl<'a> ariadne::Cache<SpanSourceId> for LookupSourceCache<'a> {
     fn fetch(&mut self, id: &SpanSourceId) -> Result<&Source, Box<dyn Debug + '_>> {
         let span_source = self.interner.lookup_intern_span_source(*id);
         self.source_cache

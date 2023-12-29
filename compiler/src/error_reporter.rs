@@ -6,13 +6,16 @@ use super::{Ident, TextId};
 use crate::cst::{Path, PathName};
 use crate::source_cache::{EmptyLookupSource, LookupSourceCache, SourceCache};
 use ariadne::{sources, Color, Fmt, Label, ReportBuilder, ReportKind, Source};
+use chumsky::error::Rich;
 use either::Either;
 use std::borrow::Cow;
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::io::{Cursor, Write};
 use std::path::PathBuf;
+use std::process::Output;
 
-pub type Cache<'a> = LookupSourceCache<'a, CompilerDatabase>;
+pub type Cache<'a> = LookupSourceCache<'a>;
 
 type Report<'a> = ReportBuilder<'a, Span>;
 
@@ -25,12 +28,11 @@ mod ind {
 
 pub fn new_print_errors(
     unique_errors: HashSet<CompilerError>,
-    mut source_cache: Cache,
     db: &CompilerDatabase,
+    mut source_cache: Cache,
     dummy_report_values: &DummyReportValues,
-) -> Vec<u8> {
-    let mut buffer = Cursor::new(Vec::new());
-
+    output: &mut Cursor<Vec<u8>>,
+) {
     for error in unique_errors {
         let report: Report = match error.main_span() {
             Some(main_span) => ariadne::Report::build(
@@ -51,16 +53,16 @@ pub fn new_print_errors(
                 report_not_implemented_error(name, span, report)
             }
             CompilerError::DuplicateIdent { first, second } => {
-                report_duplicate_ident_error(first, second, report, db)
+                report_duplicate_ident_error(first, second, report, source_cache.interner)
             }
             CompilerError::CannotFindIdent(ident) => {
-                report_cannot_find_ident_error(ident, report, db)
+                report_cannot_find_ident_error(ident, report, source_cache.interner)
             }
             CompilerError::NotA(name, actual, expected) => {
-                report_not_a_error(name, actual, expected, report, db)
+                report_not_a_error(name, actual, expected, report, source_cache.interner)
             }
             CompilerError::WrongType { expected, actual } => {
-                report_wrong_type_error(expected, actual, report, db)
+                report_wrong_type_error(expected, actual, report, source_cache.interner)
             }
             CompilerError::CannotFindPrimitiveDecl(_) => {
                 todo!()
@@ -98,19 +100,19 @@ pub fn new_print_errors(
             CompilerError::WrongTypeInBinaryExpr(_, _) => {
                 todo!()
             }
-            CompilerError::CannotFindFile(path) => report_cannot_find_file(path, report, db),
+            CompilerError::CannotFindFile(path) => {
+                report_cannot_find_file(path, report, source_cache.interner)
+            }
             CompilerError::CannotFindStruct(name) => {
-                report_cannot_find_struct_error(name, report, db)
+                report_cannot_find_struct_error(name, report, source_cache.interner)
             }
         };
 
         report
             .finish()
-            .write(&mut source_cache, &mut buffer)
+            .write(&mut source_cache, output.get_mut())
             .expect("Printing should never fail");
     }
-
-    buffer.into_inner()
 }
 
 fn report_cannot_find_file<'a>(
