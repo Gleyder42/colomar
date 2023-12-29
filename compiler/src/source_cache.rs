@@ -75,7 +75,11 @@ impl SourceCache {
     }
 }
 
-pub struct LookupSourceCache<'a, I: SpanInterner>(pub &'a SourceCache, pub &'a I);
+pub struct LookupSourceCache<'a, I: SpanInterner> {
+    pub source_cache: &'a SourceCache,
+    pub interner: &'a I,
+    pub src_dir: &'a PathBuf,
+}
 
 pub struct EmptyLookupSource(Source);
 
@@ -95,18 +99,22 @@ impl ariadne::Cache<SpanSourceId> for EmptyLookupSource {
     }
 }
 
-impl<'b, I: SpanInterner> ariadne::Cache<SpanSourceId> for LookupSourceCache<'b, I> {
+impl<'a, I: SpanInterner> ariadne::Cache<SpanSourceId> for LookupSourceCache<'a, I> {
     fn fetch(&mut self, id: &SpanSourceId) -> Result<&Source, Box<dyn Debug + '_>> {
-        let span_source = self.1.lookup_intern_span_source(*id);
-        self.0
+        let span_source = self.interner.lookup_intern_span_source(*id);
+        self.source_cache
             .files
             .get(&span_source)
             .map(|cached_file| &cached_file.source)
             .ok_or(Box::new(format!("Cannot lookup {}", span_source.display())))
     }
 
-    fn display<'a>(&self, id: &'a SpanSourceId) -> Option<Box<dyn Display + 'a>> {
-        let span_source = self.1.lookup_intern_span_source(*id);
+    fn display<'b>(&self, id: &'b SpanSourceId) -> Option<Box<dyn Display + 'b>> {
+        let span_source = self.interner.lookup_intern_span_source(*id);
+        let span_source = span_source
+            .strip_prefix(self.src_dir)
+            .unwrap()
+            .to_path_buf();
 
         struct SpanSourceDisplay(SpanSource);
 

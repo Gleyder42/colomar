@@ -1,0 +1,58 @@
+thread 'rustc' panicked at /rustc/e9013ac0e402ef449c5d00251d687289599137df\compiler\rustc_query_system\src\query\plumbing.rs:721:9:
+Found unstable fingerprints for evaluate_obligation(3eb2b8e76d3f50b7-6af877d81222a9a7): Ok(EvaluatedToOkModuloRegions)
+stack backtrace:
+   0:     0x7ffef2d9ddff - std::backtrace::Backtrace::force_capture::hdc1a4c08ddd4a6c0
+   1:     0x7ffef2d9dd64 - std::backtrace::Backtrace::force_capture::hdc1a4c08ddd4a6c0
+   2:     0x7ffed954d6a6 - <tracing_subscriber[97438593bbbd95eb]::fmt::format::Writer>::write_fmt
+   3:     0x7ffef2db6ea3 - std::panicking::rust_panic_with_hook::hd67d2288d4d6ab6f
+   4:     0x7ffef2db6d45 - <std::panicking::begin_panic_handler::StaticStrPayload as core::panic::PanicPayload>::take_box::hadfb1daf3cd7dbb5
+   5:     0x7ffef2db3ee9 - <std::sys_common::backtrace::_print::DisplayBacktrace as core::fmt::Display>::fmt::h9cc907fdb83ab0ff
+   6:     0x7ffef2db6a54 - rust_begin_unwind
+   7:     0x7ffef2e0b657 - core::panicking::panic_fmt::h07416ab876fc2357
+   8:     0x7ffeda18c91a - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::depth_limit_error
+   9:     0x7ffed811e95a - rustc_query_impl[1575ff407817a601]::profiling_support::alloc_self_profile_query_strings
+  10:     0x7ffed8e81b6c - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  11:     0x7ffed8e132c8 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  12:     0x7ffed9028a75 - rustc_trait_selection[f8db4c60f8e3749f]::traits::type_known_to_meet_bound_modulo_regions
+  13:     0x7ffed7d205a2 - rustc_ty_utils[9874cee77f25698e]::common_traits::is_unpin_raw
+  14:     0x7ffed802aff7 - rustc_query_impl[1575ff407817a601]::profiling_support::alloc_self_profile_query_strings
+  15:     0x7ffed8086183 - rustc_query_impl[1575ff407817a601]::profiling_support::alloc_self_profile_query_strings
+  16:     0x7ffed8e6642b - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  17:     0x7ffed8071d0c - rustc_query_impl[1575ff407817a601]::profiling_support::alloc_self_profile_query_strings
+  18:     0x7ffed93b37e7 - <rustc_middle[f6858c49eb03fbf1]::ty::Ty>::is_unpin
+  19:     0x7ffed856ae76 - rustc_ty_utils[9874cee77f25698e]::instance::resolve_instance
+  20:     0x7ffed856f9ae - rustc_ty_utils[9874cee77f25698e]::ty::asyncness
+  21:     0x7ffed856c13c - rustc_ty_utils[9874cee77f25698e]::abi::fn_abi_of_instance
+  22:     0x7ffed8dd1be6 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  23:     0x7ffed8e71857 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  24:     0x7ffed8e5b9d9 - <rustc_query_impl[1575ff407817a601]::plumbing::QueryCtxt as rustc_query_system[3f2ff57fdc4c187e]::query::QueryContext>::load_side_effects
+  25:     0x7ffed84da6eb - <rustc_codegen_llvm[24cde7e7f60839c0]::builder::Builder as rustc_codegen_ssa[35bc74b34ac0f05a]::traits::builder::BuilderMethods>::load_operand
+  26:     0x7ffed8513dc6 - <rustc_target[a74b98d6e429232a]::abi::TyAndLayout<rustc_middle[f6858c49eb03fbf1]::ty::Ty> as rustc_codegen_llvm[24cde7e7f60839c0]::type_of::LayoutLlvmExt>::llvm_field_index
+  27:     0x7ffed84b6858 - <rustc_codegen_llvm[24cde7e7f60839c0]::base::ValueIter as core[fa305fcf821c0d6d]::iter::traits::iterator::Iterator>::next
+  28:     0x7ffed5640a25 - <rustc_codegen_llvm[24cde7e7f60839c0]::debuginfo::CodegenUnitDebugContext as core[fa305fcf821c0d6d]::ops::drop::Drop>::drop
+  29:     0x7ffed562cd65 - <rustc_codegen_llvm[24cde7e7f60839c0]::back::owned_target_machine::OwnedTargetMachine as core[fa305fcf821c0d6d]::ops::drop::Drop>::drop
+  30:     0x7ffed56582a3 - <rustc_target[a74b98d6e429232a]::abi::TyAndLayout<rustc_middle[f6858c49eb03fbf1]::ty::Ty> as rustc_codegen_llvm[24cde7e7f60839c0]::type_of::LayoutLlvmExt>::scalar_llvm_type_at
+  31:     0x7ffed560c2f9 - <rustc_codegen_llvm[24cde7e7f60839c0]::LlvmCodegenBackend as rustc_codegen_ssa[35bc74b34ac0f05a]::traits::backend::CodegenBackend>::codegen_crate
+  32:     0x7ffed55c8749 - rustc_interface[ef6742c4c9907aec]::interface::parse_check_cfg
+  33:     0x7ffed55b93e7 - rustc_interface[ef6742c4c9907aec]::passes::start_codegen
+  34:     0x7ffed55ce686 - rustc_interface[ef6742c4c9907aec]::interface::parse_check_cfg
+  35:     0x7ffed55a8e7f - <rustc_interface[ef6742c4c9907aec]::queries::Queries>::codegen_and_build_linker
+  36:     0x7ffed5542bf9 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  37:     0x7ffed557c7f3 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  38:     0x7ffed55839aa - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  39:     0x7ffed557d321 - <rustc_middle[f6858c49eb03fbf1]::ty::SymbolName as core[fa305fcf821c0d6d]::fmt::Display>::fmt
+  40:     0x7ffed553a23f - rustc_driver_impl[2534eed4e385b792]::main
+  41:     0x7ffed553a578 - rustc_driver_impl[2534eed4e385b792]::main
+  42:     0x7ffef2dc8f4c - std::sys::windows::thread::Thread::new::ha14aa866915fa42e
+  43:     0x7fff778b7344 - BaseThreadInitThunk
+  44:     0x7fff78ca26b1 - RtlUserThreadStart
+
+
+rustc version: 1.76.0-nightly (e9013ac0e 2023-12-05)
+platform: x86_64-pc-windows-msvc
+
+query stack during panic:
+#0 [evaluate_obligation] evaluating trait selection obligation `core::option::Option<salsa::derived::slot::Memo<analysis::decl::QueryAstEventDefMapQuery>>: core::marker::Unpin`
+#1 [is_unpin_raw] computing whether `core::option::Option<salsa::derived::slot::Memo<analysis::decl::QueryAstEventDefMapQuery>>` is `Unpin`
+#2 [fn_abi_of_instance] computing call ABI of `core::ptr::drop_in_place::<core::option::Option<salsa::derived::slot::Memo<analysis::decl::QueryAstEventDefMapQuery>>> - shim(Some(core::option::Option<salsa::derived::slot::Memo<analysis::decl::QueryAstEventDefMapQuery>>))`
+end of query stack

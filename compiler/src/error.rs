@@ -1,5 +1,5 @@
 use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, Type};
-use super::cst::{Path, PathName};
+use super::cst::Path;
 use super::span::Span;
 use super::trisult::Trisult;
 use super::wst::partial::SaturateError;
@@ -7,7 +7,6 @@ use super::{Ident, QueryTrisult, TextId};
 use crate::query_error;
 use either::Either;
 use std::borrow::Cow;
-use std::process::id;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
@@ -66,7 +65,7 @@ impl CompilerError {
                 todo!()
             }
             CompilerError::WrongTypeInBinaryExpr(left, _) => Some(left.span()),
-            CompilerError::CannotFindFile(_) => None,
+            CompilerError::CannotFindFile(path) => Some(path.span),
             CompilerError::CannotFindStruct(_) => None,
         }
     }

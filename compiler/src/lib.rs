@@ -180,7 +180,11 @@ impl Compiler {
             Trisult::Ok(value) => (format!("{value}").into_bytes(), Vec::new()),
             Trisult::Par(_, errors) | Trisult::Err(errors) => {
                 let unique_errors = errors.into_iter().collect();
-                let source_cache = LookupSourceCache(&mut self.source_cache, &self.database);
+                let source_cache = LookupSourceCache {
+                    source_cache: &mut self.source_cache,
+                    interner: &self.database,
+                    src_dir: &self.src_dir,
+                };
 
                 let output_buffer = new_print_errors(
                     unique_errors,

@@ -7,10 +7,11 @@ use super::super::cir::{
 use super::super::error::CompilerError;
 use super::super::trisult::Trisult;
 use super::super::{flatten, HashableMap, Ident, QueryTrisult, StructId, TextId};
-use crate::query_error;
+use crate::{query_error, tri};
 
 use super::super::cst::{FunctionDecls, PropertyDecls};
 use super::super::span::StringInterner;
+use crate::trisult::Errors;
 use colomar_macros::Interned;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
@@ -19,14 +20,18 @@ use std::rc::Rc;
 
 pub(super) fn query_root_namespace(db: &dyn DeclQuery) -> QueryTrisult<NamespaceId> {
     let mut namespace = Namespace::new();
+    let mut errors = Errors::new();
 
-    db.query_type_map()
+    let type_map = tri!(db.query_type_map(), errors);
+
+    type_map
         .into_iter()
         .map(|(ident, r#type)| {
             let allow_duplicates = r#type.is_partial(db).unwrap_or(false);
             namespace.add(allow_duplicates, ident, RValue::Type(r#type), db)
         })
         .collect::<QueryTrisult<Vec<()>>>()
+        .merge_errors(errors)
         .map(|_| Rc::new(namespace))
         .intern(db)
 }

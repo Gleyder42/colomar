@@ -6,7 +6,11 @@ use crate::trisult::{Errors, IntoTrisult};
 use crate::{query_error, tri};
 
 pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
-    db.query_action_items()
+    let mut errors = Errors::new();
+
+    let action_items = tri!(db.query_action_items(), errors);
+
+    action_items
         .into_iter()
         .map(|root| match root {
             cst::Root::Event(event) => db.query_event(event).map(cir::Root::Event),
@@ -16,6 +20,7 @@ pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
             cst::Root::Import(_) => unreachable!(),
         })
         .collect::<QueryTrisult<_>>()
+        .merge_errors(errors)
         // TODO Decide how to handle this
         // query_root_namespace() has to be called here to include the errors
         .and_only_errors(db.query_root_namespace())

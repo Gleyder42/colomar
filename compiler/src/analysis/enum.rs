@@ -5,32 +5,35 @@ use super::super::error::CompilerError;
 use super::super::trisult::Trisult;
 use super::super::{cir, cst, Ident, QueryTrisult};
 
+use crate::trisult::IntoTrisult;
 use std::collections::HashMap;
 
 pub(super) fn query_enum_ast(
     db: &dyn DeclQuery,
     enum_decl_id: EnumDeclId,
-) -> Result<cst::Enum, CompilerError> {
-    db.query_enum_ast_map()
-        .get(&enum_decl_id)
-        .cloned()
-        .ok_or_else(|| {
+) -> QueryTrisult<cst::Enum> {
+    db.query_enum_ast_map().flat_map(|it| {
+        it.get(&enum_decl_id).cloned().trisult_ok_or_else(|| {
             let enum_decl: cir::EnumDecl = db.lookup_intern_enum_decl(enum_decl_id);
             CompilerError::CannotFindIdent(enum_decl.name)
         })
+    })
 }
 
-pub(super) fn query_enum_ast_map(db: &dyn DeclQuery) -> HashMap<EnumDeclId, cst::Enum> {
-    db.query_main_file()
-        .into_iter()
-        .filter_map(|it| {
-            if let cst::Root::Enum(r#enum) = it {
-                Some((db.query_enum_decl(r#enum.decl.clone()), r#enum))
-            } else {
-                None
-            }
-        })
-        .collect::<HashMap<_, _>>()
+pub(super) fn query_enum_ast_map(
+    db: &dyn DeclQuery,
+) -> QueryTrisult<HashMap<EnumDeclId, cst::Enum>> {
+    db.query_main_file().map(|ast| {
+        ast.into_iter()
+            .filter_map(|it| {
+                if let cst::Root::Enum(r#enum) = it {
+                    Some((db.query_enum_decl(r#enum.decl.clone()), r#enum))
+                } else {
+                    None
+                }
+            })
+            .collect::<HashMap<_, _>>()
+    })
 }
 
 pub(super) fn query_enum_def(
@@ -38,8 +41,7 @@ pub(super) fn query_enum_def(
     enum_decl_id: EnumDeclId,
 ) -> QueryTrisult<cir::Enum> {
     db.query_enum_ast(enum_decl_id)
-        .map(|enum_ast| db.query_enum(enum_ast))
-        .into()
+        .flat_map(|enum_ast| db.query_enum(enum_ast))
 }
 
 fn no_duplicates(constants: EnumConstants) -> QueryTrisult<EnumConstants> {

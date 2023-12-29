@@ -390,6 +390,8 @@ impl<E> Trisult<(), E> {
 
 pub trait IntoTrisult<T, E> {
     fn trisult_ok_or(self, error: E) -> Trisult<T, E>;
+
+    fn trisult_ok_or_else(self, error: impl Fn() -> E) -> Trisult<T, E>;
 }
 
 impl<T, E> IntoTrisult<T, E> for Option<T> {
@@ -397,6 +399,13 @@ impl<T, E> IntoTrisult<T, E> for Option<T> {
         match self {
             Some(value) => Trisult::Ok(value),
             None => Trisult::Err(vec![error]),
+        }
+    }
+
+    fn trisult_ok_or_else(self, error: impl Fn() -> E) -> Trisult<T, E> {
+        match self {
+            Some(value) => Trisult::Ok(value),
+            None => Trisult::Err(vec![error()]),
         }
     }
 }

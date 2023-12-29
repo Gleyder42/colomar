@@ -19,7 +19,9 @@ pub enum DefKey {
 pub(super) fn query_structs(
     db: &dyn DeclQuery,
 ) -> QueryTrisult<HashMap<TextId, SmallVec<[cst::Struct; 1]>>> {
-    let ast = db.query_main_file();
+    let mut errors = Errors::new();
+
+    let ast = tri!(db.query_main_file(), errors);
 
     let struct_decls: Vec<_> = ast
         .into_iter()
@@ -37,7 +39,7 @@ pub(super) fn query_structs(
             .push(r#struct);
     }
 
-    QueryTrisult::Ok(struct_map)
+    errors.value(struct_map)
 }
 
 pub(super) fn query_struct_by_name(
@@ -51,8 +53,14 @@ pub(super) fn query_struct_by_name(
     })
 }
 
-pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> SVMultiMap<DefKey, StructDef, 1> {
-    db.query_ast_def_map()
+pub(super) fn query_ast_struct_def_map(
+    db: &dyn DeclQuery,
+) -> QueryTrisult<SVMultiMap<DefKey, StructDef, 1>> {
+    let mut errors = Errors::new();
+
+    let ast_def_map = tri!(db.query_ast_def_map(), errors);
+
+    let wrapper = ast_def_map
         .into_iter()
         .filter_map(|(def_key, def)| match def_key {
             DefKey::Struct(_) => {
@@ -69,35 +77,39 @@ pub(super) fn query_ast_struct_def_map(db: &dyn DeclQuery) -> SVMultiMap<DefKey,
             }
             _ => None,
         })
-        .collect::<SVMultiMapWrapper<DefKey, StructDef, 1>>()
-        .into()
+        .collect::<SVMultiMapWrapper<DefKey, StructDef, 1>>();
+
+    errors.value(wrapper.into())
 }
 
 pub(super) fn query_ast_struct_def(
     db: &dyn DeclQuery,
     struct_id: StructId,
 ) -> QueryTrisult<SmallVec<[StructDef; 1]>> {
-    let vec = db
-        .query_ast_struct_def_map()
+    let mut errors = Errors::new();
+
+    let mut map = tri!(db.query_ast_struct_def_map(), errors);
+
+    let vec = map
         .remove(&DefKey::Struct(struct_id))
         .expect("If a struct declaration id is supplied, the struct definition should also exist");
-    QueryTrisult::Ok(vec)
+
+    errors.value(vec)
 }
 
-pub(super) fn query_main_file(db: &dyn DeclQuery) -> cst::Ast {
+pub(super) fn query_main_file(db: &dyn DeclQuery) -> QueryTrisult<cst::Ast> {
     db.query_file(db.main_file_name().with_fake_span(db), false)
-        .debug_print()
-        .expect_ok("There should always be a main file present")
 }
 
-pub(super) fn query_action_items(db: &dyn DeclQuery) -> Vec<Root> {
-    db.query_main_file()
-        .into_iter()
-        .filter(|root| match root {
-            Root::Rule(_) | Root::Struct(_) | Root::Event(_) | Root::Enum(_) => true,
-            Root::Import(_) => false,
-        })
-        .collect()
+pub(super) fn query_action_items(db: &dyn DeclQuery) -> QueryTrisult<Vec<Root>> {
+    db.query_main_file().map(|it| {
+        it.into_iter()
+            .filter(|root| match root {
+                Root::Rule(_) | Root::Struct(_) | Root::Event(_) | Root::Enum(_) => true,
+                Root::Import(_) => false,
+            })
+            .collect()
+    })
 }
 
 pub(super) fn query_file(
@@ -148,20 +160,25 @@ pub(super) fn query_secondary_file(db: &dyn DeclQuery, path: cst::Path) -> Query
         .trisult_ok_or(CompilerError::CannotFindFile(path))
 }
 
-pub(super) fn query_type_items(db: &dyn DeclQuery) -> Vec<TypeRoot> {
-    db.query_main_file()
-        .into_iter()
-        .filter_map(|root| match root {
-            Root::Event(event) => Some(TypeRoot::Event(event)),
-            Root::Enum(r#enum) => Some(TypeRoot::Enum(r#enum)),
-            Root::Struct(r#struct) => Some(TypeRoot::Struct(r#struct)),
-            _ => None,
-        })
-        .collect()
+pub(super) fn query_type_items(db: &dyn DeclQuery) -> QueryTrisult<Vec<TypeRoot>> {
+    db.query_main_file().map(|ast| {
+        ast.into_iter()
+            .filter_map(|root| match root {
+                Root::Event(event) => Some(TypeRoot::Event(event)),
+                Root::Enum(r#enum) => Some(TypeRoot::Enum(r#enum)),
+                Root::Struct(r#struct) => Some(TypeRoot::Struct(r#struct)),
+                _ => None,
+            })
+            .collect()
+    })
 }
 
-pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> SVMultiMap<DefKey, Def, 1> {
-    db.query_type_items()
+pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> QueryTrisult<SVMultiMap<DefKey, Def, 1>> {
+    let mut errors = Errors::new();
+
+    let type_items = tri!(db.query_type_items(), errors);
+
+    let wrapper = type_items
         .into_iter()
         .filter_map(|root| match root {
             TypeRoot::Event(event) => {
@@ -177,12 +194,19 @@ pub(super) fn query_ast_def_map(db: &dyn DeclQuery) -> SVMultiMap<DefKey, Def, 1
                 Some((DefKey::Struct(ident), Def::Struct(r#struct.def)))
             }
         })
-        .collect::<SVMultiMapWrapper<DefKey, Def, 1>>()
-        .into()
+        .collect::<SVMultiMapWrapper<DefKey, Def, 1>>();
+
+    errors.value(wrapper.into())
 }
 
-pub(super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, EventDef> {
-    db.query_ast_def_map()
+pub(super) fn query_ast_event_def_map(
+    db: &dyn DeclQuery,
+) -> QueryTrisult<HashMap<DefKey, EventDef>> {
+    let mut errors = Errors::new();
+
+    let ast_def_map = tri!(db.query_ast_def_map(), errors);
+
+    let map: HashMap<_, _> = ast_def_map
         .into_iter()
         .filter_map(|(def_key, mut def)| match def_key {
             DefKey::Event(_) => {
@@ -199,16 +223,22 @@ pub(super) fn query_ast_event_def_map(db: &dyn DeclQuery) -> HashMap<DefKey, Eve
             }
             DefKey::Struct(_) | DefKey::Enum(_) => None,
         })
-        .collect()
+        .collect();
+
+    errors.value(map)
 }
 
 pub(super) fn query_ast_event_def(
     db: &dyn DeclQuery,
     event_decl_id: EventDeclId,
 ) -> QueryTrisult<EventDef> {
-    let vec = db
-        .query_ast_event_def_map()
+    let mut errors = Errors::new();
+
+    let mut ast_event_def_map = tri!(db.query_ast_event_def_map(), errors);
+
+    let vec = ast_event_def_map
         .remove(&DefKey::Event(event_decl_id))
         .expect("If an event declaration id is supplied, the event definition should also exist");
-    QueryTrisult::Ok(vec)
+
+    errors.value(vec)
 }

@@ -55,8 +55,12 @@ pub(super) fn resolve_generics(
         .collect()
 }
 
-pub(super) fn query_type_map(db: &dyn DeclQuery) -> HashMap<Ident, cir::Type> {
-    db.query_type_items()
+pub(super) fn query_type_map(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Ident, cir::Type>> {
+    let mut errors = Errors::new();
+
+    let type_items = tri!(db.query_type_items(), errors);
+
+    let map: HashMap<_, _> = type_items
         .into_iter()
         .filter_map(|root| match root {
             cst::TypeRoot::Event(event) => Some((
@@ -72,5 +76,7 @@ pub(super) fn query_type_map(db: &dyn DeclQuery) -> HashMap<Ident, cir::Type> {
                 cir::Type::Struct(db.query_struct_decl(r#struct.decl)),
             )),
         })
-        .collect()
+        .collect();
+
+    errors.value(map)
 }

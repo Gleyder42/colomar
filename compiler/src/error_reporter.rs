@@ -5,7 +5,6 @@ use super::span::{CopyRange, FatSpan, Span, SpanInterner, SpanSource, SpanSource
 use super::{Ident, TextId};
 use crate::cst::{Path, PathName};
 use crate::source_cache::{EmptyLookupSource, LookupSourceCache, SourceCache};
-use ariadne::Color::Cyan;
 use ariadne::{sources, Color, Fmt, Label, ReportBuilder, ReportKind, Source};
 use either::Either;
 use std::borrow::Cow;
@@ -16,6 +15,13 @@ use std::path::PathBuf;
 pub type Cache<'a> = LookupSourceCache<'a, CompilerDatabase>;
 
 type Report<'a> = ReportBuilder<'a, Span>;
+
+mod ind {
+    use ariadne::Color;
+
+    pub const UNKNOWN: Color = Color::Red;
+    pub const NAME: Color = Color::Cyan;
+}
 
 pub fn new_print_errors(
     unique_errors: HashSet<CompilerError>,
@@ -113,8 +119,11 @@ fn report_cannot_find_file<'a>(
     db: &CompilerDatabase,
 ) -> Report<'a> {
     report
-        .with_message(format!("Cannot find file {}", path.name.name(db)))
-        .with_label(Label::new(path.span))
+        .with_message(format!(
+            "Cannot find file {}",
+            path.name.name(db).fg(ind::NAME)
+        ))
+        .with_label(Label::new(path.span).with_color(ind::NAME))
 }
 
 fn report_cannot_find_struct_error<'a>(
@@ -124,7 +133,7 @@ fn report_cannot_find_struct_error<'a>(
 ) -> Report<'a> {
     report.with_message(format!(
         "Cannot find {} struct",
-        name.name(db).fg(Color::Red)
+        name.name(db).fg(ind::UNKNOWN)
     ))
 }
 
@@ -188,11 +197,14 @@ fn report_duplicate_ident_error<'a>(
     db: &CompilerDatabase,
 ) -> Report<'a> {
     report
-        .with_message(format!("Duplicated ident {}", first.value.name(db)))
+        .with_message(format!(
+            "Duplicated ident {}",
+            first.value.name(db).fg(ind::NAME)
+        ))
         .with_label(
             Label::new(first.span)
                 .with_message("First defined here")
-                .with_color(Color::Cyan),
+                .with_color(ind::NAME),
         )
         .with_label(
             Label::new(second.span)
@@ -207,7 +219,7 @@ fn report_not_implemented_error<'a>(
     report: Report<'a>,
 ) -> Report<'a> {
     report
-        .with_message(format!("{name} is not implemented"))
+        .with_message(format!("{} is not implemented", name))
         .with_label(Label::new(span).with_color(Color::Magenta))
 }
 

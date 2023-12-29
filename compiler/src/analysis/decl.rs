@@ -10,6 +10,7 @@ use super::super::error::CompilerError;
 use super::super::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, TextId};
 
 use super::super::span::{Spanned, StringInterner};
+use crate::cst::{Def, Root};
 use crate::span::SpanInterner;
 use cir::DeclArgId;
 use cst::Ast;
@@ -43,7 +44,7 @@ pub trait DeclQuery: Interner {
 
     /// Impl [file::query_main_file]
     #[salsa::invoke(file::query_main_file)]
-    fn query_main_file(&self) -> Ast;
+    fn query_main_file(&self) -> QueryTrisult<Ast>;
 
     // Ast
 
@@ -61,26 +62,26 @@ pub trait DeclQuery: Interner {
 
     /// Impl: [file::query_type_items]
     #[salsa::invoke(file::query_type_items)]
-    fn query_type_items(&self) -> Vec<TypeRoot>;
+    fn query_type_items(&self) -> QueryTrisult<Vec<TypeRoot>>;
 
     /// Impl: [file::query_action_items]
     #[salsa::invoke(file::query_action_items)]
-    fn query_action_items(&self) -> Vec<cst::Root>;
+    fn query_action_items(&self) -> QueryTrisult<Vec<Root>>;
 
     /// Queries a map containing declaration ids and definitions.
     /// If you want to get the definition by declaration id use [AstDefQuery::query_ast_event_def]
     /// instead
     /// Impl: [file::query_ast_def_map]
     #[salsa::invoke(file::query_ast_def_map)]
-    fn query_ast_def_map(&self) -> SVMultiMap<DefKey, cst::Def, 1>;
+    fn query_ast_def_map(&self) -> QueryTrisult<SVMultiMap<DefKey, Def, 1>>;
 
     /// Impl: [file::query_ast_event_def_map]
     #[salsa::invoke(file::query_ast_event_def_map)]
-    fn query_ast_event_def_map(&self) -> HashMap<DefKey, cst::EventDef>;
+    fn query_ast_event_def_map(&self) -> QueryTrisult<HashMap<DefKey, cst::EventDef>>;
 
     /// Impl: [file::query_ast_struct_def_map]
     #[salsa::invoke(file::query_ast_struct_def_map)]
-    fn query_ast_struct_def_map(&self) -> SVMultiMap<DefKey, cst::StructDef, 1>;
+    fn query_ast_struct_def_map(&self) -> QueryTrisult<SVMultiMap<DefKey, cst::StructDef, 1>>;
 
     /// Queries an event definition my even declaration id
     /// Impl: [file::query_ast_event_def]
@@ -150,11 +151,11 @@ pub trait DeclQuery: Interner {
 
     /// Impl: [eenum::query_enum_ast_map]
     #[salsa::invoke(eenum::query_enum_ast_map)]
-    fn query_enum_ast_map(&self) -> HashMap<EnumDeclId, cst::Enum>;
+    fn query_enum_ast_map(&self) -> QueryTrisult<HashMap<EnumDeclId, cst::Enum>>;
 
     /// Impl: [eenum::query_enum_ast]
     #[salsa::invoke(eenum::query_enum_ast)]
-    fn query_enum_ast(&self, enum_decl: EnumDeclId) -> Result<cst::Enum, CompilerError>;
+    fn query_enum_ast(&self, enum_decl: EnumDeclId) -> QueryTrisult<cst::Enum>;
 
     /// Impl: [eenum::query_enum_def]
     #[salsa::invoke(eenum::query_enum_def)]
@@ -319,7 +320,7 @@ pub trait DeclQuery: Interner {
     /// If you want to find a type by ident, use [query_type] instead.
     /// [ttype::query_type_map]
     #[salsa::invoke(ttype::query_type_map)]
-    fn query_type_map(&self) -> HashMap<Ident, cir::Type>;
+    fn query_type_map(&self) -> QueryTrisult<HashMap<Ident, cir::Type>>;
 
     // TODO Move this into the namespace file
     /// Impl [ttype::query_namespaced_type2]

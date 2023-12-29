@@ -32,5 +32,7 @@ fn test_test_duplicate_ident() {
 
 #[test]
 fn test_cannot_find_file() {
-    test_template("test_cannot_find_file", |src| {});
+    test_template("test_cannot_find_file", |src| {
+        assert_patterns!(&src, "");
+    });
 }
