@@ -91,11 +91,11 @@ impl Default for EmptyLookupSource {
 }
 
 impl ariadne::Cache<SpanSourceId> for EmptyLookupSource {
-    fn fetch(&mut self, id: &SpanSourceId) -> Result<&Source, Box<dyn Debug + '_>> {
+    fn fetch(&mut self, _id: &SpanSourceId) -> Result<&Source, Box<dyn Debug + '_>> {
         Ok(&self.0)
     }
 
-    fn display<'a>(&self, id: &'a SpanSourceId) -> Option<Box<dyn Display + 'a>> {
+    fn display<'a>(&self, _id: &'a SpanSourceId) -> Option<Box<dyn Display + 'a>> {
         Some(Box::new("none"))
     }
 }

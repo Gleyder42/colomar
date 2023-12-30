@@ -73,10 +73,10 @@ pub fn new_print_errors(
             CompilerError::PlaceholderError(_) => {
                 todo!()
             }
-            CompilerError::WstParserError(_, _) => {
+            CompilerError::WstParserError(_) => {
                 todo!()
             }
-            CompilerError::WstLexerError(_, _) => {
+            CompilerError::WstLexerError(_) => {
                 todo!()
             }
             CompilerError::MissingArg { .. } => {

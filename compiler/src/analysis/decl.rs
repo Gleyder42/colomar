@@ -6,12 +6,10 @@ use super::super::cir::{
     PropertyDecls, StructDeclId,
 };
 use super::super::cst::{Actions, TypeRoot};
-use super::super::error::CompilerError;
 use super::super::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, TextId};
 
-use super::super::span::{Spanned, StringInterner};
+use super::super::span::Spanned;
 use crate::cst::{Def, Root};
-use crate::span::SpanInterner;
 use cir::DeclArgId;
 use cst::Ast;
 use hashlink::LinkedHashMap;

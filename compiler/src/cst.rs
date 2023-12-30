@@ -1,4 +1,4 @@
-use super::span::{Span, SpanInterner, Spanned, SpannedBool, StringInterner};
+use super::span::{Span, Spanned, SpannedBool, StringInterner};
 use super::trisult::Trisult;
 use super::{
     AssignMod, Ident, TextId, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN,

@@ -3,6 +3,7 @@ use super::super::wst::partial::Placeholder;
 use super::super::wst::{partial, Ident};
 use chumsky::error::Error;
 use chumsky::input::{SpannedInput, Stream};
+use std::ops::Range;
 
 use chumsky::prelude::*;
 use chumsky::util::Maybe;

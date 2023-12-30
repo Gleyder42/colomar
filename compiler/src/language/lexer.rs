@@ -3,6 +3,8 @@ extern crate core;
 use super::super::span::{Span, SpanLocation, SpanSourceId, StringId, StringInterner};
 use chumsky::prelude::*;
 
+use crate::analysis::interner::Interner;
+use crate::InternedName;
 use std::fmt::{Debug, Display, Formatter};
 use std::string::String;
 
@@ -31,6 +33,23 @@ pub enum Token {
     Num(StringId),
     Ctrl(char),
     Dctrl([char; 2]), // Delete this maybe?
+}
+
+impl InternedName for char {
+    fn name(&self, _: &dyn Interner) -> String {
+        self.to_string()
+    }
+}
+
+impl InternedName for Token {
+    fn name(&self, interner: &dyn Interner) -> String {
+        match self {
+            Token::Num(string) | Token::String(string) | Token::Ident(string) => {
+                interner.lookup_intern_string(*string)
+            }
+            token => token.to_string(),
+        }
+    }
 }
 
 impl Display for Token {

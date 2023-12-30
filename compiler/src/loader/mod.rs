@@ -1,6 +1,6 @@
 use super::error::CompilerError;
 use super::trisult::{Errors, Trisult};
-use super::{workshop, wst, FullText, HashableMap, QueryTrisult};
+use super::{into_owned, workshop, wst, FullText, HashableMap, QueryTrisult};
 use crate::tri;
 use chumsky::input::{Input, Stream};
 use chumsky::prelude::{end, SimpleSpan};
@@ -8,7 +8,7 @@ use chumsky::Parser;
 use serde::Deserialize;
 use std::fmt::Debug;
 use std::fs;
-use std::net::Shutdown::Read;
+use std::ops::Range;
 use std::path::Path;
 
 pub mod error_reporter;
@@ -181,7 +181,7 @@ fn query_wscript_impl(
 
     let (tokens, lexer_errors) = workshop::lexer::lexer()
         .then_ignore(end())
-        .parse(wscript.as_str())
+        .parse(&wscript)
         .into_output_errors();
 
     // Convert zero or more lexer_errors into a byte vec, which will be printed directly to stdout.
@@ -194,11 +194,8 @@ fn query_wscript_impl(
     // However, Rich error does not implement Hash.
     // Therefore the errors are now nicely printed.
     if !lexer_errors.is_empty() {
-        let error = CompilerError::WstLexerError(
-            wscript.clone(),
-            error_reporter::to_stdout_buffer(lexer_errors, wscript.as_str()),
-        );
-        return errors.fail(error);
+        // let error = CompilerError::WstLexerError(into_owned(lexer_errors));
+        // errors.push(error);
     }
 
     let (call, parser_errors) = match tokens {
@@ -215,11 +212,8 @@ fn query_wscript_impl(
     };
 
     if !parser_errors.is_empty() {
-        let error = CompilerError::WstParserError(
-            wscript.clone(),
-            error_reporter::to_stdout_buffer(parser_errors, wscript.as_str()),
-        );
-        errors.push(error);
+        // let error = CompilerError::WstParserError(parser_errors);
+        // errors.push(error);
     }
 
     return match call {

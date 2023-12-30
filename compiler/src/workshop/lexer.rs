@@ -1,8 +1,10 @@
 use super::super::wst::partial::Placeholder;
+use chumsky::input::{SpannedInput, Stream};
 use chumsky::prelude::*;
 use chumsky::text::Char;
 use smol_str::SmolStr;
 use std::fmt::{Display, Formatter};
+use std::ops::Range;
 
 pub type Error<'a> = extra::Err<Rich<'a, char>>;
 
@@ -35,7 +37,7 @@ impl Display for Token {
 
 const PLACEHOLDER_DELIMITER: char = '$';
 
-fn placeholder<'str>() -> impl Parser<'str, &'str str, Token, Error<'str>> {
+fn placeholder<'src>() -> impl Parser<'src, &'src str, Token, Error<'src>> {
     any()
         .filter(|c: &char| *c == PLACEHOLDER_DELIMITER)
         .then(
@@ -55,13 +57,13 @@ fn placeholder<'str>() -> impl Parser<'str, &'str str, Token, Error<'str>> {
         })
 }
 
-fn ident<'str>() -> impl Parser<'str, &'str str, Token, Error<'str>> {
-    let valid_chars = any::<&'str str, _>()
+fn ident<'src>() -> impl Parser<'src, &'src str, Token, Error<'src>> {
+    let valid_chars = any::<&str, _>()
         .filter(|c| c.is_ascii_alphanumeric() || c.is_inline_whitespace() || *c == '-')
         .repeated()
         .collect::<Vec<_>>();
 
-    any::<&'str str, _>()
+    any::<&str, _>()
         .filter(|c| c.is_ascii_alphabetic())
         .then(valid_chars)
         .map(|(initial, mut following)| {

@@ -1,9 +1,8 @@
 use super::super::analysis::def::DefQuery;
 use super::super::QueryTrisult;
 use super::super::{cir, cst};
-use crate::error::CompilerError;
-use crate::trisult::{Errors, IntoTrisult};
-use crate::{query_error, tri};
+use crate::tri;
+use crate::trisult::Errors;
 
 pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
     let mut errors = Errors::new();

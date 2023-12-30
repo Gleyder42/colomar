@@ -6,10 +6,12 @@ use crate::analysis::interner::Interner;
 use crate::database::CompilerDatabase;
 use crate::error_reporter::{new_print_errors, DummyReportValues};
 use crate::language::lexer::Token;
+use crate::loader::error_reporter::to_report;
 use crate::loader::WorkshopScriptLoader;
 use crate::printer::PrinterQuery;
 use crate::source_cache::{LookupSourceCache, SourceCache};
 use crate::span::{CopyRange, SpanInterner, SpanSourceId, StringInterner};
+use ariadne::{Report, ReportKind};
 use chumsky::error::Rich;
 use chumsky::input::Input;
 use chumsky::input::Stream as ChumskyStream;
@@ -24,11 +26,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
-use std::hint::black_box;
 use std::io::Cursor;
-use std::ops::Deref;
 use std::path::PathBuf;
-use std::ptr::drop_in_place;
 use trisult::Trisult;
 
 pub mod analysis;
@@ -75,14 +74,14 @@ pub struct Compiler {
     src_dir: PathBuf,
 }
 
-struct CompilerParseResult<'a, T> {
-    pub cst: Vec<(&'a PathBuf, Option<T>)>,
-    pub lexer_errors: Vec<(SpanSourceId, Vec<Rich<'a, char>>)>,
-    pub parser_errors: Vec<(SpanSourceId, Vec<Rich<'a, Token, Span>>)>,
+struct CompilerParseResult<T> {
+    pub cst: Vec<(PathBuf, Option<T>)>,
+    pub lexer_errors: Vec<(SpanSourceId, Vec<Rich<'static, char>>)>,
+    pub parser_errors: Vec<(SpanSourceId, Vec<Rich<'static, Token, Span>>)>,
 }
 
-impl<'a, T> CompilerParseResult<'a, T> {
-    pub fn new() -> CompilerParseResult<'a, T> {
+impl<T> CompilerParseResult<T> {
+    pub fn new() -> CompilerParseResult<T> {
         CompilerParseResult {
             parser_errors: Vec::new(),
             lexer_errors: Vec::new(),
@@ -177,11 +176,27 @@ impl Compiler {
 
         self.database.set_secondary_files(secondary_files);
 
-        let lookup = LookupSourceCache {
+        let mut lookup = LookupSourceCache {
             source_cache: &self.source_cache,
-            src_dir: &self.src_dir,
             interner: &self.database,
+            src_dir: &self.src_dir,
         };
+
+        write_error(
+            result.parser_errors,
+            &mut lookup,
+            &self.database,
+            |_, error| *error.span(),
+            &mut stderr,
+        );
+
+        write_error(
+            result.lexer_errors,
+            &mut lookup,
+            &self.database,
+            |id, error| (id, error.span().into_range()),
+            &mut stderr,
+        );
 
         let workshop_output = self.database.query_workshop_output();
         match workshop_output {
@@ -196,6 +211,7 @@ impl Compiler {
                     &self.dummy_values,
                     &mut stderr,
                 );
+
                 (Vec::new(), stderr.into_inner())
             }
         }
@@ -204,7 +220,7 @@ impl Compiler {
     fn parse<'a>(
         source_cache: &'a mut SourceCache,
         interner: &'a CompilerDatabase,
-    ) -> CompilerParseResult<'a, cst::Ast> {
+    ) -> CompilerParseResult<cst::Ast> {
         let files = source_cache.update_files().unwrap();
 
         let mut parse_result = CompilerParseResult::new();
@@ -218,7 +234,7 @@ impl Compiler {
 
             parse_result
                 .lexer_errors
-                .push((span_source_id, lexer_errors));
+                .push((span_source_id, into_owned(lexer_errors)));
 
             if let Some(tokens) = output {
                 use language::parser::parser as colomar_parser;
@@ -229,18 +245,53 @@ impl Compiler {
                 );
                 let stream = ChumskyStream::from_iter(tokens.into_iter()).spanned(eoi);
                 let (output, parser_errors) = colomar_parser().parse(stream).into_output_errors();
+
                 parse_result
                     .parser_errors
-                    .push((span_source_id, parser_errors));
+                    .push((span_source_id, into_owned(parser_errors)));
 
-                parse_result.cst.push((path, output));
+                parse_result.cst.push((path.clone(), output));
             } else {
-                parse_result.cst.push((path, None));
+                parse_result.cst.push((path.clone(), None));
             }
         }
 
         parse_result
     }
+}
+
+fn write_error<T, S, U>(
+    errors: Vec<(SpanSourceId, Vec<Rich<'static, T, U>>)>,
+    cache: &mut LookupSourceCache,
+    interner: &dyn Interner,
+    span_func: impl for<'a> Fn(SpanSourceId, &'a Rich<'static, T, U>) -> S,
+    out_stderr: &mut Cursor<Vec<u8>>,
+) where
+    T: Debug + InternedName,
+    S: ariadne::Span<SourceId = SpanSourceId> + Clone,
+{
+    for (span_source_id, errors) in errors {
+        for error in errors {
+            let span = span_func(span_source_id, &error);
+            let report = Report::build(ReportKind::Error, span_source_id, span.start());
+            let report = to_report(report, error.reason(), span, interner);
+            report
+                .finish()
+                .write(&mut *cache, &mut *out_stderr)
+                .expect("Writing to a cursor should not fail")
+        }
+    }
+}
+
+pub trait InternedName {
+    fn name(&self, interner: &dyn Interner) -> String;
+}
+
+pub fn into_owned<T: Clone, S>(input: Vec<Rich<T, S>>) -> Vec<Rich<'static, T, S>> {
+    input
+        .into_iter()
+        .map(|rich| rich.into_owned::<'static>())
+        .collect()
 }
 
 pub struct SVMultiMapWrapper<K, V, const N: usize>(SVMultiMap<K, V, N>);
