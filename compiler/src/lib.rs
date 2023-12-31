@@ -66,6 +66,17 @@ pub const CALLED_ARGS_LEN: usize = DECL_ARGS_LEN;
 pub type StructId = TextId;
 pub type SVMultiMap<K, V, const N: usize> = HashMap<K, SmallVec<[V; N]>>;
 
+#[macro_export]
+macro_rules! parser_alias {
+    ($alias:ident, $input:ty, $error:ty) => {
+        pub trait $alias<'a, T>: chumsky::Parser<'a, $input, T, $error> {}
+
+        impl<'a, T, P> $alias<'a, T> for P where P: chumsky::Parser<'a, $input, T, $error> {}
+
+        pub type BBoxed<'a, 'b, T> = Boxed<'a, 'b, $input, T, $error>;
+    };
+}
+
 pub struct Compiler {
     dummy_values: DummyReportValues,
     database: CompilerDatabase,

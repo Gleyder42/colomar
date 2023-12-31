@@ -1,12 +1,9 @@
 use super::super::wst::partial::Placeholder;
-use chumsky::input::{SpannedInput, Stream};
+use crate::parser_alias;
 use chumsky::prelude::*;
 use chumsky::text::Char;
 use smol_str::SmolStr;
 use std::fmt::{Display, Formatter};
-use std::ops::Range;
-
-pub type Error<'a> = extra::Err<Rich<'a, char>>;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Token {
@@ -37,7 +34,13 @@ impl Display for Token {
 
 const PLACEHOLDER_DELIMITER: char = '$';
 
-fn placeholder<'src>() -> impl Parser<'src, &'src str, Token, Error<'src>> {
+pub type ParserError<'a> = extra::Err<Rich<'a, char>>;
+
+pub type ParserInput<'a> = &'a str;
+
+parser_alias!(PParser, ParserInput<'a>, ParserError<'a>);
+
+fn placeholder<'src>() -> impl PParser<'src, Token> {
     any()
         .filter(|c: &char| *c == PLACEHOLDER_DELIMITER)
         .then(
@@ -57,13 +60,13 @@ fn placeholder<'src>() -> impl Parser<'src, &'src str, Token, Error<'src>> {
         })
 }
 
-fn ident<'src>() -> impl Parser<'src, &'src str, Token, Error<'src>> {
-    let valid_chars = any::<&str, _>()
+fn ident<'src>() -> impl PParser<'src, Token> {
+    let valid_chars = any::<ParserInput, _>()
         .filter(|c| c.is_ascii_alphanumeric() || c.is_inline_whitespace() || *c == '-')
         .repeated()
         .collect::<Vec<_>>();
 
-    any::<&str, _>()
+    any::<ParserInput, _>()
         .filter(|c| c.is_ascii_alphabetic())
         .then(valid_chars)
         .map(|(initial, mut following)| {
@@ -74,7 +77,7 @@ fn ident<'src>() -> impl Parser<'src, &'src str, Token, Error<'src>> {
         })
 }
 
-pub fn lexer<'src>() -> impl Parser<'src, &'src str, Vec<(Token, SimpleSpan)>, Error<'src>> {
+pub fn lexer<'src>() -> impl PParser<'src, Vec<(Token, SimpleSpan)>> {
     let ctrl = one_of("(),").map(Token::Ctrl);
 
     // TODO Add recover_with(skip_then_retry_until([]))

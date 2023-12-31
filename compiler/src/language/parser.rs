@@ -4,19 +4,22 @@ use super::super::{AssignMod, Ident, UseRestriction};
 use chumsky::input::{SpannedInput, Stream};
 
 use super::super::span::{Span, Spanned, SpannedBool};
+use crate::parser_alias;
 use chumsky::prelude::*;
 use smallvec::SmallVec;
 
 pub type ParserInput = SpannedInput<Token, Span, Stream<std::vec::IntoIter<(Token, Span)>>>;
 pub type ParserExtra<'a> = extra::Err<Rich<'a, Token, Span>>;
 
-fn ident<'src>() -> impl Parser<'src, ParserInput, Ident, ParserExtra<'src>> + Clone {
+parser_alias!(PParser, ParserInput, ParserExtra<'a>);
+
+fn ident<'src>() -> impl PParser<'src, Ident> + Clone {
     select! {
         Token::Ident(ident) = span => Ident { value: ident, span }
     }
 }
 
-fn decl_generics<'src>() -> impl Parser<'src, ParserInput, DeclGenerics, ParserExtra<'src>> {
+fn decl_generics<'src>() -> impl PParser<'src, DeclGenerics> {
     ident()
         .separated_by(just(Token::Ctrl(',')))
         .collect::<Vec<_>>()
@@ -26,7 +29,7 @@ fn decl_generics<'src>() -> impl Parser<'src, ParserInput, DeclGenerics, ParserE
         .map(|generics| generics.unwrap_or_else(|| DeclGenerics(Vec::new())))
 }
 
-fn bound_generics<'src>() -> impl Parser<'src, ParserInput, Vec<BoundGeneric>, ParserExtra<'src>> {
+fn bound_generics<'src>() -> impl PParser<'src, Vec<BoundGeneric>> {
     recursive(|generics| {
         ident()
             .then(
@@ -44,7 +47,7 @@ fn bound_generics<'src>() -> impl Parser<'src, ParserInput, Vec<BoundGeneric>, P
     })
 }
 
-fn r#type<'src>() -> impl Parser<'src, ParserInput, Type, ParserExtra<'src>> {
+fn r#type<'src>() -> impl PParser<'src, Type> {
     let with_generics = ident()
         .then(bound_generics())
         .map(|(ident, generics)| Type { ident, generics });
@@ -55,8 +58,7 @@ fn r#type<'src>() -> impl Parser<'src, ParserInput, Type, ParserExtra<'src>> {
     with_generics.or(without_generics)
 }
 
-fn declared_arg<'src>() -> impl Parser<'src, ParserInput, Spanned<Vec<DeclArg>>, ParserExtra<'src>>
-{
+fn declared_arg<'src>() -> impl PParser<'src, Spanned<Vec<DeclArg>>> {
     let types = r#type()
         .separated_by(just(Token::Ctrl('|')))
         .collect::<Vec<_>>()
@@ -98,13 +100,13 @@ fn declared_arg<'src>() -> impl Parser<'src, ParserInput, Spanned<Vec<DeclArg>>,
         .map_with_span(Spanned::new)
 }
 
-fn native<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+fn native<'src>() -> impl PParser<'src, SpannedBool> {
     just(Token::Native)
         .or_not()
         .map_with_span(Spanned::ignore_value)
 }
 
-fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
+fn event<'src>() -> impl PParser<'src, Event> {
     let by = just(Token::By)
         .ignore_then(ident())
         .then(chain().args())
@@ -141,7 +143,7 @@ fn event<'src>() -> impl Parser<'src, ParserInput, Event, ParserExtra<'src>> {
         })
 }
 
-fn visibility<'src>() -> impl Parser<'src, ParserInput, Visibility, ParserExtra<'src>> {
+fn visibility<'src>() -> impl PParser<'src, Visibility> {
     just(Token::Pub)
         .or_not()
         .map(|token| {
@@ -153,7 +155,7 @@ fn visibility<'src>() -> impl Parser<'src, ParserInput, Visibility, ParserExtra<
         })
 }
 
-fn r#enum<'src>() -> impl Parser<'src, ParserInput, Enum, ParserExtra<'src>> {
+fn r#enum<'src>() -> impl PParser<'src, Enum> {
     let constants = ident()
         .separated_by(just(Token::Ctrl(',')))
         .allow_trailing()
@@ -177,23 +179,21 @@ fn r#enum<'src>() -> impl Parser<'src, ParserInput, Enum, ParserExtra<'src>> {
         })
 }
 
-fn spanned_bool<'src>(
-    token: Token,
-) -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+fn spanned_bool<'src>(token: Token) -> impl PParser<'src, SpannedBool> {
     just(token)
         .or_not()
         .map_with_span(|it, span| it.map(|_| Spanned::new((), span)))
 }
 
-fn r#static<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+fn r#static<'src>() -> impl PParser<'src, SpannedBool> {
     spanned_bool(Token::Static)
 }
 
-fn vararg<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+fn vararg<'src>() -> impl PParser<'src, SpannedBool> {
     spanned_bool(Token::Vararg)
 }
 
-fn property<'src>() -> impl Parser<'src, ParserInput, PropertyDecl, ParserExtra<'src>> {
+fn property<'src>() -> impl PParser<'src, PropertyDecl> {
     let use_restriction_tokens = (
         just(Token::GetVar),
         just(Token::SetVar),
@@ -249,7 +249,7 @@ macro_rules! dup_op {
     };
 }
 
-fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>> {
+fn expression<'src>() -> impl PParser<'src, Expr> {
     recursive(|expr| {
         let chain = chain().ident_chain().map(Expr::Chain);
 
@@ -281,13 +281,13 @@ fn expression<'src>() -> impl Parser<'src, ParserInput, Expr, ParserExtra<'src>>
     })
 }
 
-fn partial<'src>() -> impl Parser<'src, ParserInput, SpannedBool, ParserExtra<'src>> {
+fn partial<'src>() -> impl PParser<'src, SpannedBool> {
     just(Token::Partial)
         .or_not()
         .map_with_span(Spanned::ignore_value)
 }
 
-fn path<'src>() -> impl Parser<'src, ParserInput, Path, ParserExtra<'src>> {
+fn path<'src>() -> impl PParser<'src, Path> {
     ident()
         .map(|it| it.value)
         .separated_by(dup_op!(':'))
@@ -298,14 +298,14 @@ fn path<'src>() -> impl Parser<'src, ParserInput, Path, ParserExtra<'src>> {
         })
 }
 
-fn import<'src>() -> impl Parser<'src, ParserInput, Import, ParserExtra<'src>> {
+fn import<'src>() -> impl PParser<'src, Import> {
     just(Token::Import)
         .ignore_then(path())
         .then_ignore(just(Token::Ctrl(';')))
         .map_with_span(|path, span| Import { path, span })
 }
 
-fn function_decl<'src>() -> impl Parser<'src, ParserInput, FunctionDecl, ParserExtra<'src>> {
+fn function_decl<'src>() -> impl PParser<'src, FunctionDecl> {
     native()
         .then(r#static())
         .then_ignore(just(Token::Fn))
@@ -319,7 +319,7 @@ fn function_decl<'src>() -> impl Parser<'src, ParserInput, FunctionDecl, ParserE
         })
 }
 
-fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>> {
+fn r#struct<'src>() -> impl PParser<'src, Struct> {
     let member_function = function_decl();
     enum StructMember {
         Property(PropertyDecl),
@@ -384,16 +384,16 @@ fn r#struct<'src>() -> impl Parser<'src, ParserInput, Struct, ParserExtra<'src>>
 }
 
 struct IdentChainParserResult<'src, 'a> {
-    ident_chain: Boxed<'src, 'a, ParserInput, CallChain, ParserExtra<'src>>,
-    args: Boxed<'src, 'a, ParserInput, CallArgs, ParserExtra<'src>>,
+    ident_chain: BBoxed<'src, 'a, CallChain>,
+    args: BBoxed<'src, 'a, CallArgs>,
 }
 
 impl<'src, 'a> IdentChainParserResult<'src, 'a> {
-    fn ident_chain(self) -> Boxed<'src, 'a, ParserInput, CallChain, ParserExtra<'src>> {
+    fn ident_chain(self) -> BBoxed<'src, 'a, CallChain> {
         self.ident_chain
     }
 
-    fn args(self) -> Boxed<'src, 'a, ParserInput, CallArgs, ParserExtra<'src>> {
+    fn args(self) -> BBoxed<'src, 'a, CallArgs> {
         self.args
     }
 }
@@ -446,7 +446,7 @@ fn chain<'src: 'a, 'a>() -> IdentChainParserResult<'src, 'a> {
     }
 }
 
-fn assigment<'src>() -> impl Parser<'src, ParserInput, Action, ParserExtra<'src>> {
+fn assigment<'src>() -> impl PParser<'src, Action> {
     let ident_chain = || chain().ident_chain();
 
     let assign_mods = (
@@ -472,7 +472,7 @@ fn assigment<'src>() -> impl Parser<'src, ParserInput, Action, ParserExtra<'src>
         .map(|((left, assign_mod), right)| Action::Assignment(left, right, assign_mod))
 }
 
-fn block<'src>() -> impl Parser<'src, ParserInput, Block, ParserExtra<'src>> {
+fn block<'src>() -> impl PParser<'src, Block> {
     let cond = just(Token::Cond).ignore_then(expression());
 
     let action = choice((
@@ -500,7 +500,7 @@ fn block<'src>() -> impl Parser<'src, ParserInput, Block, ParserExtra<'src>> {
         })
 }
 
-fn rule<'src>() -> impl Parser<'src, ParserInput, Rule, ParserExtra<'src>> {
+fn rule<'src>() -> impl PParser<'src, Rule> {
     let rule_name = select! {
         Token::String(string) = span => Spanned::new(string, span)
     };
@@ -523,7 +523,7 @@ fn rule<'src>() -> impl Parser<'src, ParserInput, Rule, ParserExtra<'src>> {
         )
 }
 
-pub fn parser<'src>() -> impl Parser<'src, ParserInput, Ast, ParserExtra<'src>> {
+pub fn parser<'src>() -> impl PParser<'src, Ast> {
     let rule_parser = rule().map(Root::Rule);
     let event_parser = event().map(Root::Event);
     let enum_parser = r#enum().map(Root::Enum);

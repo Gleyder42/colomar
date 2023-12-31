@@ -3,15 +3,11 @@ use super::super::wst::partial::Placeholder;
 use super::super::wst::{partial, Ident};
 use chumsky::error::Error;
 use chumsky::input::{SpannedInput, Stream};
-use std::ops::Range;
 
+use crate::parser_alias;
 use chumsky::prelude::*;
 use chumsky::util::Maybe;
 use smol_str::SmolStr;
-
-pub type ParserExtra<'a> = extra::Err<Rich<'a, Token>>;
-pub type ParserInput =
-    SpannedInput<Token, SimpleSpan, Stream<std::vec::IntoIter<(Token, SimpleSpan)>>>;
 
 #[derive(Debug, Clone)]
 enum Name {
@@ -19,19 +15,25 @@ enum Name {
     Placeholder(Placeholder),
 }
 
-fn ident<'src>() -> impl Parser<'src, ParserInput, Ident, ParserExtra<'src>> + Clone {
+pub type ParserExtra<'a> = extra::Err<Rich<'a, Token>>;
+pub type ParserInput =
+    SpannedInput<Token, SimpleSpan, Stream<std::vec::IntoIter<(Token, SimpleSpan)>>>;
+
+parser_alias!(PParser, ParserInput, ParserExtra<'a>);
+
+fn ident<'src>() -> impl PParser<'src, Ident> + Clone {
     select! {
         Token::Ident(text) => Ident(text)
     }
 }
 
-fn placeholder<'src>() -> impl Parser<'src, ParserInput, Placeholder, ParserExtra<'src>> + Clone {
+fn placeholder<'src>() -> impl PParser<'src, Placeholder> + Clone {
     select! {
         Token::Placeholder(text) => Placeholder(text)
     }
 }
 
-pub fn call<'src>() -> impl Parser<'src, ParserInput, partial::Call, ParserExtra<'src>> {
+pub fn call<'src>() -> impl PParser<'src, partial::Call> {
     recursive::<_, partial::Call, _, _, _>(|call| {
         let args = call
             .separated_by(just(Token::Ctrl(',')))
