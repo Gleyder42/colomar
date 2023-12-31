@@ -3,15 +3,14 @@ use super::trisult::{Errors, Trisult};
 use super::{into_owned, workshop, wst, FullText, HashableMap, QueryTrisult};
 use crate::tri;
 use chumsky::input::{Input, Stream};
-use chumsky::prelude::{end, SimpleSpan};
+use chumsky::prelude::end;
 use chumsky::Parser;
 use serde::Deserialize;
 use std::fmt::Debug;
 use std::fs;
-use std::ops::Range;
 use std::path::Path;
+use std::rc::Rc;
 
-pub mod error_reporter;
 pub mod wscript_impl;
 
 #[salsa::query_group(WorkshopScriptLoaderDatabase)]
@@ -181,8 +180,10 @@ fn query_wscript_impl(
 
     let (tokens, lexer_errors) = workshop::lexer::lexer()
         .then_ignore(end())
-        .parse(&wscript)
+        .parse(workshop::lexer::input_from_str(&wscript))
         .into_output_errors();
+
+    let wscript = Rc::from(wscript);
 
     // Convert zero or more lexer_errors into a byte vec, which will be printed directly to stdout.
     // Essentially it will already print the errors in a nice readable format.
@@ -194,13 +195,16 @@ fn query_wscript_impl(
     // However, Rich error does not implement Hash.
     // Therefore the errors are now nicely printed.
     if !lexer_errors.is_empty() {
-        // let error = CompilerError::WstLexerError(into_owned(lexer_errors));
-        // errors.push(error);
+        let error = CompilerError::WstLexerError(Rc::clone(&wscript), into_owned(lexer_errors));
+        errors.push(error);
     }
 
     let (call, parser_errors) = match tokens {
         Some(tokens) => {
-            let eoi = SimpleSpan::new(tokens.len(), tokens.len() + 1);
+            let eoi = wst::Span {
+                start: tokens.len(),
+                end: tokens.len() + 1,
+            };
             let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
 
             workshop::parser::call()
@@ -212,8 +216,8 @@ fn query_wscript_impl(
     };
 
     if !parser_errors.is_empty() {
-        // let error = CompilerError::WstParserError(parser_errors);
-        // errors.push(error);
+        let error = CompilerError::WstParserError(Rc::clone(&wscript), into_owned(parser_errors));
+        errors.push(error);
     }
 
     return match call {

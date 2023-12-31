@@ -6,15 +6,14 @@ use crate::analysis::interner::Interner;
 use crate::database::CompilerDatabase;
 use crate::error_reporter::{new_print_errors, DummyReportValues};
 use crate::language::lexer::Token;
-use crate::loader::error_reporter::to_report;
 use crate::loader::WorkshopScriptLoader;
 use crate::printer::PrinterQuery;
 use crate::source_cache::{LookupSourceCache, SourceCache};
 use crate::span::{CopyRange, SpanInterner, SpanSourceId, StringInterner};
-use ariadne::{Report, ReportKind};
 use chumsky::error::Rich;
 use chumsky::input::Input;
 use chumsky::input::Stream as ChumskyStream;
+use chumsky::span::SimpleSpan;
 use chumsky::Parser;
 use error::CompilerError;
 use hashlink::LinkedHashMap;
@@ -54,6 +53,8 @@ pub type TextId = StringId;
 
 pub type HashableMap<K, V> = LinkedHashMap<K, V>;
 pub type QueryTrisult<T> = Trisult<T, CompilerError>;
+
+pub type OwnedRich<T, S = SimpleSpan<usize>> = Rich<'static, T, S>;
 
 pub const CONDITIONS_LEN: usize = 6;
 pub const ACTIONS_LEN: usize = 8;
@@ -193,7 +194,7 @@ impl Compiler {
             src_dir: &self.src_dir,
         };
 
-        write_error(
+        error_reporter::write_error(
             result.parser_errors,
             &mut lookup,
             &self.database,
@@ -201,7 +202,7 @@ impl Compiler {
             &mut stderr,
         );
 
-        write_error(
+        error_reporter::write_error(
             result.lexer_errors,
             &mut lookup,
             &self.database,
@@ -268,29 +269,6 @@ impl Compiler {
         }
 
         parse_result
-    }
-}
-
-fn write_error<T, S, U>(
-    errors: Vec<(SpanSourceId, Vec<Rich<'static, T, U>>)>,
-    cache: &mut LookupSourceCache,
-    interner: &dyn Interner,
-    span_func: impl for<'a> Fn(SpanSourceId, &'a Rich<'static, T, U>) -> S,
-    out_stderr: &mut Cursor<Vec<u8>>,
-) where
-    T: Debug + InternedName,
-    S: ariadne::Span<SourceId = SpanSourceId> + Clone,
-{
-    for (span_source_id, errors) in errors {
-        for error in errors {
-            let span = span_func(span_source_id, &error);
-            let report = Report::build(ReportKind::Error, span_source_id, span.start());
-            let report = to_report(report, error.reason(), span, interner);
-            report
-                .finish()
-                .write(&mut *cache, &mut *out_stderr)
-                .expect("Writing to a cursor should not fail")
-        }
     }
 }
 

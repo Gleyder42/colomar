@@ -1,5 +1,8 @@
 use super::super::wst::partial::Placeholder;
-use crate::parser_alias;
+use crate::analysis::interner::Interner;
+use crate::span::Span;
+use crate::{parser_alias, wst, InternedName};
+use chumsky::input::{SpannedInput, Stream};
 use chumsky::prelude::*;
 use chumsky::text::Char;
 use smol_str::SmolStr;
@@ -12,6 +15,18 @@ pub enum Token {
     Number(SmolStr),
     Placeholder(SmolStr),
     Ctrl(char),
+}
+
+impl InternedName for Token {
+    fn name(&self, _: &dyn Interner) -> String {
+        match self {
+            Token::Ident(text)
+            | Token::String(text)
+            | Token::Number(text)
+            | Token::Placeholder(text) => text.to_string(),
+            Token::Ctrl(c) => c.to_string(),
+        }
+    }
 }
 
 impl From<Placeholder> for Token {
@@ -34,11 +49,34 @@ impl Display for Token {
 
 const PLACEHOLDER_DELIMITER: char = '$';
 
-pub type ParserError<'a> = extra::Err<Rich<'a, char>>;
+pub type ParserError<'a> = extra::Err<Rich<'a, char, wst::Span>>;
 
-pub type ParserInput<'a> = &'a str;
+pub type ParserInput<'a> =
+    SpannedInput<char, wst::Span, Stream<std::vec::IntoIter<(char, wst::Span)>>>;
 
 parser_alias!(PParser, ParserInput<'a>, ParserError<'a>);
+
+pub fn input_from_str(wscript: &str) -> ParserInput {
+    let eoi = wst::Span {
+        start: wscript.len(),
+        end: wscript.len() + 1,
+    };
+    let iter = wscript
+        .char_indices()
+        .map(|(index, c)| {
+            (
+                c,
+                wst::Span {
+                    start: index,
+                    end: index + 1,
+                },
+            )
+        })
+        .collect::<Vec<_>>()
+        .into_iter();
+
+    Stream::from_iter(iter).spanned(eoi)
+}
 
 fn placeholder<'src>() -> impl PParser<'src, Token> {
     any()
@@ -77,7 +115,7 @@ fn ident<'src>() -> impl PParser<'src, Token> {
         })
 }
 
-pub fn lexer<'src>() -> impl PParser<'src, Vec<(Token, SimpleSpan)>> {
+pub fn lexer<'src>() -> impl PParser<'src, Vec<(Token, wst::Span)>> {
     let ctrl = one_of("(),").map(Token::Ctrl);
 
     // TODO Add recover_with(skip_then_retry_until([]))
@@ -103,7 +141,7 @@ mod tests {
         for code in placeholders {
             let actual = placeholder()
                 .then_ignore(end())
-                .parse(code)
+                .parse(input_from_str(code))
                 .into_result()
                 .expect(&format!("Cannot parse {code}"));
             assert_eq!(actual, Token::Placeholder(code.into()))
@@ -115,7 +153,10 @@ mod tests {
         let placeholders = ["test", "$$", "$$$", "  ", ""];
 
         for code in placeholders {
-            let actual = placeholder().then_ignore(end()).parse(code).into_result();
+            let actual = placeholder()
+                .then_ignore(end())
+                .parse(input_from_str(code))
+                .into_result();
 
             assert!(!actual.is_ok(), "'{}' was parsed, but should fail", code)
         }
@@ -136,7 +177,7 @@ mod tests {
         for code in idents {
             let actual = ident()
                 .then_ignore(end())
-                .parse(code)
+                .parse(input_from_str(code))
                 .into_result()
                 .expect(&format!("Cannot parse {code}"));
             assert_eq!(actual, Token::Ident(code.into()))
@@ -148,7 +189,10 @@ mod tests {
         let idents = ["- Global", " - Global", " ", "     ", "1.10", "20"];
 
         for code in idents {
-            let actual = ident().then_ignore(end()).parse(code).into_result();
+            let actual = ident()
+                .then_ignore(end())
+                .parse(input_from_str(code))
+                .into_result();
 
             assert!(!actual.is_ok(), "'{}' was parsed, but should fail", code)
         }
@@ -159,7 +203,7 @@ mod tests {
         let code = "Is Reloading(Event Player, Event Player)";
         let actual: Vec<Token> = lexer()
             .then_ignore(end())
-            .parse(code)
+            .parse(input_from_str(code))
             .into_result()
             .expect(&format!("Cannot parse {code}"))
             .into_iter()

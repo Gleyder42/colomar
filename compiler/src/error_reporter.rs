@@ -1,19 +1,19 @@
 use super::cir::{CalledType, CalledTypes, Type};
 use super::database::CompilerDatabase;
 use super::error::CompilerError;
-use super::span::{CopyRange, FatSpan, Span, SpanInterner, SpanSource, SpanSourceId};
-use super::{Ident, TextId};
-use crate::cst::{Path, PathName};
-use crate::source_cache::{EmptyLookupSource, LookupSourceCache, SourceCache};
-use ariadne::{sources, Color, Fmt, Label, ReportBuilder, ReportKind, Source};
-use chumsky::error::Rich;
+use super::span::{CopyRange, Span, SpanInterner, SpanSourceId};
+use super::{wst, Ident, InternedName, OwnedRich, TextId};
+use crate::analysis::interner::Interner;
+use crate::cst::Path;
+use crate::source_cache::{EmptyLookupSource, LookupSourceCache};
+use ariadne::{Color, Fmt, Label, ReportBuilder, ReportKind, Source};
+use chumsky::error::{Rich, RichPattern, RichReason};
 use either::Either;
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::io::{Cursor, Write};
 use std::path::PathBuf;
-use std::process::Output;
 
 pub type Cache<'a> = LookupSourceCache<'a>;
 
@@ -26,6 +26,8 @@ mod ind {
     pub const NAME: Color = Color::Cyan;
 }
 
+const PRINTING_ERROR_MESSAGE: &'static str = "Error while printing. This is an error";
+
 pub fn new_print_errors(
     unique_errors: HashSet<CompilerError>,
     db: &CompilerDatabase,
@@ -34,6 +36,18 @@ pub fn new_print_errors(
     output: &mut Cursor<Vec<u8>>,
 ) {
     for error in unique_errors {
+        match error {
+            CompilerError::WstParserError(source, errors) => {
+                print_workshop_errors(errors, &source, db);
+                return;
+            }
+            CompilerError::WstLexerError(source, errors) => {
+                print_workshop_errors(errors, &source, db);
+                return;
+            }
+            _ => {}
+        };
+
         let report: Report = match error.main_span() {
             Some(main_span) => ariadne::Report::build(
                 ReportKind::Error,
@@ -73,12 +87,6 @@ pub fn new_print_errors(
             CompilerError::PlaceholderError(_) => {
                 todo!()
             }
-            CompilerError::WstParserError(_) => {
-                todo!()
-            }
-            CompilerError::WstLexerError(_) => {
-                todo!()
-            }
             CompilerError::MissingArg { .. } => {
                 todo!()
             }
@@ -106,12 +114,37 @@ pub fn new_print_errors(
             CompilerError::CannotFindStruct(name) => {
                 report_cannot_find_struct_error(name, report, source_cache.interner)
             }
+            CompilerError::WstParserError(_, _) | CompilerError::WstLexerError(_, _) => {
+                unreachable!("WstParserError and WstLexerError are already checked")
+            }
         };
 
         report
             .finish()
             .write(&mut source_cache, output.get_mut())
-            .expect("Printing should never fail");
+            .expect(PRINTING_ERROR_MESSAGE);
+    }
+}
+
+fn print_workshop_errors<T: Debug + InternedName>(
+    errors: Vec<OwnedRich<T, wst::Span>>,
+    source: &str,
+    db: &CompilerDatabase,
+) {
+    let mut source = Source::from(source);
+    for rich in errors {
+        let span = rich.span();
+
+        let report = to_report(
+            ariadne::Report::build(ReportKind::Error, (), span.start),
+            rich.reason(),
+            span.clone(),
+            db,
+        );
+        report
+            .finish()
+            .eprint(&mut source)
+            .expect(PRINTING_ERROR_MESSAGE);
     }
 }
 
@@ -270,4 +303,79 @@ pub fn print_cannot_find_primitive_decl(db: &CompilerDatabase, error_code: u16, 
 
 fn print_wst_error(buf: Vec<u8>) {
     std::io::stdout().write(&buf).unwrap();
+}
+
+pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(
+    report: ReportBuilder<'a, S>,
+    reason: &RichReason<'a, T>,
+    span: S,
+    interner: &dyn Interner,
+) -> ReportBuilder<'a, S> {
+    match reason {
+        RichReason::ExpectedFound { found, expected } => {
+            let message = match found {
+                Some(token) => {
+                    format!("Found {}", token.name(interner))
+                }
+                None => "No token".to_string(),
+            };
+
+            let mut report = report.with_message(message);
+
+            for pattern in expected {
+                match pattern {
+                    RichPattern::Token(token) => {
+                        report = report.with_label(
+                            Label::new(span.clone())
+                                .with_message(format!("Expected token {token:?}")),
+                        );
+                    }
+                    RichPattern::Label(label) => {
+                        report = report.with_label(
+                            Label::new(span.clone())
+                                .with_message(format!("Expected label {label:?}")),
+                        );
+                    }
+                    RichPattern::EndOfInput => {
+                        report = report
+                            .with_label(Label::new(span.clone()).with_message("Expected no token"));
+                    }
+                }
+            }
+            report
+        }
+        RichReason::Custom(custom) => {
+            report.with_label(Label::new(span.clone()).with_message(custom))
+        }
+        RichReason::Many(errors) => {
+            let mut report = report;
+            for reason in errors {
+                report = to_report(report, reason, span.clone(), interner);
+            }
+            report
+        }
+    }
+}
+
+pub fn write_error<T, S, U>(
+    errors: Vec<(SpanSourceId, Vec<Rich<'static, T, U>>)>,
+    cache: &mut LookupSourceCache,
+    interner: &dyn Interner,
+    span_func: impl for<'a> Fn(SpanSourceId, &'a Rich<'static, T, U>) -> S,
+    out_stderr: &mut Cursor<Vec<u8>>,
+) where
+    T: Debug + InternedName,
+    S: ariadne::Span<SourceId = SpanSourceId> + Clone,
+{
+    for (span_source_id, errors) in errors {
+        for error in errors {
+            let span = span_func(span_source_id, &error);
+            let report = ariadne::Report::build(ReportKind::Error, span_source_id, span.start());
+            let report = to_report(report, error.reason(), span, interner);
+            report
+                .finish()
+                .write(&mut *cache, &mut *out_stderr)
+                .expect("Writing to a cursor should not fail")
+        }
+    }
 }

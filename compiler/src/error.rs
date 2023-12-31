@@ -1,14 +1,13 @@
-use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, Type};
+use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, Struct, Type};
 use super::cst::Path;
 use super::span::Span;
 use super::trisult::Trisult;
 use super::wst::partial::SaturateError;
-use super::{workshop, Ident, QueryTrisult, TextId};
+use super::{workshop, wst, Ident, OwnedRich, QueryTrisult, TextId};
 use crate::query_error;
-use chumsky::error::Rich;
 use either::Either;
 use std::borrow::Cow;
-use std::ops::Range;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
@@ -28,9 +27,9 @@ pub enum CompilerError {
     CannotFindNativeDef(String),
     PlaceholderError(SaturateError),
     // TODO Add any information
-    WstLexerError(Vec<Rich<'static, char, Range<usize>>>),
+    WstLexerError(Rc<str>, Vec<OwnedRich<char, wst::Span>>),
     // TODO Add any information
-    WstParserError(Vec<Rich<'static, workshop::lexer::Token, Range<usize>>>),
+    WstParserError(Rc<str>, Vec<OwnedRich<workshop::lexer::Token, wst::Span>>),
     MissingArg {
         missing_arg: DeclArgId,
         call_site: Span,
@@ -56,8 +55,8 @@ impl CompilerError {
             CompilerError::CannotFindPrimitiveDecl(_) => None,
             CompilerError::CannotFindNativeDef(_) => None,
             CompilerError::PlaceholderError(_) => None,
-            CompilerError::WstParserError(_) => None,
-            CompilerError::WstLexerError(_) => None,
+            CompilerError::WstParserError(_, _) => None,
+            CompilerError::WstLexerError(_, _) => None,
             CompilerError::MissingArg { call_site, .. } => Some(*call_site),
             CompilerError::CannotFindNamedArg(ident) => Some(ident.span),
             CompilerError::ArgOutOfRange(_, span) => Some(*span),
@@ -81,8 +80,8 @@ impl CompilerError {
             CompilerError::WrongType { .. } => 5,
             CompilerError::CannotFindPrimitiveDecl(_) => 6,
             CompilerError::CannotFindNativeDef(_) => 7,
-            CompilerError::WstLexerError(_) => 10,
-            CompilerError::WstParserError(_) => 11,
+            CompilerError::WstLexerError(_, _) => 10,
+            CompilerError::WstParserError(_, _) => 11,
             CompilerError::PlaceholderError(_) => 12,
             CompilerError::MissingArg { .. } => 13,
             CompilerError::CannotFindNamedArg(_) => 14,

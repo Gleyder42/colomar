@@ -2,6 +2,9 @@ use super::span::StringInterner;
 use super::{FullText, Op, TextId};
 use smol_str::SmolStr;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::Range;
+
+pub type Span = Range<usize>;
 
 pub mod partial {
     use super::super::{wst, Op};
