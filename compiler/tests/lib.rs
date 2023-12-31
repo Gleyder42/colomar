@@ -1,9 +1,11 @@
 #![feature(pattern)]
 
 use regex::RegexBuilder;
-use std::str::pattern::Pattern;
 
 mod errors;
+
+mod lexer_errors;
+mod parser_errors;
 
 fn contains_many(patterns: Vec<&str>, input: &str) -> bool {
     for pattern in patterns {

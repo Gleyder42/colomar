@@ -40,33 +40,3 @@ macro_rules! impl_intern_key {
         }
     };
 }
-
-#[cfg(test)]
-pub mod test {
-
-    use crate::span::SpanInterner;
-    use crate::span::SpanInternerDatabase;
-    use crate::span::SpanSourceId;
-    use crate::span::StringInternerDatabase;
-
-    #[salsa::database(
-        SpanInternerDatabase,
-        TestDatabaseHelperDatabase,
-        StringInternerDatabase
-    )]
-    #[derive(Default)]
-    pub struct TestDatabase {
-        storage: salsa::Storage<Self>,
-    }
-
-    impl salsa::Database for TestDatabase {}
-
-    #[salsa::query_group(TestDatabaseHelperDatabase)]
-    pub trait TestDatabaseHelper: SpanInterner {
-        fn intern_str(&self, name: &'static str) -> SpanSourceId;
-    }
-
-    fn intern_str(db: &dyn TestDatabaseHelper, name: &'static str) -> SpanSourceId {
-        db.intern_span_source(name.into())
-    }
-}

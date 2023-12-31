@@ -117,6 +117,7 @@ dependencies = [
  "smol_str",
  "tempdir",
  "test-case",
+ "test_common",
  "toml",
 ]
 
@@ -644,6 +645,14 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "test-case-core",
+]
+
+[[package]]
+name = "test_common"
+version = "0.1.0"
+dependencies = [
+ "compiler",
+ "salsa",
 ]
 
 [[package]]

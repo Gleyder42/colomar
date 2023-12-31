@@ -11,8 +11,8 @@ use chumsky::error::{Rich, RichPattern, RichReason};
 use either::Either;
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::fmt::{Debug, Display};
-use std::io::{Cursor, Write};
+use std::fmt::Debug;
+use std::io::Cursor;
 use std::path::PathBuf;
 
 pub type Cache<'a> = LookupSourceCache<'a>;
@@ -181,7 +181,7 @@ fn report_wrong_type_error<'a>(
     let report = report.with_message("Wrong type");
 
     let report = match expected {
-        Either::Left(r#type) => report,
+        Either::Left(_type) => report,
         Either::Right(called_types) => report.with_label(
             Label::new(called_types.span)
                 .with_message("Expected")
@@ -258,8 +258,6 @@ fn report_not_implemented_error<'a>(
         .with_label(Label::new(span).with_color(Color::Magenta))
 }
 
-const ERROR_KIND: ReportKind = ReportKind::Error;
-
 const COMPILER_ERROR: ReportKind =
     ReportKind::Custom("Internal Compiler Error", Color::RGB(219, 13, 17));
 
@@ -275,12 +273,12 @@ impl DummyReportValues {
     }
 }
 
+/// We use ariadne to print the compiler error, even though we have no span
+/// nor source message.
+/// If want to have a consistent error reporting so I use ariadne instead of
+/// manuel error printing.
+/// However this requires to have a span of some type.
 pub fn print_cannot_find_primitive_decl(db: &CompilerDatabase, error_code: u16, name: TextId) {
-    /// We use ariadne to print the compiler error, even though we have no span
-    /// nor source message.
-    /// If want to have a consistent error reporting so I use ariadne instead of
-    /// manuel error printing.
-    /// However this requires to have a span of some type.
     let dummy_span = Span {
         location: CopyRange { start: 0, end: 0 },
         source: db.intern_span_source(PathBuf::from("DummySpanSource")),
@@ -299,10 +297,6 @@ pub fn print_cannot_find_primitive_decl(db: &CompilerDatabase, error_code: u16, 
     .finish()
     .print(EmptyLookupSource::default())
     .unwrap();
-}
-
-fn print_wst_error(buf: Vec<u8>) {
-    std::io::stdout().write(&buf).unwrap();
 }
 
 pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(

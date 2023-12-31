@@ -1,4 +1,4 @@
-use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, Struct, Type};
+use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, Type};
 use super::cst::Path;
 use super::span::Span;
 use super::trisult::Trisult;

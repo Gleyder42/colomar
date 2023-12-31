@@ -1,6 +1,5 @@
 use super::super::wst::partial::Placeholder;
 use crate::analysis::interner::Interner;
-use crate::span::Span;
 use crate::{parser_alias, wst, InternedName};
 use chumsky::input::{SpannedInput, Stream};
 use chumsky::prelude::*;

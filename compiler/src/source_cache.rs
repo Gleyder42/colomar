@@ -160,7 +160,6 @@ pub fn visit_dirs(dir: &Path, cb: &mut dyn FnMut(&DirEntry) -> io::Result<()>) -
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use std::thread::sleep;
     use std::time::Duration;
     use tempdir::TempDir;
@@ -217,7 +216,7 @@ mod tests {
         let (_temp_dir, src_dir, files) = setup()?;
         let mut cache = SourceCache::new(src_dir);
 
-        let updated = cache.update_files()?;
+        let _ = cache.update_files()?;
         let expected = "The first file has changed";
         let first_file = &files[0];
         fs::write(first_file, expected)?;
@@ -238,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_newer_read_will_update_timestamp() -> io::Result<()> {
-        let (_temp_dir, src_dir, files) = setup()?;
+        let (_temp_dir, src_dir, _) = setup()?;
         let mut cache = SourceCache::new(src_dir);
 
         let _ = cache.update_files()?;
@@ -247,7 +246,7 @@ mod tests {
         let second_update = SystemTime::now();
         let updated = cache.update_files()?;
 
-        for (path, cached_file) in updated {
+        for (_, cached_file) in updated {
             assert!(
                 cached_file.last_update <= second_update,
                 "Check if last read {:?} is lesser than the second {:?} update",

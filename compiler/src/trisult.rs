@@ -586,7 +586,7 @@ macro_rules! tri {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn test_function() -> Trisult<i32, &'static str> {
+    fn _test_function() -> Trisult<i32, &'static str> {
         let mut errors = Errors::default();
         let trisult = Trisult::Ok(10);
 
@@ -598,7 +598,4 @@ mod tests {
 
         errors.value(a)
     }
-
-    #[test]
-    fn test_with_context() {}
 }
