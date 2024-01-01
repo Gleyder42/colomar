@@ -97,7 +97,7 @@ pub(super) fn query_ast_struct_def(
     errors.value(vec)
 }
 
-pub(super) fn query_main_file(db: &dyn DeclQuery) -> QueryTrisult<cst::Ast> {
+pub(super) fn query_main_file(db: &dyn DeclQuery) -> QueryTrisult<cst::Cst> {
     db.query_file(db.main_file_name().with_fake_span(db), false)
 }
 
@@ -116,9 +116,9 @@ pub(super) fn query_file(
     db: &dyn DeclQuery,
     path: cst::Path,
     include_only_public: bool,
-) -> QueryTrisult<cst::Ast> {
+) -> QueryTrisult<cst::Cst> {
     let mut errors = Errors::default();
-    let mut ast: cst::Ast = tri!(db.query_secondary_file(path), errors);
+    let mut ast: cst::Cst = tri!(db.query_secondary_file(path), errors);
 
     let import_indices: Vec<_> = ast
         .0
@@ -130,7 +130,7 @@ pub(super) fn query_file(
         })
         .collect();
 
-    let imports: QueryTrisult<Vec<cst::Ast>> = import_indices
+    let imports: QueryTrisult<Vec<cst::Cst>> = import_indices
         .into_iter()
         .filter_map(|index| match ast.0.swap_remove(index) {
             Root::Import(import) => Some(import),
@@ -154,7 +154,7 @@ pub(super) fn query_file(
     errors.value(ast)
 }
 
-pub(super) fn query_secondary_file(db: &dyn DeclQuery, path: cst::Path) -> QueryTrisult<cst::Ast> {
+pub(super) fn query_secondary_file(db: &dyn DeclQuery, path: cst::Path) -> QueryTrisult<cst::Cst> {
     db.secondary_files()
         .remove(&path.name)
         .trisult_ok_or(CompilerError::CannotFindFile(path))

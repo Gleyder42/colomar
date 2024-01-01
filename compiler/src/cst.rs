@@ -51,15 +51,15 @@ impl From<StructDef> for Def {
 /// Abstract Syntax Tree
 /// Stores elements not in a [SmallVec] because it is expected to have many elements.
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct Ast(pub Vec<Root>);
+pub struct Cst(pub Vec<Root>);
 
-impl Ast {
-    pub fn new() -> Ast {
-        Ast(Vec::new())
+impl Cst {
+    pub fn new() -> Cst {
+        Cst(Vec::new())
     }
 }
 
-impl IntoIterator for Ast {
+impl IntoIterator for Cst {
     type Item = Root;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 

@@ -6,13 +6,14 @@ use super::super::cir::{
 };
 use super::super::error::CompilerError;
 use super::super::trisult::Trisult;
-use super::super::{flatten, HashableMap, Ident, QueryTrisult, StructId, TextId};
+use super::super::{flatten, Ident, QueryTrisult, StructId, TextId};
 use crate::{query_error, tri};
 
 use super::super::cst::{FunctionDecls, PropertyDecls};
 use super::super::span::StringInterner;
 use crate::trisult::Errors;
 use colomar_macros::Interned;
+use hashlink::LinkedHashMap;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -312,7 +313,7 @@ impl From<EnumNameholder> for Nameholder {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct Namespace {
     parent: Vec<Rc<Namespace>>,
-    map: HashableMap<TextId, RValue>,
+    map: LinkedHashMap<TextId, RValue>,
 }
 
 pub fn empty_namespace(db: &(impl Interner + ?Sized)) -> NamespaceId {
@@ -322,7 +323,7 @@ pub fn empty_namespace(db: &(impl Interner + ?Sized)) -> NamespaceId {
 impl Namespace {
     fn new() -> Namespace {
         Namespace {
-            map: HashableMap::new(),
+            map: LinkedHashMap::<TextId, RValue>::new(),
             parent: Vec::new(),
         }
     }

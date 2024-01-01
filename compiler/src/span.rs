@@ -1,27 +1,27 @@
-use super::FullText;
+use super::Text;
 use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
 use std::fmt::Debug;
 use std::ops::Range;
 use std::path::PathBuf;
 
-pub type InnerSpan = u32;
-pub type SpanLocation = CopyRange;
+pub type OffsetNumber = u32;
+pub type Offset = CopyRange;
 pub type SpanSource = PathBuf;
 pub type SpannedBool = Option<Spanned<()>>;
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct CopyRange {
-    pub start: InnerSpan,
-    pub end: InnerSpan,
+    pub start: OffsetNumber,
+    pub end: OffsetNumber,
 }
 
 impl CopyRange {
-    pub fn start(&self) -> InnerSpan {
+    pub fn start(&self) -> OffsetNumber {
         self.start
     }
 
-    pub fn end(&self) -> InnerSpan {
+    pub fn end(&self) -> OffsetNumber {
         self.end
     }
 }
@@ -31,8 +31,8 @@ impl From<Range<usize>> for CopyRange {
         let error_message: &str = &format!("Line length should not exceed {}", u32::MAX);
 
         CopyRange {
-            start: InnerSpan::try_from(value.start).expect(error_message),
-            end: InnerSpan::try_from(value.end).expect(error_message),
+            start: OffsetNumber::try_from(value.start).expect(error_message),
+            end: OffsetNumber::try_from(value.end).expect(error_message),
         }
     }
 }
@@ -40,14 +40,14 @@ impl From<Range<usize>> for CopyRange {
 impl From<SimpleSpan> for CopyRange {
     fn from(value: SimpleSpan) -> Self {
         CopyRange {
-            start: value.start as InnerSpan,
-            end: value.end as InnerSpan,
+            start: value.start as OffsetNumber,
+            end: value.end as OffsetNumber,
         }
     }
 }
 
-impl From<Range<InnerSpan>> for CopyRange {
-    fn from(value: Range<InnerSpan>) -> Self {
+impl From<Range<OffsetNumber>> for CopyRange {
+    fn from(value: Range<OffsetNumber>) -> Self {
         CopyRange {
             start: value.start,
             end: value.end,
@@ -57,8 +57,8 @@ impl From<Range<InnerSpan>> for CopyRange {
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Span {
-    pub source: SpanSourceId,
-    pub location: SpanLocation,
+    pub context: SpanSourceId,
+    pub offset: Offset,
 }
 
 impl Span {
@@ -66,8 +66,8 @@ impl Span {
         const FAKE_SPAN_SOURCE_NAME: &str = "FakeSpanSource";
 
         Span {
-            source: db.intern_span_source(PathBuf::from(FAKE_SPAN_SOURCE_NAME)),
-            location: CopyRange { start: 0, end: 0 },
+            context: db.intern_span_source(PathBuf::from(FAKE_SPAN_SOURCE_NAME)),
+            offset: CopyRange { start: 0, end: 0 },
         }
     }
 }
@@ -75,21 +75,24 @@ impl ariadne::Span for Span {
     type SourceId = SpanSourceId;
 
     fn source(&self) -> &Self::SourceId {
-        &self.source
+        &self.context
     }
 
     fn start(&self) -> usize {
-        self.location.start as usize
+        self.offset.start as usize
     }
 
     fn end(&self) -> usize {
-        self.location.end as usize
+        self.offset.end as usize
     }
 }
 
 impl Span {
-    pub fn new(source: SpanSourceId, location: SpanLocation) -> Self {
-        Span { source, location }
+    pub fn new(source: SpanSourceId, location: Offset) -> Self {
+        Span {
+            context: source,
+            offset: location,
+        }
     }
 }
 
@@ -106,7 +109,7 @@ pub trait StringInterner {
 }
 
 impl StringId {
-    pub fn name(&self, interner: &(impl StringInterner + ?Sized)) -> FullText {
+    pub fn name(&self, interner: &(impl StringInterner + ?Sized)) -> Text {
         interner.lookup_intern_string(*self)
     }
 }
@@ -116,14 +119,14 @@ impl_intern_key!(StringId);
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct FatSpan {
     pub source: SpanSource,
-    pub location: SpanLocation,
+    pub location: Offset,
 }
 
 impl FatSpan {
     pub fn from_span(db: &impl SpanInterner, span: Span) -> FatSpan {
         FatSpan {
-            location: span.location,
-            source: db.lookup_intern_span_source(span.source),
+            location: span.offset,
+            source: db.lookup_intern_span_source(span.context),
         }
     }
 }
@@ -180,7 +183,7 @@ impl ariadne::Span for FatSpan {
 
 impl chumsky::span::Span for CopyRange {
     type Context = ();
-    type Offset = InnerSpan;
+    type Offset = OffsetNumber;
 
     fn new(_: Self::Context, range: Range<Self::Offset>) -> Self {
         CopyRange {
@@ -204,25 +207,25 @@ impl chumsky::span::Span for CopyRange {
 
 impl chumsky::span::Span for Span {
     type Context = SpanSourceId;
-    type Offset = InnerSpan;
+    type Offset = OffsetNumber;
 
     fn new(context: Self::Context, range: Range<Self::Offset>) -> Self {
         Self {
-            source: context,
-            location: CopyRange::from(range).into(),
+            context,
+            offset: CopyRange::from(range).into(),
         }
     }
 
     fn context(&self) -> Self::Context {
-        self.source
+        self.context
     }
 
     fn start(&self) -> Self::Offset {
-        self.location.start()
+        self.offset.start()
     }
 
     fn end(&self) -> Self::Offset {
-        self.location.end()
+        self.offset.end()
     }
 }
 

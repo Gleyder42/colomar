@@ -523,7 +523,7 @@ pub fn rule<'src>() -> impl PParser<'src, Rule> {
         )
 }
 
-pub fn parser<'src>() -> impl PParser<'src, Ast> {
+pub fn parser<'src>() -> impl PParser<'src, Cst> {
     let rule_parser = rule().map(Root::Rule);
     let event_parser = event().map(Root::Event);
     let enum_parser = r#enum().map(Root::Enum);
@@ -540,5 +540,5 @@ pub fn parser<'src>() -> impl PParser<'src, Ast> {
     .repeated()
     .collect::<Vec<_>>()
     .then_ignore(end())
-    .map(Ast)
+    .map(Cst)
 }

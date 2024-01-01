@@ -1,6 +1,6 @@
 extern crate core;
 
-use super::super::span::{Span, SpanLocation, SpanSourceId, StringId, StringInterner};
+use super::super::span::{Offset, Span, SpanSourceId, StringId, StringInterner};
 use chumsky::prelude::*;
 
 use crate::analysis::interner::Interner;
@@ -130,8 +130,8 @@ pub fn lexer(
             (
                 tok,
                 Span {
-                    location: SpanLocation::from(span),
-                    source: span_source_id,
+                    offset: Offset::from(span),
+                    context: span_source_id,
                 },
             )
         })

@@ -1,5 +1,6 @@
-use super::{FullText, HashableMap, Op, TextId};
+use super::{Op, Text, TextId};
 use colomar_macros::Interned;
+use hashlink::LinkedHashMap;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::hash::Hash;
@@ -12,33 +13,33 @@ pub enum Category {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum Owscript {
-    Literal(LiteralOwscript),
-    Placeholder(PlaceholderOwscript),
+pub enum Wscript {
+    Literal(LiteralWscript),
+    Placeholder(PlaceholderWscript),
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct LiteralOwscript(pub FullText);
+pub struct LiteralWscript(pub Text);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct PlaceholderOwscript(FullText);
+pub struct PlaceholderWscript(Text);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct NativeFunc {
-    pub script: PlaceholderOwscript,
-    pub default_args: HashableMap<String, Call>,
+    pub script: PlaceholderWscript,
+    pub default_args: LinkedHashMap<String, Call>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Interned)]
 pub struct NativeEvent {
-    event_name: LiteralOwscript,
-    default_args: Option<[LiteralOwscript; 2]>,
+    event_name: LiteralWscript,
+    default_args: Option<[LiteralWscript; 2]>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct CallNativeEvent {
     event: NativeEventId,
-    args: Option<[LiteralOwscript; 2]>,
+    args: Option<[LiteralWscript; 2]>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -60,7 +61,7 @@ pub struct Condition {
 pub enum Call {
     Call {
         name: NativeFuncId,
-        args: HashableMap<String, Box<Call>>,
+        args: LinkedHashMap<String, Box<Call>>,
     },
     Property(TextId),
     Variable(TextId),
@@ -74,43 +75,43 @@ lazy_static! {
     static ref TEMPLATE_REGEX: Regex = Regex::new(r"\$\w*\$").unwrap();
 }
 
-impl LiteralOwscript {
-    pub fn new(text: impl Into<FullText>) -> Self {
-        LiteralOwscript(text.into())
+impl LiteralWscript {
+    pub fn new(text: impl Into<Text>) -> Self {
+        LiteralWscript(text.into())
     }
 }
 
-impl Owscript {
-    pub fn saturate(self, caller: LiteralOwscript) -> LiteralOwscript {
+impl Wscript {
+    pub fn saturate(self, caller: LiteralWscript) -> LiteralWscript {
         match self {
-            Owscript::Literal(literal) => literal,
-            Owscript::Placeholder(placeholder) => {
+            Wscript::Literal(literal) => literal,
+            Wscript::Placeholder(placeholder) => {
                 let string = placeholder.0.replace("$caller$", caller.0.as_str());
-                LiteralOwscript::new(string)
+                LiteralWscript::new(string)
             }
         }
     }
 }
 
-impl From<FullText> for LiteralOwscript {
-    fn from(value: FullText) -> Self {
-        LiteralOwscript(value)
+impl From<Text> for LiteralWscript {
+    fn from(value: Text) -> Self {
+        LiteralWscript(value)
     }
 }
 
-impl From<String> for Owscript {
+impl From<String> for Wscript {
     fn from(value: String) -> Self {
         if TEMPLATE_REGEX.is_match(&value) {
-            Owscript::Placeholder(PlaceholderOwscript(value.into()))
+            Wscript::Placeholder(PlaceholderWscript(value.into()))
         } else {
-            Owscript::Literal(LiteralOwscript(value.into()))
+            Wscript::Literal(LiteralWscript(value.into()))
         }
     }
 }
 
-impl From<LiteralOwscript> for FullText {
-    fn from(value: LiteralOwscript) -> Self {
-        FullText::from(value.0)
+impl From<LiteralWscript> for Text {
+    fn from(value: LiteralWscript) -> Self {
+        Text::from(value.0)
     }
 }
 

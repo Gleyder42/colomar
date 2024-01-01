@@ -22,7 +22,7 @@ pub(super) fn query_rule_actions(
                     smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
                     call_chain,
                 )
-                .map(cir::Action::AvalueChain),
+                .map(cir::Action::AValueChain),
             Action::Assignment(left, right, assign_mod) => {
                 let nameholders = smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)];
 
@@ -38,7 +38,7 @@ pub(super) fn query_rule_actions(
                     let chain: AValueChain =
                         cir::AValue::RValue(RValue::Property(property_decl.intern(db)), span)
                             .into();
-                    cir::Action::AvalueChain(chain)
+                    cir::Action::AValueChain(chain)
                 }),
         })
         .collect::<QueryTrisult<_>>()

@@ -330,7 +330,7 @@ pub struct Rule {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Action {
     Expr(Expr),
-    AvalueChain(AValueChain),
+    AValueChain(AValueChain),
     Assigment(AValueChain, AValueChain, Option<AssignMod>),
 }
 
@@ -338,7 +338,7 @@ impl Action {
     pub fn ghost_span(&self) -> Span {
         match self {
             Action::Expr(expr) => expr.span(),
-            Action::AvalueChain(avalue_chain) => avalue_chain.ghost_span(),
+            Action::AValueChain(avalue_chain) => avalue_chain.ghost_span(),
             Action::Assigment(left, ..) => left.ghost_span(),
         }
     }
@@ -358,7 +358,7 @@ impl From<Expr> for Action {
 
 impl From<AValueChain> for Action {
     fn from(value: AValueChain) -> Self {
-        Action::AvalueChain(value)
+        Action::AValueChain(value)
     }
 }
 
@@ -423,9 +423,9 @@ impl AValueChain {
     /// The ghost span starts and ends just before the first avalue inside the span.
     /// It is used when the [AValueChain] has an implicit caller.
     pub fn ghost_span(&self) -> Span {
-        let start = self.span.location.start();
-        let end = self.span.location.start() + 1;
-        Span::new(self.span.source, CopyRange::from(start..end))
+        let start = self.span.offset.start();
+        let end = self.span.offset.start() + 1;
+        Span::new(self.span.context, CopyRange::from(start..end))
     }
 
     pub fn returning_avalue(&self) -> AValue {

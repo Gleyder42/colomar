@@ -11,7 +11,7 @@ use super::super::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, TextId};
 use super::super::span::Spanned;
 use crate::cst::{Def, Root};
 use cir::DeclArgId;
-use cst::Ast;
+use cst::Cst;
 use hashlink::LinkedHashMap;
 use smallvec::SmallVec;
 use std::collections::HashMap;
@@ -34,21 +34,21 @@ pub trait DeclQuery: Interner {
     fn main_file_name(&self) -> cst::PathName;
 
     #[salsa::input]
-    fn secondary_files(&self) -> LinkedHashMap<cst::PathName, Ast>;
+    fn secondary_files(&self) -> LinkedHashMap<cst::PathName, Cst>;
 
     /// Impl [file::query_secondary_file]
     #[salsa::invoke(file::query_secondary_file)]
-    fn query_secondary_file(&self, path: cst::Path) -> QueryTrisult<Ast>;
+    fn query_secondary_file(&self, path: cst::Path) -> QueryTrisult<Cst>;
 
     /// Impl [file::query_main_file]
     #[salsa::invoke(file::query_main_file)]
-    fn query_main_file(&self) -> QueryTrisult<Ast>;
+    fn query_main_file(&self) -> QueryTrisult<Cst>;
 
     // Ast
 
     /// Impl [file::query_file]
     #[salsa::invoke(file::query_file)]
-    fn query_file(&self, path: cst::Path, include_only_public: bool) -> QueryTrisult<Ast>;
+    fn query_file(&self, path: cst::Path, include_only_public: bool) -> QueryTrisult<Cst>;
 
     /// Impl [file::query_structs]
     #[salsa::invoke(file::query_structs)]

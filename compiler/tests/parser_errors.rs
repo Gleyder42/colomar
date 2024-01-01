@@ -9,7 +9,7 @@ use compiler::language::parser::{
     chain, declared_arg, expression, r#enum, rule, ParserExtra, ParserInput,
 };
 use compiler::span::{
-    CopyRange, Span, SpanInterner, SpanLocation, SpanSourceId, Spanned, StringInterner,
+    CopyRange, Offset, Span, SpanInterner, SpanSourceId, Spanned, StringInterner,
 };
 use serde::Deserialize;
 use std::fmt::Debug;
@@ -155,7 +155,7 @@ fn parse_code<'src, T>(
     let tokens: Vec<_> = lex_code(span_source_id, interner, code)?;
     let eoi = Span::new(
         span_source_id,
-        SpanLocation::from(CopyRange::from(tokens.len()..tokens.len() + 1)),
+        Offset::from(CopyRange::from(tokens.len()..tokens.len() + 1)),
     );
     let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
 

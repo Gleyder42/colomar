@@ -48,10 +48,8 @@ pub mod wir;
 pub mod workshop;
 pub mod wst;
 
-pub type FullText = String;
+pub type Text = String;
 pub type TextId = StringId;
-
-pub type HashableMap<K, V> = LinkedHashMap<K, V>;
 pub type QueryTrisult<T> = Trisult<T, CompilerError>;
 
 pub type OwnedRich<T, S = SimpleSpan<usize>> = Rich<'static, T, S>;
@@ -168,7 +166,7 @@ impl Compiler {
             .into_iter()
             .map(|(path, cst)| {
                 let path = create_path_from_path_buf(&self.database, &self.src_dir, &path);
-                (path, cst.unwrap_or(cst::Ast::new()))
+                (path, cst.unwrap_or(cst::Cst::new()))
             })
             .collect();
 
@@ -232,7 +230,7 @@ impl Compiler {
     fn parse<'a>(
         source_cache: &'a mut SourceCache,
         interner: &'a CompilerDatabase,
-    ) -> CompilerParseResult<cst::Ast> {
+    ) -> CompilerParseResult<cst::Cst> {
         let files = source_cache.update_files().unwrap();
 
         let mut parse_result = CompilerParseResult::new();

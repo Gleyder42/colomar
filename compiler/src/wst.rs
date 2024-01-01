@@ -1,5 +1,5 @@
 use super::span::StringInterner;
-use super::{FullText, Op, TextId};
+use super::{Op, Text, TextId};
 use smol_str::SmolStr;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
@@ -173,8 +173,8 @@ impl Display for Variable {
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Call {
     Condition(Condition),
-    String(FullText),
-    Number(FullText),
+    String(Text),
+    Number(Text),
     Ident(Ident),
     Boolean(bool),
     Property(Ident, Ident),

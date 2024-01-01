@@ -51,13 +51,13 @@ pub fn new_print_errors(
         let report: Report = match error.main_span() {
             Some(main_span) => ariadne::Report::build(
                 ReportKind::Error,
-                main_span.source,
-                main_span.location.start as usize,
+                main_span.context,
+                main_span.offset.start as usize,
             ),
             None => ariadne::Report::<Span>::build(
                 COMPILER_ERROR,
-                dummy_report_values.0.source,
-                dummy_report_values.0.location.start as usize,
+                dummy_report_values.0.context,
+                dummy_report_values.0.offset.start as usize,
             ),
         }
         .with_code(error.error_code());
@@ -266,8 +266,8 @@ pub struct DummyReportValues(Span, EmptyLookupSource);
 impl DummyReportValues {
     pub fn new(db: &impl SpanInterner) -> Self {
         let dummy_span = Span {
-            location: CopyRange { start: 0, end: 0 },
-            source: db.intern_span_source(PathBuf::from("DummySpanSource")),
+            offset: CopyRange { start: 0, end: 0 },
+            context: db.intern_span_source(PathBuf::from("DummySpanSource")),
         };
         DummyReportValues(dummy_span, EmptyLookupSource::default())
     }
@@ -280,14 +280,14 @@ impl DummyReportValues {
 /// However this requires to have a span of some type.
 pub fn print_cannot_find_primitive_decl(db: &CompilerDatabase, error_code: u16, name: TextId) {
     let dummy_span = Span {
-        location: CopyRange { start: 0, end: 0 },
-        source: db.intern_span_source(PathBuf::from("DummySpanSource")),
+        offset: CopyRange { start: 0, end: 0 },
+        context: db.intern_span_source(PathBuf::from("DummySpanSource")),
     };
 
     ariadne::Report::<Span>::build(
         COMPILER_ERROR,
-        dummy_span.source,
-        dummy_span.location.start as usize,
+        dummy_span.context,
+        dummy_span.offset.start as usize,
     )
     .with_code(error_code)
     .with_message(format!(
