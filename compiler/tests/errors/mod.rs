@@ -32,7 +32,25 @@ fn test_test_duplicate_ident() {
 
 #[test]
 fn test_cannot_find_file() {
-    test_template("test_cannot_find_file", |src| {
-        assert_patterns!(&src, "");
+    const MISSING_FILE: &str = "test_cannot_find_file";
+
+    test_template(MISSING_FILE, |src| {
+        assert_patterns!(&src, "cannot", "file", MISSING_FILE);
+    });
+}
+
+#[test]
+fn test_cannot_find_native_def() {
+    const MISSING_EVENT: &str = "CustomEvent";
+
+    test_template("test_cannot_find_native_def", |src| {
+        assert_patterns!(
+            &src,
+            "cannot",
+            "find",
+            "native",
+            "definition",
+            MISSING_EVENT
+        );
     });
 }

@@ -185,15 +185,6 @@ fn query_wscript_impl(
 
     let wscript = Rc::from(wscript);
 
-    // Convert zero or more lexer_errors into a byte vec, which will be printed directly to stdout.
-    // Essentially it will already print the errors in a nice readable format.
-    // We cannot provide CompilerError::WstLexerError with the lexer_errors directly, because they contain a lifetime.
-    // The reason is that errors may either borrow the underlying tokens or own them.
-    // Both is possible at compile time.
-    // Theoretically we should be able to force a static lifetime with unsafe code, to satisfy the compiler, as
-    // we can ensure that all data is owned by the Rich error.
-    // However, Rich error does not implement Hash.
-    // Therefore the errors are now nicely printed.
     if !lexer_errors.is_empty() {
         let error = CompilerError::WstLexerError(Rc::clone(&wscript), into_owned(lexer_errors));
         errors.push(error);

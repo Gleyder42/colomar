@@ -78,11 +78,11 @@ pub fn new_print_errors(
             CompilerError::WrongType { expected, actual } => {
                 report_wrong_type_error(expected, actual, report, source_cache.interner)
             }
-            CompilerError::CannotFindPrimitiveDecl(_) => {
-                todo!()
+            CompilerError::CannotFindPrimitiveDecl(text_id) => {
+                report_cannot_find_primitive_decl_error(text_id, report, db)
             }
-            CompilerError::CannotFindNativeDef(_) => {
-                todo!()
+            CompilerError::CannotFindNativeDef(def) => {
+                report_cannot_find_native_def_error(def, report)
             }
             CompilerError::PlaceholderError(_) => {
                 todo!()
@@ -126,26 +126,22 @@ pub fn new_print_errors(
     }
 }
 
-fn print_workshop_errors<T: Debug + InternedName>(
-    errors: Vec<OwnedRich<T, wst::Span>>,
-    source: &str,
-    db: &CompilerDatabase,
-) {
-    let mut source = Source::from(source);
-    for rich in errors {
-        let span = rich.span();
+fn report_cannot_find_native_def_error(string: String, report: Report) -> Report {
+    report.with_message(format!(
+        "Cannot find native definition for {}",
+        string.fg(ind::UNKNOWN)
+    ))
+}
 
-        let report = to_report(
-            ariadne::Report::build(ReportKind::Error, (), span.start),
-            rich.reason(),
-            span.clone(),
-            db,
-        );
-        report
-            .finish()
-            .eprint(&mut source)
-            .expect(PRINTING_ERROR_MESSAGE);
-    }
+fn report_cannot_find_primitive_decl_error<'a>(
+    text_id: TextId,
+    report: Report<'a>,
+    db: &CompilerDatabase,
+) -> Report<'a> {
+    report.with_message(format!(
+        "Cannot find primitive declaration {}",
+        text_id.name(db).fg(ind::UNKNOWN)
+    ))
 }
 
 fn report_cannot_find_file<'a>(
@@ -156,9 +152,13 @@ fn report_cannot_find_file<'a>(
     report
         .with_message(format!(
             "Cannot find file {}",
-            path.name.name(db).fg(ind::NAME)
+            path.name.name(db).fg(ind::UNKNOWN)
         ))
-        .with_label(Label::new(path.span).with_color(ind::NAME))
+        .with_label(
+            Label::new(path.span)
+                .with_message("Cannot find an associated with that path")
+                .with_color(ind::UNKNOWN),
+        )
 }
 
 fn report_cannot_find_struct_error<'a>(
@@ -348,6 +348,28 @@ pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(
             }
             report
         }
+    }
+}
+
+fn print_workshop_errors<T: Debug + InternedName>(
+    errors: Vec<OwnedRich<T, wst::Span>>,
+    source: &str,
+    db: &CompilerDatabase,
+) {
+    let mut source = Source::from(source);
+    for rich in errors {
+        let span = rich.span();
+
+        let report = to_report(
+            ariadne::Report::build(ReportKind::Error, (), span.start),
+            rich.reason(),
+            span.clone(),
+            db,
+        );
+        report
+            .finish()
+            .eprint(&mut source)
+            .expect(PRINTING_ERROR_MESSAGE);
     }
 }
 

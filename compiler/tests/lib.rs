@@ -7,28 +7,26 @@ mod errors;
 mod lexer_errors;
 mod parser_errors;
 
-fn contains_many(patterns: Vec<&str>, input: &str) -> bool {
-    for pattern in patterns {
-        let regex = RegexBuilder::new(pattern)
-            .case_insensitive(false)
-            .build()
-            .unwrap();
-        let result = regex.find(input);
-        match result {
-            Some(_) => continue,
-            None => return false,
-        }
-    }
+fn contains_many<'a>(patterns: &[&'a str], input: &str) -> Vec<&'a str> {
+    patterns
+        .into_iter()
+        .filter_map(|pattern| {
+            let regex = RegexBuilder::new(*pattern)
+                .case_insensitive(true)
+                .build()
+                .unwrap();
 
-    true
+            regex.find(input).map(|_| None).unwrap_or(Some(*pattern))
+        })
+        .collect()
 }
 
 #[macro_export]
 macro_rules! assert_patterns {
     ($str:expr, $($pattern:expr),+) => {
         let keywords = vec![$($pattern),+];
-        let message = format!("Check that {:?} are present", &keywords);
-        let result = $crate::contains_many(keywords, $str);
-        assert!(result, "{}", message)
+        let result = $crate::contains_many(&keywords, $str);
+        let message = format!("Check that {:?} are present but {:?} were not", &keywords, &result);
+        assert!(result.is_empty(), "{}", message)
     };
 }

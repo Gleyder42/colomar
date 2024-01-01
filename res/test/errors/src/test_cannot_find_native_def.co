@@ -1,0 +1,7 @@
+import test_std;
+
+native event CustomEvent() { }
+
+rule "Test" CustomEvent() {
+
+}
