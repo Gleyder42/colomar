@@ -1,6 +1,8 @@
 use crate::database::CompilerDatabase;
+use crate::span;
 use crate::span::{SpanInterner, SpanSource, SpanSourceId};
 use ariadne::Source;
+use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::{DirEntry, File};
@@ -120,14 +122,26 @@ impl ariadne::Cache<SpanSourceId> for EmptyLookupSource {
     }
 }
 
+lazy_static! {
+    static ref EMPTY_SOURCE: Source = Source::from("");
+}
+
 impl<'a> ariadne::Cache<SpanSourceId> for LookupSourceCache<'a> {
     fn fetch(&mut self, id: &SpanSourceId) -> Result<&Source, Box<dyn Debug + '_>> {
         let span_source = self.interner.lookup_intern_span_source(*id);
-        self.source_cache
-            .files
-            .get(&span_source)
-            .map(|cached_file| &cached_file.source)
-            .ok_or(Box::new(format!("Cannot lookup {}", span_source.display())))
+
+        // Cannot compare FAKE_SPAN_SOURCE_NAME directly with span_source because
+        // FAKE_SPAN_SOURCE_NAME is not an actual PathBuf, but rather some generated type by lazy_static!.
+        // Therefore we use as_os_str() as that can be compared to a PathBuf
+        if span_source == span::FAKE_SPAN_SOURCE_NAME.as_os_str() {
+            Ok(&EMPTY_SOURCE)
+        } else {
+            self.source_cache
+                .files
+                .get(&span_source)
+                .map(|cached_file| &cached_file.source)
+                .ok_or(Box::new(format!("Cannot lookup {}", span_source.display())))
+        }
     }
 
     fn display<'b>(&self, id: &'b SpanSourceId) -> Option<Box<dyn Display + 'b>> {

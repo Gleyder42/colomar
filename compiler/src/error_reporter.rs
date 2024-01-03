@@ -1,7 +1,7 @@
 use super::cir::{CalledType, CalledTypes, Type};
 use super::database::CompilerDatabase;
 use super::error::{CompilerError, ErrorCause};
-use super::span::{CopyRange, Span, SpanInterner, SpanSourceId};
+use super::span::{CopyRange, Span, SpanInterner, SpanSourceId, FAKE_SPAN_SOURCE_NAME};
 use super::{Ident, InternedName, OwnedRich, Text, TextId};
 use crate::analysis::interner::Interner;
 use crate::cst::Path;
@@ -32,11 +32,12 @@ pub fn new_print_errors(
     unique_errors: HashSet<CompilerError>,
     db: &CompilerDatabase,
     mut source_cache: Cache,
-    dummy_report_values: &DummyReportValues,
+    dummy_report_values: &mut DummyReportValues,
     output: &mut Cursor<Vec<u8>>,
 ) {
     for error in unique_errors {
-        let report: Report = match error.main_span() {
+        let main_span = error.main_span();
+        let report: Report = match main_span {
             Some(main_span) => ariadne::Report::build(
                 ReportKind::Error,
                 main_span.context,
@@ -133,6 +134,10 @@ pub fn new_print_errors(
     }
 }
 
+fn is_fake_span(db: &CompilerDatabase, span: Span) -> bool {
+    db.lookup_intern_span_source(span.context) == FAKE_SPAN_SOURCE_NAME.as_os_str()
+}
+
 fn report_wst_error<'a, T: Debug + InternedName>(
     db: &CompilerDatabase,
     source_cache: &mut Cache,
@@ -195,16 +200,20 @@ fn report_cannot_find_file<'a>(
     report: Report<'a>,
     db: &CompilerDatabase,
 ) -> Report<'a> {
-    report
-        .with_message(format!(
-            "Cannot find file {}",
-            path.name.name(db).fg(ind::UNKNOWN)
-        ))
-        .with_label(
+    let mut report = report.with_message(format!(
+        "Cannot find file {}",
+        format!("src/{}.co", path.name.name(db)).fg(ind::UNKNOWN)
+    ));
+
+    if !is_fake_span(db, path.span) {
+        report.add_label(
             Label::new(path.span)
                 .with_message("Cannot find an associated with that path")
                 .with_color(ind::UNKNOWN),
         )
+    };
+
+    report
 }
 
 fn report_cannot_find_struct_error<'a>(

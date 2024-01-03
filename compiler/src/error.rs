@@ -122,8 +122,6 @@ pub enum CompilerError {
     CannotMixArgs(Span),
     CannotEvalAsConst,
     WrongTypeInBinaryExpr(AValue, AValue),
-    CannotFindFile(Path),
-
     WstLexerError(
         PathBuf,
         Text,
@@ -131,6 +129,7 @@ pub enum CompilerError {
         Vec<OwnedRich<char, Span>>,
         ErrorCause,
     ),
+
     WstParserError(
         PathBuf,
         Text,
@@ -142,6 +141,7 @@ pub enum CompilerError {
     CannotFindNativeDef(String, ErrorCause),
     PlaceholderError(SaturateError, ErrorCause),
     CannotFindStruct(TextId, ErrorCause),
+    CannotFindFile(Path),
 }
 
 impl CompilerError {
@@ -163,9 +163,7 @@ impl CompilerError {
             CompilerError::ArgOutOfRange(_, span) => Some(*span),
             CompilerError::DuplicateNamedArg(ident) => Some(ident.span),
             CompilerError::CannotMixArgs(span) => Some(*span),
-            CompilerError::CannotEvalAsConst => {
-                todo!()
-            }
+            CompilerError::CannotEvalAsConst => todo!(),
             CompilerError::WrongTypeInBinaryExpr(left, _) => Some(left.span()),
             CompilerError::CannotFindFile(path) => Some(path.span),
         }
@@ -180,7 +178,7 @@ impl CompilerError {
             CompilerError::WrongType { .. } => 5,
             CompilerError::CannotFindPrimitiveDecl(_, _) => 6,
             CompilerError::CannotFindNativeDef(_, _) => 7,
-            CompilerError::WstLexerError(_, _, _, _, _) => 10,
+            CompilerError::WstLexerError(..) => 10,
             CompilerError::WstParserError(_, _, _, _, _) => 11,
             CompilerError::PlaceholderError(_, _) => 12,
             CompilerError::MissingArg { .. } => 13,
@@ -190,7 +188,7 @@ impl CompilerError {
             CompilerError::DuplicateNamedArg(_) => 17,
             CompilerError::CannotEvalAsConst => 18,
             CompilerError::WrongTypeInBinaryExpr(_, _) => 19,
-            CompilerError::CannotFindFile(_) => 20,
+            CompilerError::CannotFindFile(..) => 20,
             CompilerError::CannotFindStruct(_, _) => 21,
         }
     }

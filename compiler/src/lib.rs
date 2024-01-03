@@ -221,7 +221,7 @@ impl Compiler {
                     unique_errors,
                     &self.database,
                     lookup,
-                    &self.dummy_values,
+                    &mut self.dummy_values,
                     &mut stderr,
                 );
 

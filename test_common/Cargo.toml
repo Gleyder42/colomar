@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 compiler = { path = "../compiler"}
-salsa = "0.17.0-pre.2" # compiler
+salsa = "0.17.0-pre.2"
+regex = "1.10.2" # compiler

@@ -1,6 +1,7 @@
 use super::Text;
 use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
+use lazy_static::lazy_static;
 use std::fmt::Debug;
 use std::ops::Range;
 use std::path::PathBuf;
@@ -61,6 +62,10 @@ pub struct Span {
     pub offset: Offset,
 }
 
+lazy_static! {
+    pub static ref FAKE_SPAN_SOURCE_NAME: PathBuf = PathBuf::from("FakeSpanSource");
+}
+
 impl Span {
     pub fn combine(self, other: Span) -> Span {
         assert_eq!(
@@ -77,15 +82,15 @@ impl Span {
             },
         }
     }
-    pub fn fake_span(db: &dyn SpanInterner) -> Span {
-        const FAKE_SPAN_SOURCE_NAME: &str = "FakeSpanSource";
 
+    pub fn fake_span(db: &dyn SpanInterner) -> Span {
         Span {
-            context: db.intern_span_source(PathBuf::from(FAKE_SPAN_SOURCE_NAME)),
-            offset: CopyRange { start: 0, end: 0 },
+            context: db.intern_span_source(FAKE_SPAN_SOURCE_NAME.clone()),
+            offset: CopyRange { start: 0, end: 1 },
         }
     }
 }
+
 impl ariadne::Span for Span {
     type SourceId = SpanSourceId;
 
