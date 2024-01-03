@@ -34,20 +34,26 @@ pub(super) fn query_expr(
     };
 
     match expr {
-        cst::Expr::Chain(call_chain) => db
-            .query_call_chain(inital_nameholders, call_chain)
-            .soft_filter_with(db.query_bool_type(), |chain, id| {
-                let return_avalue = chain.returning_avalue();
-                if !enforce_bool || return_avalue.return_called_type(db) == id {
-                    Ok(())
-                } else {
-                    Err(CompilerError::WrongType {
-                        actual: return_avalue.return_called_type(db),
-                        expected: Either::Left(id.into()),
-                    })
-                }
-            })
-            .map(cir::Expr::Chain),
+        cst::Expr::Chain(call_chain) => {
+            let span = call_chain.span;
+
+            db.query_call_chain(inital_nameholders, call_chain)
+                .soft_filter_with(
+                    db.query_bool_type().complete_with_span(span),
+                    |chain, id| {
+                        let return_avalue = chain.returning_avalue();
+                        if !enforce_bool || return_avalue.return_called_type(db) == id {
+                            Ok(())
+                        } else {
+                            Err(CompilerError::WrongType {
+                                actual: return_avalue.return_called_type(db),
+                                expected: Either::Left(id.into()),
+                            })
+                        }
+                    },
+                )
+                .map(cir::Expr::Chain)
+        }
         cst::Expr::Neg(neg) => db
             .query_expr(inital_nameholders, enforce_bool, *neg)
             .map(|expr| cir::Expr::Neg(Box::new(expr))),
@@ -78,22 +84,24 @@ pub(super) fn check_equal_return_avalue(
     lhs: cir::AValue,
     rhs: cir::AValue,
 ) -> QueryTrisult<cir::AValue> {
-    db.query_bool_type().flat_map(|bool_id| {
-        let both_sides_same_type = lhs
-            .return_called_type(db)
-            .has_same_return_type(&rhs.return_called_type(db));
-        let type_is_bool = rhs.return_called_type(db).has_same_return_type(&bool_id);
+    db.query_bool_type()
+        .complete_with_span(lhs.span().combine(rhs.span()))
+        .flat_map(|bool_id| {
+            let both_sides_same_type = lhs
+                .return_called_type(db)
+                .has_same_return_type(&rhs.return_called_type(db));
+            let type_is_bool = rhs.return_called_type(db).has_same_return_type(&bool_id);
 
-        if both_sides_same_type && type_is_bool {
-            QueryTrisult::Ok(rhs)
-        } else {
-            // TODO Add info
-            QueryTrisult::Par(
-                rhs.clone(),
-                vec![CompilerError::WrongTypeInBinaryExpr(lhs, rhs)],
-            )
-        }
-    })
+            if both_sides_same_type && type_is_bool {
+                QueryTrisult::Ok(rhs)
+            } else {
+                // TODO Add info
+                QueryTrisult::Par(
+                    rhs.clone(),
+                    vec![CompilerError::WrongTypeInBinaryExpr(lhs, rhs)],
+                )
+            }
+        })
 }
 
 pub(super) fn query_call_chain(
@@ -168,18 +176,24 @@ pub(super) fn query_call_chain(
                             )
                         })
                 }
-                cst::Call::String(ident, span) => db.query_string_type().map(|string_struct_id| {
-                    (
-                        smallvec![Nameholder::Empty],
-                        cir::AValue::CValue(CValue::String(ident, string_struct_id, span)),
-                    )
-                }),
-                cst::Call::Number(ident, span) => db.query_number_type().map(|number_struct_id| {
-                    (
-                        smallvec![Nameholder::Empty],
-                        cir::AValue::CValue(CValue::Number(ident, number_struct_id, span)),
-                    )
-                }),
+                cst::Call::String(ident, span) => db
+                    .query_string_type()
+                    .complete_with_span(span)
+                    .map(|string_struct_id| {
+                        (
+                            smallvec![Nameholder::Empty],
+                            cir::AValue::CValue(CValue::String(ident, string_struct_id, span)),
+                        )
+                    }),
+                cst::Call::Number(ident, span) => db
+                    .query_number_type()
+                    .complete_with_span(span)
+                    .map(|number_struct_id| {
+                        (
+                            smallvec![Nameholder::Empty],
+                            cir::AValue::CValue(CValue::Number(ident, number_struct_id, span)),
+                        )
+                    }),
             }
             .map(|(acc, avalue)| {
                 avalues.push(avalue);

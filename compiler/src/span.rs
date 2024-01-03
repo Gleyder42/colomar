@@ -62,6 +62,21 @@ pub struct Span {
 }
 
 impl Span {
+    pub fn combine(self, other: Span) -> Span {
+        assert_eq!(
+            self.context, other.context,
+            "When combining {:?} with {:?}, both must have the same span but had {:?} and {:?}",
+            self.offset, other.offset, self.context, other.context
+        );
+
+        Span {
+            context: self.context,
+            offset: Offset {
+                start: self.offset.start,
+                end: other.offset.end,
+            },
+        }
+    }
     pub fn fake_span(db: &dyn SpanInterner) -> Span {
         const FAKE_SPAN_SOURCE_NAME: &str = "FakeSpanSource";
 

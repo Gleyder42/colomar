@@ -268,6 +268,14 @@ impl<T, E> Trisult<T, E> {
         }
     }
 
+    pub fn map_error<U>(self, func: impl FnOnce(Vec<E>) -> Vec<U>) -> Trisult<T, U> {
+        match self {
+            Trisult::Ok(value) => Trisult::Ok(value),
+            Trisult::Par(value, errors) => Trisult::Par(value, func(errors)),
+            Trisult::Err(errors) => Trisult::Err(func(errors)),
+        }
+    }
+
     /// Maps this result's value [T] to another value [O], but flattens the inner [Trisult].
     /// The mapping function also returns a [Trisult].
     /// Errors from this trisult and the mapped trisult are combined.

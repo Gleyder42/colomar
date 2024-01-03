@@ -8,6 +8,7 @@ use super::super::span::Span;
 use super::super::wst::partial::Placeholder;
 use super::super::wst::Ident;
 use super::super::{cir, compiler_todo, wst, Op, QueryTrisult};
+use crate::error::ErrorCause;
 use crate::query_error;
 use cir::{CalledArgs, FunctionDecl};
 use std::collections::{HashMap, HashSet};
@@ -155,6 +156,7 @@ fn query_wst_call_by_rvalue(
                 enum_decl.name.value.name(db),
                 enum_constant.name.value.name(db),
             )
+            .complete_with_span(enum_constant.name.span)
             .inner_into_some()
         }
         _ => todo!(),
@@ -185,15 +187,17 @@ fn query_wst_call_by_function_call(
     func_decl: FunctionDecl,
     called_args: CalledArgs,
     caller: Option<Caller>,
-    _span: Span,
+    span: Span,
 ) -> QueryTrisult<Option<wst::Call>> {
-    let wscript_function: QueryTrisult<wst::partial::Call> = db.query_wscript_struct_function_impl(
-        func_decl
-            .instance
-            .expect("Function must be an instance function")
-            .name(db),
-        func_decl.name.value.name(db),
-    );
+    let wscript_function: QueryTrisult<wst::partial::Call> = db
+        .query_wscript_struct_function_impl(
+            func_decl
+                .instance
+                .expect("Function must be an instance function")
+                .name(db),
+            func_decl.name.value.name(db),
+        )
+        .complete_with_span(span);
 
     db.query_wst_call_from_args(func_decl.args, called_args)
         .into_iter()
@@ -217,7 +221,7 @@ fn query_wst_call_by_function_call(
 
             wscript_function
                 .saturate(&replacement_map)
-                .map_err(CompilerError::PlaceholderError)
+                .map_err(|error| CompilerError::PlaceholderError(error, ErrorCause::Span(span)))
                 .into()
         })
         .inner_into_some()
@@ -273,9 +277,9 @@ fn query_wst_call_by_assignment(
     };
 
     let call = partial::Call::Function(function);
-    let call = call
-        .saturate(&replacement_map)
-        .map_err(CompilerError::PlaceholderError);
+    let call = call.saturate(&replacement_map).map_err(|error| {
+        CompilerError::PlaceholderError(error, ErrorCause::Span(property_decl.name.span))
+    });
     QueryTrisult::from(call).inner_into_some()
 }
 
@@ -305,6 +309,7 @@ fn process_wscript(
                 enum_decl.name.value.name(db),
                 property_decl.name.value.name(db),
             )
+            .complete_with_span(property_decl.name.span) // TODO this should be the return type span
             .inner_into_some()
         }
         Type::Struct(struct_id) => {
@@ -313,10 +318,16 @@ fn process_wscript(
                 struct_decl.name.value.name(db),
                 property_decl.name.value.name(db),
             )
+            .complete_with_span(property_decl.name.span)
             .flat_map(|partial_call| {
                 partial_call
                     .saturate(replacement_map)
-                    .map_err(CompilerError::PlaceholderError)
+                    .map_err(|error| {
+                        CompilerError::PlaceholderError(
+                            error,
+                            ErrorCause::Span(property_decl.name.span),
+                        )
+                    })
                     .into()
             })
             .inner_into_some()
@@ -327,6 +338,7 @@ fn process_wscript(
                 event_decl.name.value.name(db),
                 property_decl.name.value.name(db),
             )
+            .complete_with_span(property_decl.name.span)
             .inner_into_some()
         }
         Type::Unit => query_error!(CompilerError::NotImplemented(

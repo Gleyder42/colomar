@@ -8,7 +8,10 @@ use crate::trisult::Errors;
 pub(super) fn query_player_variables(db: &dyn Codegen) -> QueryTrisult<Vec<wst::Variable>> {
     let mut errors = Errors::new();
 
-    let player_struct: cst::Struct = tri!(db.query_player_struct_def(), errors);
+    let player_struct = db
+        .query_player_struct_def()
+        .complete_with_message("Generating list of player variables");
+    let player_struct: cst::Struct = tri!(player_struct, errors);
     let struct_decl_id = db.query_struct_decl(player_struct.decl);
 
     type PropertiesTrisult = QueryTrisult<Vec<cir::PropertyDecl>>;

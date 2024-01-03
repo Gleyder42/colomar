@@ -1,6 +1,6 @@
 use super::cir::{CalledType, CalledTypes, Type};
 use super::database::CompilerDatabase;
-use super::error::CompilerError;
+use super::error::{CompilerError, ErrorCause};
 use super::span::{CopyRange, Span, SpanInterner, SpanSourceId};
 use super::{wst, Ident, InternedName, OwnedRich, TextId};
 use crate::analysis::interner::Interner;
@@ -37,11 +37,11 @@ pub fn new_print_errors(
 ) {
     for error in unique_errors {
         match error {
-            CompilerError::WstParserError(source, errors) => {
+            CompilerError::WstParserError(source, errors, cause) => {
                 print_workshop_errors(errors, &source, db);
                 return;
             }
-            CompilerError::WstLexerError(source, errors) => {
+            CompilerError::WstLexerError(source, errors, cause) => {
                 print_workshop_errors(errors, &source, db);
                 return;
             }
@@ -67,24 +67,24 @@ pub fn new_print_errors(
                 report_not_implemented_error(name, span, report)
             }
             CompilerError::DuplicateIdent { first, second } => {
-                report_duplicate_ident_error(first, second, report, source_cache.interner)
+                report_duplicate_ident_error(first, second, report, db)
             }
             CompilerError::CannotFindIdent(ident) => {
-                report_cannot_find_ident_error(ident, report, source_cache.interner)
+                report_cannot_find_ident_error(ident, report, db)
             }
             CompilerError::NotA(name, actual, expected) => {
-                report_not_a_error(name, actual, expected, report, source_cache.interner)
+                report_not_a_error(name, actual, expected, report, db)
             }
             CompilerError::WrongType { expected, actual } => {
-                report_wrong_type_error(expected, actual, report, source_cache.interner)
+                report_wrong_type_error(expected, actual, report, db)
             }
-            CompilerError::CannotFindPrimitiveDecl(text_id) => {
-                report_cannot_find_primitive_decl_error(text_id, report, db)
+            CompilerError::CannotFindPrimitiveDecl(text_id, cause) => {
+                report_cannot_find_primitive_decl_error(text_id, cause, report, db)
             }
-            CompilerError::CannotFindNativeDef(def) => {
-                report_cannot_find_native_def_error(def, report)
+            CompilerError::CannotFindNativeDef(def, cause) => {
+                report_cannot_find_native_def_error(def, cause, report)
             }
-            CompilerError::PlaceholderError(_) => {
+            CompilerError::PlaceholderError(_, _) => {
                 todo!()
             }
             CompilerError::MissingArg { .. } => {
@@ -108,13 +108,11 @@ pub fn new_print_errors(
             CompilerError::WrongTypeInBinaryExpr(_, _) => {
                 todo!()
             }
-            CompilerError::CannotFindFile(path) => {
-                report_cannot_find_file(path, report, source_cache.interner)
+            CompilerError::CannotFindFile(path) => report_cannot_find_file(path, report, db),
+            CompilerError::CannotFindStruct(name, cause) => {
+                report_cannot_find_struct_error(name, cause, report, db)
             }
-            CompilerError::CannotFindStruct(name) => {
-                report_cannot_find_struct_error(name, report, source_cache.interner)
-            }
-            CompilerError::WstParserError(_, _) | CompilerError::WstLexerError(_, _) => {
+            CompilerError::WstParserError(_, _, _) | CompilerError::WstLexerError(_, _, _) => {
                 unreachable!("WstParserError and WstLexerError are already checked")
             }
         };
@@ -126,22 +124,42 @@ pub fn new_print_errors(
     }
 }
 
-fn report_cannot_find_native_def_error(string: String, report: Report) -> Report {
-    report.with_message(format!(
+fn report_cannot_find_native_def_error(
+    string: String,
+    error_cause: ErrorCause,
+    report: Report,
+) -> Report {
+    let report = report.with_message(format!(
         "Cannot find native definition for {}",
         string.fg(ind::UNKNOWN)
-    ))
+    ));
+
+    add_cause(report, error_cause)
 }
 
 fn report_cannot_find_primitive_decl_error<'a>(
     text_id: TextId,
+    error_cause: ErrorCause,
     report: Report<'a>,
     db: &CompilerDatabase,
 ) -> Report<'a> {
-    report.with_message(format!(
+    let report = report.with_message(format!(
         "Cannot find primitive declaration {}",
         text_id.name(db).fg(ind::UNKNOWN)
-    ))
+    ));
+
+    add_cause(report, error_cause)
+}
+
+fn add_cause(report: Report, error_cause: ErrorCause) -> Report {
+    match error_cause {
+        ErrorCause::Span(span) => {
+            report.with_label(Label::new(span).with_message("Caused by this"))
+        }
+        ErrorCause::Message(message) => {
+            report.with_note(format!("This error occurred while {}", message))
+        }
+    }
 }
 
 fn report_cannot_find_file<'a>(
@@ -163,13 +181,16 @@ fn report_cannot_find_file<'a>(
 
 fn report_cannot_find_struct_error<'a>(
     name: TextId,
+    error_cause: ErrorCause,
     report: Report<'a>,
     db: &CompilerDatabase,
 ) -> Report<'a> {
-    report.with_message(format!(
+    let report = report.with_message(format!(
         "Cannot find {} struct",
         name.name(db).fg(ind::UNKNOWN)
-    ))
+    ));
+
+    add_cause(report, error_cause)
 }
 
 fn report_wrong_type_error<'a>(
@@ -366,6 +387,7 @@ fn print_workshop_errors<T: Debug + InternedName>(
             span.clone(),
             db,
         );
+
         report
             .finish()
             .eprint(&mut source)

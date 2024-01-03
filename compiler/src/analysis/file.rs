@@ -5,7 +5,8 @@ use super::super::error::CompilerError;
 
 use super::super::trisult::{Errors, IntoTrisult};
 use super::super::{cst, QueryTrisult, SVMultiMap, SVMultiMapWrapper, StructId, TextId};
-use crate::tri;
+use crate::error::PartialCompilerError;
+use crate::{tri, PartialQueryTrisult};
 use smallvec::SmallVec;
 use std::collections::HashMap;
 
@@ -45,12 +46,14 @@ pub(super) fn query_structs(
 pub(super) fn query_struct_by_name(
     db: &dyn DeclQuery,
     text: TextId,
-) -> QueryTrisult<SmallVec<[cst::Struct; 1]>> {
-    db.query_structs().flat_map(|mut struct_map| {
-        struct_map
-            .remove(&text)
-            .trisult_ok_or(CompilerError::CannotFindStruct(text))
-    })
+) -> PartialQueryTrisult<SmallVec<[cst::Struct; 1]>> {
+    db.query_structs()
+        .partial_errors()
+        .flat_map(|mut struct_map| {
+            struct_map
+                .remove(&text)
+                .trisult_ok_or(PartialCompilerError::CannotFindStruct(text).into())
+        })
 }
 
 pub(super) fn query_ast_struct_def_map(

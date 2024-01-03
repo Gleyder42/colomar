@@ -7,11 +7,12 @@ use super::super::cir::{
 use super::super::error::CompilerError;
 use super::super::trisult::Trisult;
 use super::super::{flatten, Ident, QueryTrisult, StructId, TextId};
-use crate::{query_error, tri};
+use crate::{query_error, tri, PartialQueryTrisult};
 
 use super::super::cst::{FunctionDecls, PropertyDecls};
 use super::super::span::StringInterner;
-use crate::trisult::Errors;
+use crate::error::PartialCompilerError;
+use crate::trisult::{Errors, IntoTrisult};
 use colomar_macros::Interned;
 use hashlink::LinkedHashMap;
 use smallvec::{smallvec, SmallVec};
@@ -116,12 +117,11 @@ fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclId {
 
 macro_rules! impl_query_primitive_type {
     ($query_name:ident, $name:ident) => {
-        pub(super) fn $query_name(db: &dyn DeclQuery) -> QueryTrisult<StructDeclId> {
-            db.query_primitives().flat_map(|map| {
+        pub(super) fn $query_name(db: &dyn DeclQuery) -> PartialQueryTrisult<StructDeclId> {
+            db.query_primitives().partial_errors().flat_map(|map| {
                 map.get(&db.$name())
                     .map(struct_decl_id_or_panic)
-                    .ok_or(CompilerError::CannotFindPrimitiveDecl(db.$name()))
-                    .into()
+                    .trisult_ok_or(PartialCompilerError::CannotFindPrimitiveDecl(db.$name()).into())
             })
         }
     };

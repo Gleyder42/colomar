@@ -1,6 +1,6 @@
-use super::error::CompilerError;
+use super::error::PartialCompilerError;
 use super::trisult::{Errors, Trisult};
-use super::{into_owned, workshop, wst, QueryTrisult, Text};
+use super::{into_owned, workshop, wst, PartialQueryTrisult, Text};
 use crate::tri;
 use chumsky::input::{Input, Stream};
 use chumsky::prelude::end;
@@ -25,38 +25,42 @@ pub trait WorkshopScriptLoader {
 
     fn query_wscript_enum_impls(&self) -> LinkedHashMap<Text, wscript_impl::Enum>;
 
-    fn query_wscript_struct_impl(&self, name: Text) -> QueryTrisult<wscript_impl::Struct>;
+    fn query_wscript_struct_impl(&self, name: Text) -> PartialQueryTrisult<wscript_impl::Struct>;
 
-    fn query_wscript_event_impl(&self, name: Text) -> QueryTrisult<wscript_impl::Event>;
+    fn query_wscript_event_impl(&self, name: Text) -> PartialQueryTrisult<wscript_impl::Event>;
 
-    fn query_wscript_event_name_impl(&self, name: Text) -> QueryTrisult<String>;
+    fn query_wscript_event_name_impl(&self, name: Text) -> PartialQueryTrisult<String>;
 
-    fn query_wscript_enum_impl(&self, name: Text) -> QueryTrisult<wscript_impl::Enum>;
+    fn query_wscript_enum_impl(&self, name: Text) -> PartialQueryTrisult<wscript_impl::Enum>;
 
+    /// Impl [query_wscript_enum_constant_impl]
     fn query_wscript_enum_constant_impl(
         &self,
         enum_name: Text,
         constant_name: Text,
-    ) -> QueryTrisult<wst::Call>;
+    ) -> PartialQueryTrisult<wst::Call>;
 
+    /// Impl [query_wscript_struct_property_impl]
     fn query_wscript_struct_property_impl(
         &self,
         struct_name: Text,
         property_name: Text,
-    ) -> QueryTrisult<wst::partial::Call>;
+    ) -> PartialQueryTrisult<wst::partial::Call>;
 
     /// Queries the workshop code of a colomar struct function.
+    /// Impl [query_wscript_struct_function_impl]
     fn query_wscript_struct_function_impl(
         &self,
         struct_name: Text,
         function_name: Text,
-    ) -> QueryTrisult<wst::partial::Call>;
+    ) -> PartialQueryTrisult<wst::partial::Call>;
 
+    /// Impl [query_wscript_event_context_property_impl]
     fn query_wscript_event_context_property_impl(
         &self,
         event_name: Text,
         property_name: Text,
-    ) -> QueryTrisult<wst::Call>;
+    ) -> PartialQueryTrisult<wst::Call>;
 }
 
 pub fn read_impls(dir: &Path) -> Vec<wscript_impl::Element> {
@@ -101,7 +105,7 @@ fn query_wscript_enum_constant_impl(
     db: &dyn WorkshopScriptLoader,
     enum_name: Text,
     constant_name: Text,
-) -> QueryTrisult<wst::Call> {
+) -> PartialQueryTrisult<wst::Call> {
     query_wscript_impl(
         || db.query_wscript_enum_impl(enum_name).map(|it| it.constants),
         constant_name,
@@ -109,7 +113,7 @@ fn query_wscript_enum_constant_impl(
     .flat_map(|partial_call| {
         partial_call
             .complete()
-            .map_err(CompilerError::PlaceholderError)
+            .map_err(PartialCompilerError::PlaceholderError)
             .into()
     })
 }
@@ -118,21 +122,18 @@ fn query_wscript_struct_function_impl(
     db: &dyn WorkshopScriptLoader,
     struct_name: Text,
     function_name: Text,
-) -> QueryTrisult<wst::partial::Call> {
-    query_wscript_impl(
-        || {
-            db.query_wscript_struct_impl(struct_name)
-                .map(|it| it.functions)
-        },
-        function_name,
-    )
+) -> PartialQueryTrisult<wst::partial::Call> {
+    let query = db
+        .query_wscript_struct_impl(struct_name)
+        .map(|it| it.functions);
+    query_wscript_impl(|| query, function_name)
 }
 
 fn query_wscript_struct_property_impl(
     db: &dyn WorkshopScriptLoader,
     struct_name: Text,
     property_name: Text,
-) -> QueryTrisult<wst::partial::Call> {
+) -> PartialQueryTrisult<wst::partial::Call> {
     query_wscript_impl(
         || {
             db.query_wscript_struct_impl(struct_name)
@@ -146,7 +147,7 @@ fn query_wscript_event_context_property_impl(
     db: &dyn WorkshopScriptLoader,
     enum_name: Text,
     property_name: Text,
-) -> QueryTrisult<wst::Call> {
+) -> PartialQueryTrisult<wst::Call> {
     query_wscript_impl(
         || db.query_wscript_event_impl(enum_name).map(|it| it.context),
         property_name,
@@ -154,7 +155,7 @@ fn query_wscript_event_context_property_impl(
     .flat_map(|partial_call| {
         partial_call
             .complete()
-            .map_err(CompilerError::PlaceholderError)
+            .map_err(PartialCompilerError::PlaceholderError)
             .into()
     })
 }
@@ -162,20 +163,20 @@ fn query_wscript_event_context_property_impl(
 fn query_wscript_event_name_impl(
     db: &dyn WorkshopScriptLoader,
     name: Text,
-) -> QueryTrisult<String> {
+) -> PartialQueryTrisult<String> {
     db.query_wscript_event_impl(name).map(|r#event| event.name)
 }
 
 fn query_wscript_impl(
-    query: impl FnOnce() -> QueryTrisult<LinkedHashMap<String, String>>,
+    query: impl FnOnce() -> PartialQueryTrisult<LinkedHashMap<String, String>>,
     selection: Text,
-) -> QueryTrisult<wst::partial::Call> {
+) -> PartialQueryTrisult<wst::partial::Call> {
     let mut errors = Errors::new();
     // wscript_map contains mappings from functions defined in colomar and their workshop counterpart.
     let mut wscript_map = tri!(query(), errors);
     let wscript: Trisult<_, _> = wscript_map
         .remove(selection.as_str())
-        .ok_or(CompilerError::CannotFindNativeDef(selection))
+        .ok_or(PartialCompilerError::CannotFindNativeDef(selection))
         .into();
     let wscript = tri!(wscript, errors);
 
@@ -187,7 +188,8 @@ fn query_wscript_impl(
     let wscript = Rc::from(wscript);
 
     if !lexer_errors.is_empty() {
-        let error = CompilerError::WstLexerError(Rc::clone(&wscript), into_owned(lexer_errors));
+        let error =
+            PartialCompilerError::WstLexerError(Rc::clone(&wscript), into_owned(lexer_errors));
         errors.push(error);
     }
 
@@ -208,7 +210,8 @@ fn query_wscript_impl(
     };
 
     if !parser_errors.is_empty() {
-        let error = CompilerError::WstParserError(Rc::clone(&wscript), into_owned(parser_errors));
+        let error =
+            PartialCompilerError::WstParserError(Rc::clone(&wscript), into_owned(parser_errors));
         errors.push(error);
     }
 
@@ -233,12 +236,14 @@ macro_rules! impl_wscript_queries {
                 .collect()
         }
 
-        fn $single_name(db: &dyn WorkshopScriptLoader, name: Text) -> QueryTrisult<$wscript_impl> {
-            db.$name()
-                .get(&name)
-                .cloned()
-                .ok_or(crate::error::CompilerError::CannotFindNativeDef(name))
-                .into()
+        fn $single_name(
+            db: &dyn WorkshopScriptLoader,
+            name: Text,
+        ) -> PartialQueryTrisult<$wscript_impl> {
+            use crate::trisult::IntoTrisult;
+            db.$name().get(&name).cloned().trisult_ok_or(
+                crate::error::PartialCompilerError::CannotFindNativeDef(name),
+            )
         }
     };
 }

@@ -3,11 +3,80 @@ use super::cst::Path;
 use super::span::Span;
 use super::trisult::Trisult;
 use super::wst::partial::SaturateError;
-use super::{workshop, wst, Ident, OwnedRich, QueryTrisult, TextId};
+use super::{workshop, wst, Ident, OwnedRich, PartialQueryTrisult, QueryTrisult, TextId};
 use crate::query_error;
 use either::Either;
+use smallvec::{smallvec, SmallVec};
 use std::borrow::Cow;
 use std::rc::Rc;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum PartialCompilerError {
+    CannotFindPrimitiveDecl(TextId),
+    CannotFindNativeDef(String),
+    PlaceholderError(SaturateError),
+    CannotFindStruct(TextId),
+    WstLexerError(Rc<str>, Vec<OwnedRich<char, wst::Span>>),
+    WstParserError(Rc<str>, Vec<OwnedRich<workshop::lexer::Token, wst::Span>>),
+    CompilerErrors(Vec<CompilerError>),
+}
+
+impl PartialCompilerError {
+    /// Use a SmallVec as return type, because most of the time one partial error corresponds to one CompilerError.
+    /// Using a SmallVec avoids allocating many 1 length vectors.
+    fn into_compiler_error(self, error_cause: ErrorCause) -> SmallVec<[CompilerError; 1]> {
+        use CompilerError as C;
+        use PartialCompilerError as P;
+
+        let error = match self {
+            P::CompilerErrors(errors) => return SmallVec::from_vec(errors),
+            P::CannotFindPrimitiveDecl(text_id) => C::CannotFindPrimitiveDecl(text_id, error_cause),
+            P::CannotFindNativeDef(string) => C::CannotFindNativeDef(string, error_cause),
+            P::PlaceholderError(error) => C::PlaceholderError(error, error_cause),
+            P::CannotFindStruct(text_id) => C::CannotFindStruct(text_id, error_cause),
+            P::WstParserError(source, errors) => C::WstParserError(source, errors, error_cause),
+            P::WstLexerError(source, errors) => C::WstLexerError(source, errors, error_cause),
+        };
+        smallvec![error]
+    }
+}
+
+fn complete_partial_errors(
+    errors: Vec<PartialCompilerError>,
+    error_cause: ErrorCause,
+) -> Vec<CompilerError> {
+    errors
+        .into_iter()
+        .map(|partial_error| partial_error.into_compiler_error(error_cause.clone()))
+        .flatten()
+        .collect()
+}
+
+impl<T> PartialQueryTrisult<T> {
+    pub fn complete_with_span(self, span: Span) -> QueryTrisult<T> {
+        self.complete_with_cause(ErrorCause::Span(span))
+    }
+
+    pub fn complete_with_message(self, message: impl Into<Cow<'static, str>>) -> QueryTrisult<T> {
+        self.complete_with_cause(ErrorCause::Message(message.into()))
+    }
+
+    fn complete_with_cause(self, error_cause: ErrorCause) -> QueryTrisult<T> {
+        self.map_error(|errors| complete_partial_errors(errors, error_cause))
+    }
+}
+
+impl<T> QueryTrisult<T> {
+    pub fn partial_errors(self) -> PartialQueryTrisult<T> {
+        self.map_error(|errors| vec![PartialCompilerError::CompilerErrors(errors)])
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ErrorCause {
+    Span(Span),
+    Message(Cow<'static, str>),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
@@ -23,13 +92,7 @@ pub enum CompilerError {
         actual: CalledType,
         expected: Either<Type, CalledTypes>,
     },
-    CannotFindPrimitiveDecl(TextId),
-    CannotFindNativeDef(String),
-    PlaceholderError(SaturateError),
-    // TODO Add any information
-    WstLexerError(Rc<str>, Vec<OwnedRich<char, wst::Span>>),
-    // TODO Add any information
-    WstParserError(Rc<str>, Vec<OwnedRich<workshop::lexer::Token, wst::Span>>),
+
     MissingArg {
         missing_arg: DeclArgId,
         call_site: Span,
@@ -41,7 +104,17 @@ pub enum CompilerError {
     CannotEvalAsConst,
     WrongTypeInBinaryExpr(AValue, AValue),
     CannotFindFile(Path),
-    CannotFindStruct(TextId),
+
+    WstLexerError(Rc<str>, Vec<OwnedRich<char, wst::Span>>, ErrorCause),
+    WstParserError(
+        Rc<str>,
+        Vec<OwnedRich<workshop::lexer::Token, wst::Span>>,
+        ErrorCause,
+    ),
+    CannotFindPrimitiveDecl(TextId, ErrorCause),
+    CannotFindNativeDef(String, ErrorCause),
+    PlaceholderError(SaturateError, ErrorCause),
+    CannotFindStruct(TextId, ErrorCause),
 }
 
 impl CompilerError {
@@ -52,11 +125,11 @@ impl CompilerError {
             CompilerError::CannotFindIdent(ident) => Some(ident.span),
             CompilerError::NotA(_, _, ident) => Some(ident.span),
             CompilerError::WrongType { actual, .. } => Some(actual.span),
-            CompilerError::CannotFindPrimitiveDecl(_) => None,
-            CompilerError::CannotFindNativeDef(_) => None,
-            CompilerError::PlaceholderError(_) => None,
-            CompilerError::WstParserError(_, _) => None,
-            CompilerError::WstLexerError(_, _) => None,
+            CompilerError::CannotFindPrimitiveDecl(_, _) => None,
+            CompilerError::CannotFindNativeDef(_, _) => None,
+            CompilerError::PlaceholderError(_, _) => None,
+            CompilerError::WstParserError(_, _, _) => None,
+            CompilerError::WstLexerError(_, _, _) => None,
             CompilerError::MissingArg { call_site, .. } => Some(*call_site),
             CompilerError::CannotFindNamedArg(ident) => Some(ident.span),
             CompilerError::ArgOutOfRange(_, span) => Some(*span),
@@ -67,7 +140,7 @@ impl CompilerError {
             }
             CompilerError::WrongTypeInBinaryExpr(left, _) => Some(left.span()),
             CompilerError::CannotFindFile(path) => Some(path.span),
-            CompilerError::CannotFindStruct(_) => None,
+            CompilerError::CannotFindStruct(_, _) => None,
         }
     }
 
@@ -78,11 +151,11 @@ impl CompilerError {
             CompilerError::CannotFindIdent(_) => 3,
             CompilerError::NotA(_, _, _) => 4,
             CompilerError::WrongType { .. } => 5,
-            CompilerError::CannotFindPrimitiveDecl(_) => 6,
-            CompilerError::CannotFindNativeDef(_) => 7,
-            CompilerError::WstLexerError(_, _) => 10,
-            CompilerError::WstParserError(_, _) => 11,
-            CompilerError::PlaceholderError(_) => 12,
+            CompilerError::CannotFindPrimitiveDecl(_, _) => 6,
+            CompilerError::CannotFindNativeDef(_, _) => 7,
+            CompilerError::WstLexerError(_, _, _) => 10,
+            CompilerError::WstParserError(_, _, _) => 11,
+            CompilerError::PlaceholderError(_, _) => 12,
             CompilerError::MissingArg { .. } => 13,
             CompilerError::CannotFindNamedArg(_) => 14,
             CompilerError::ArgOutOfRange(_, _) => 15,
@@ -91,7 +164,7 @@ impl CompilerError {
             CompilerError::CannotEvalAsConst => 18,
             CompilerError::WrongTypeInBinaryExpr(_, _) => 19,
             CompilerError::CannotFindFile(_) => 20,
-            CompilerError::CannotFindStruct(_) => 21,
+            CompilerError::CannotFindStruct(_, _) => 21,
         }
     }
 }

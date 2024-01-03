@@ -3,6 +3,7 @@ use super::super::cir::{EventDeclId, StructDeclId};
 use super::super::cst::Conditions;
 use super::super::QueryTrisult;
 use super::super::{cir, cst};
+use crate::PartialQueryTrisult;
 use hashlink::LinkedHashSet;
 
 use super::event;
@@ -21,7 +22,7 @@ pub trait DefQuery: DeclQuery {
 
     /// [im::query_player_struct_def]
     #[salsa::invoke(im::query_player_struct_def)]
-    fn query_player_struct_def(&self) -> QueryTrisult<cst::Struct>;
+    fn query_player_struct_def(&self) -> PartialQueryTrisult<cst::Struct>;
 
     // Import
 

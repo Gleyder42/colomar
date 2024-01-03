@@ -4,6 +4,7 @@
 use crate::analysis::decl::DeclQuery;
 use crate::analysis::interner::Interner;
 use crate::database::CompilerDatabase;
+use crate::error::PartialCompilerError;
 use crate::error_reporter::{new_print_errors, DummyReportValues};
 use crate::language::lexer::Token;
 use crate::loader::WorkshopScriptLoader;
@@ -51,6 +52,8 @@ pub mod wst;
 pub type Text = String;
 pub type TextId = StringId;
 pub type QueryTrisult<T> = Trisult<T, CompilerError>;
+
+pub type PartialQueryTrisult<T> = Trisult<T, PartialCompilerError>;
 
 pub type OwnedRich<T, S = SimpleSpan<usize>> = Rich<'static, T, S>;
 
@@ -339,7 +342,7 @@ pub fn flatten<LR, L, R, const LN: usize, const RN: usize>(
     (left_vec, right_vec)
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Ident {
     pub value: TextId,
     pub span: Span,

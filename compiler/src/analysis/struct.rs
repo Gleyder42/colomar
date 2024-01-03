@@ -12,7 +12,10 @@ use smallvec::SmallVec;
 pub(super) fn query_struct(db: &dyn DefQuery, r#struct: cst::Struct) -> QueryTrisult<cir::Struct> {
     let mut errors = Errors::default();
 
-    let structs = tri!(db.query_struct_by_name(r#struct.decl.name.value), errors);
+    let structs = db
+        .query_struct_by_name(r#struct.decl.name.value)
+        .complete_with_span(r#struct.decl.name.span);
+    let structs = tri!(structs, errors);
 
     let mut decls = SmallVec::with_capacity(structs.len());
     let mut defs = SmallVec::with_capacity(structs.len());

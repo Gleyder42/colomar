@@ -10,6 +10,7 @@ use super::super::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, TextId};
 
 use super::super::span::Spanned;
 use crate::cst::{Def, Root};
+use crate::PartialQueryTrisult;
 use cir::DeclArgId;
 use cst::Cst;
 use hashlink::LinkedHashMap;
@@ -56,7 +57,8 @@ pub trait DeclQuery: Interner {
 
     /// Impl [file::query_struct_by_name]
     #[salsa::invoke(file::query_struct_by_name)]
-    fn query_struct_by_name(&self, text: TextId) -> QueryTrisult<SmallVec<[cst::Struct; 1]>>;
+    fn query_struct_by_name(&self, text: TextId)
+        -> PartialQueryTrisult<SmallVec<[cst::Struct; 1]>>;
 
     /// Impl: [file::query_type_items]
     #[salsa::invoke(file::query_type_items)]
@@ -214,19 +216,19 @@ pub trait DeclQuery: Interner {
 
     /// [namespace::query_bool_type]
     #[salsa::invoke(namespace::query_bool_type)]
-    fn query_bool_type(&self) -> QueryTrisult<StructDeclId>;
+    fn query_bool_type(&self) -> PartialQueryTrisult<StructDeclId>;
 
     /// [namespace::query_string_type]
     #[salsa::invoke(namespace::query_string_type)]
-    fn query_string_type(&self) -> QueryTrisult<StructDeclId>;
+    fn query_string_type(&self) -> PartialQueryTrisult<StructDeclId>;
 
     /// [namespace::query_number_type]
     #[salsa::invoke(namespace::query_number_type)]
-    fn query_number_type(&self) -> QueryTrisult<StructDeclId>;
+    fn query_number_type(&self) -> PartialQueryTrisult<StructDeclId>;
 
     /// [namespace::query_player_type]
     #[salsa::invoke(namespace::query_player_type)]
-    fn query_player_type(&self) -> QueryTrisult<StructDeclId>;
+    fn query_player_type(&self) -> PartialQueryTrisult<StructDeclId>;
 
     /// Impl: [namespace::query_root_namespace]
     #[salsa::invoke(namespace::query_root_namespace)]

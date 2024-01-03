@@ -1,8 +1,8 @@
 use super::super::analysis::def::DefQuery;
 use super::super::QueryTrisult;
 use super::super::{cir, cst};
-use crate::tri;
 use crate::trisult::Errors;
+use crate::{tri, PartialQueryTrisult};
 
 pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
     let mut errors = Errors::new();
@@ -26,7 +26,7 @@ pub(super) fn query_im(db: &dyn DefQuery) -> QueryTrisult<cir::Cir> {
         .map(cir::Cir)
 }
 
-pub(super) fn query_player_struct_def(db: &dyn DefQuery) -> QueryTrisult<cst::Struct> {
+pub(super) fn query_player_struct_def(db: &dyn DefQuery) -> PartialQueryTrisult<cst::Struct> {
     db.query_struct_by_name(db.query_player_name())
         .map(|mut structs| structs.remove(0))
 }

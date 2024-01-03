@@ -3,6 +3,7 @@ use super::super::error::CompilerError;
 use super::super::trisult::IntoTrisult;
 use super::super::{cir, wst, Op, QueryTrisult};
 
+use crate::error::ErrorCause;
 use std::collections::{HashMap, VecDeque};
 
 pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<wst::Rule> {
@@ -23,15 +24,18 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
                     .collect();
 
                 db.query_wscript_event_impl(event_decl.name.value.name(db))
+                    .complete_with_span(event_decl.span)
                     .flat_map(|event| {
                         event
                             .args
                             .into_iter()
                             .map(|arg_name| {
-                                arg_map
-                                    .get(arg_name.as_str())
-                                    .cloned()
-                                    .trisult_ok_or(CompilerError::CannotFindNativeDef(arg_name))
+                                arg_map.get(arg_name.as_str()).cloned().trisult_ok_or(
+                                    CompilerError::CannotFindNativeDef(
+                                        arg_name,
+                                        ErrorCause::Span(event_decl.name.span),
+                                    ),
+                                )
                             })
                             .collect::<QueryTrisult<VecDeque<wst::Call>>>()
                     })
@@ -53,7 +57,9 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
 
     let conditions = rule.conditions.into_iter().map(cir::Action::from).collect();
 
-    let wscript_event_name = db.query_wscript_event_name_impl(event_decl.name.value.name(db));
+    let wscript_event_name = db
+        .query_wscript_event_name_impl(event_decl.name.value.name(db))
+        .complete_with_span(event_decl.span);
 
     args.and(query_event_wst_call(rule.actions).map_inner(|it| it.unwrap_function()))
         .and(
