@@ -4,7 +4,7 @@ use super::super::wst::{partial, Ident};
 use chumsky::error::Error;
 use chumsky::input::{SpannedInput, Stream};
 
-use crate::{parser_alias, wst};
+use crate::{parser_alias, span};
 use chumsky::prelude::*;
 use chumsky::util::Maybe;
 use smol_str::SmolStr;
@@ -15,9 +15,9 @@ enum Name {
     Placeholder(Placeholder),
 }
 
-pub type ParserExtra<'a> = extra::Err<Rich<'a, Token, wst::Span>>;
+pub type ParserExtra<'a> = extra::Err<Rich<'a, Token, span::Span>>;
 pub type ParserInput =
-    SpannedInput<Token, wst::Span, Stream<std::vec::IntoIter<(Token, wst::Span)>>>;
+    SpannedInput<Token, span::Span, Stream<std::vec::IntoIter<(Token, span::Span)>>>;
 
 parser_alias!(PParser, ParserInput, ParserExtra<'a>);
 
@@ -69,19 +69,23 @@ pub fn call<'src>() -> impl PParser<'src, partial::Call> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::span::{Offset, SpanSourceId};
     use crate::workshop::lexer::{input_from_str, lexer};
+    use salsa::InternId;
+    use salsa::InternKey;
 
     #[test]
     fn test_element_parser() {
+        let id = SpanSourceId::from_intern_id(InternId::from(1_u32));
         let code = "Small Message(Event Player, Is Reloading(Event Player))";
         let tokens = lexer()
             .then_ignore(end())
-            .parse(input_from_str(code))
+            .parse(input_from_str(code, id))
             .unwrap();
 
-        let eoi = wst::Span {
-            start: tokens.len(),
-            end: tokens.len() + 1,
+        let eoi = span::Span {
+            context: id,
+            offset: Offset::from(tokens.len()..tokens.len() + 1),
         };
         let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
 
@@ -103,15 +107,16 @@ mod tests {
 
     #[test]
     fn test_placeholder() {
+        let id = SpanSourceId::from_intern_id(InternId::from(1_u32));
         let code = "Set Damage Dealt($caller$, $value$)";
         let tokens = lexer()
             .then_ignore(end())
-            .parse(input_from_str(code))
+            .parse(input_from_str(code, id))
             .unwrap();
 
-        let eoi = wst::Span {
-            start: tokens.len(),
-            end: tokens.len() + 1,
+        let eoi = span::Span {
+            context: id,
+            offset: Offset::from(tokens.len()..tokens.len() + 1),
         };
         let stream = Stream::from_iter(tokens.into_iter()).spanned(eoi);
         let actual_element = call().then_ignore(end()).parse(stream).unwrap();

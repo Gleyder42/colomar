@@ -1,6 +1,7 @@
 use super::super::wst::partial::Placeholder;
 use crate::analysis::interner::Interner;
-use crate::{parser_alias, wst, InternedName};
+use crate::span::SpanSourceId;
+use crate::{parser_alias, span, InternedName};
 use chumsky::input::{SpannedInput, Stream};
 use chumsky::prelude::*;
 use chumsky::text::Char;
@@ -48,26 +49,26 @@ impl Display for Token {
 
 const PLACEHOLDER_DELIMITER: char = '$';
 
-pub type ParserError<'a> = extra::Err<Rich<'a, char, wst::Span>>;
+pub type ParserError<'a> = extra::Err<Rich<'a, char, span::Span>>;
 
 pub type ParserInput<'a> =
-    SpannedInput<char, wst::Span, Stream<std::vec::IntoIter<(char, wst::Span)>>>;
+    SpannedInput<char, span::Span, Stream<std::vec::IntoIter<(char, span::Span)>>>;
 
 parser_alias!(PParser, ParserInput<'a>, ParserError<'a>);
 
-pub fn input_from_str(wscript: &str) -> ParserInput {
-    let eoi = wst::Span {
-        start: wscript.len(),
-        end: wscript.len() + 1,
+pub fn input_from_str(wscript: &str, id: SpanSourceId) -> ParserInput {
+    let eoi = span::Span {
+        context: id,
+        offset: span::Offset::from(wscript.len()..wscript.len() + 1),
     };
     let iter = wscript
         .char_indices()
         .map(|(index, c)| {
             (
                 c,
-                wst::Span {
-                    start: index,
-                    end: index + 1,
+                span::Span {
+                    context: id,
+                    offset: span::Offset::from(index..index + 1),
                 },
             )
         })
@@ -114,7 +115,7 @@ fn ident<'src>() -> impl PParser<'src, Token> {
         })
 }
 
-pub fn lexer<'src>() -> impl PParser<'src, Vec<(Token, wst::Span)>> {
+pub fn lexer<'src>() -> impl PParser<'src, Vec<(Token, span::Span)>> {
     let ctrl = one_of("(),").map(Token::Ctrl);
 
     // TODO Add recover_with(skip_then_retry_until([]))
@@ -132,15 +133,18 @@ mod tests {
     use super::*;
     use crate::assert_iterator;
     use chumsky::prelude::end;
+    use salsa::InternId;
+    use salsa::InternKey;
 
     #[test]
     fn test_placeholders() {
+        let id = SpanSourceId::from_intern_id(InternId::from(1_u32));
         let placeholders = ["$hello$", "$world$", "$t$", "$10$", "$a_b$"];
 
         for code in placeholders {
             let actual = placeholder()
                 .then_ignore(end())
-                .parse(input_from_str(code))
+                .parse(input_from_str(code, id))
                 .into_result()
                 .expect(&format!("Cannot parse {code}"));
             assert_eq!(actual, Token::Placeholder(code.into()))
@@ -149,12 +153,13 @@ mod tests {
 
     #[test]
     fn test_wrong_placeholders() {
+        let id = SpanSourceId::from_intern_id(InternId::from(1_u32));
         let placeholders = ["test", "$$", "$$$", "  ", ""];
 
         for code in placeholders {
             let actual = placeholder()
                 .then_ignore(end())
-                .parse(input_from_str(code))
+                .parse(input_from_str(code, id))
                 .into_result();
 
             assert!(!actual.is_ok(), "'{}' was parsed, but should fail", code)
@@ -163,6 +168,7 @@ mod tests {
 
     #[test]
     fn test_idents() {
+        let id = SpanSourceId::from_intern_id(InternId::from(1_u32));
         let idents = [
             "Ongoing - Global",
             "Ongoing - EachPlayer",
@@ -176,7 +182,7 @@ mod tests {
         for code in idents {
             let actual = ident()
                 .then_ignore(end())
-                .parse(input_from_str(code))
+                .parse(input_from_str(code, id))
                 .into_result()
                 .expect(&format!("Cannot parse {code}"));
             assert_eq!(actual, Token::Ident(code.into()))
@@ -185,12 +191,13 @@ mod tests {
 
     #[test]
     fn test_wrong_idents() {
+        let id = SpanSourceId::from_intern_id(InternId::from(1_u32));
         let idents = ["- Global", " - Global", " ", "     ", "1.10", "20"];
 
         for code in idents {
             let actual = ident()
                 .then_ignore(end())
-                .parse(input_from_str(code))
+                .parse(input_from_str(code, id))
                 .into_result();
 
             assert!(!actual.is_ok(), "'{}' was parsed, but should fail", code)
@@ -199,10 +206,12 @@ mod tests {
 
     #[test]
     fn test_lexer() {
+        let id = SpanSourceId::from_intern_id(InternId::from(1_u32));
         let code = "Is Reloading(Event Player, Event Player)";
+
         let actual: Vec<Token> = lexer()
             .then_ignore(end())
-            .parse(input_from_str(code))
+            .parse(input_from_str(code, id))
             .into_result()
             .expect(&format!("Cannot parse {code}"))
             .into_iter()

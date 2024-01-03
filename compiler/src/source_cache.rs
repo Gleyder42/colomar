@@ -9,12 +9,26 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use std::{fs, io};
 
+#[derive(Debug)]
 pub struct CachedFile {
+    pub source_context: Option<String>,
     pub content: String,
     pub source: Source,
     pub last_update: SystemTime,
 }
 
+impl CachedFile {
+    pub fn from_content(content: String, last_update: SystemTime) -> Self {
+        CachedFile {
+            source_context: None,
+            source: Source::from(&content),
+            content,
+            last_update,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct SourceCache {
     pub directories: Vec<PathBuf>,
     files: HashMap<PathBuf, CachedFile>,
@@ -25,6 +39,18 @@ impl SourceCache {
         Self {
             directories: vec![path],
             files: HashMap::new(),
+        }
+    }
+
+    pub fn set_file(&mut self, path: PathBuf, context: String, content: &str) {
+        let mut cached_file = CachedFile::from_content(content.to_string(), SystemTime::now());
+        cached_file.source_context = Some(context);
+
+        match self.files.get_mut(&path) {
+            None => {
+                self.files.insert(path, cached_file);
+            }
+            Some(file) => *file = cached_file,
         }
     }
 
@@ -60,14 +86,8 @@ impl SourceCache {
                 }
                 None => {
                     let content = fs::read_to_string(&path)?;
-                    self.files.insert(
-                        path,
-                        CachedFile {
-                            source: ariadne::Source::from(&content),
-                            content,
-                            last_update: SystemTime::now(),
-                        },
-                    );
+                    self.files
+                        .insert(path, CachedFile::from_content(content, SystemTime::now()));
                 }
                 Some(_) => { /* Do nothing if the file has not been modified since last update*/ }
             }
@@ -77,7 +97,7 @@ impl SourceCache {
 }
 
 pub struct LookupSourceCache<'a> {
-    pub source_cache: &'a SourceCache,
+    pub source_cache: &'a mut SourceCache,
     pub interner: &'a CompilerDatabase,
     pub src_dir: &'a PathBuf,
 }
@@ -111,21 +131,31 @@ impl<'a> ariadne::Cache<SpanSourceId> for LookupSourceCache<'a> {
     }
 
     fn display<'b>(&self, id: &'b SpanSourceId) -> Option<Box<dyn Display + 'b>> {
-        let span_source = self.interner.lookup_intern_span_source(*id);
-        let span_source = span_source
-            .strip_prefix(self.src_dir)
-            .unwrap()
-            .to_path_buf();
-
-        struct SpanSourceDisplay(SpanSource);
+        struct SpanSourceDisplay(SpanSource, Option<String>);
 
         impl Display for SpanSourceDisplay {
             fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.0.display())
+                match &self.1 {
+                    Some(source_context) => write!(f, "{}({})", self.0.display(), source_context),
+                    None => write!(f, "{}", self.0.display()),
+                }
             }
         }
 
-        Some(Box::new(SpanSourceDisplay(span_source)))
+        let span_source = self.interner.lookup_intern_span_source(*id);
+        let span_source = span_source
+            .strip_prefix(self.src_dir)
+            .map(|it| it.to_path_buf())
+            .unwrap_or_else(|_| self.interner.lookup_intern_span_source(*id));
+
+        let source_context = self
+            .source_cache
+            .files
+            .get(&span_source)
+            .and_then(|it| it.source_context.as_ref())
+            .cloned();
+
+        Some(Box::new(SpanSourceDisplay(span_source, source_context)))
     }
 }
 

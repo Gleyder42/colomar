@@ -1,5 +1,7 @@
+use crate::trisult::Trisult;
 use hashlink::LinkedHashMap;
 use serde::Deserialize;
+use std::path::PathBuf;
 
 #[derive(Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Element {
@@ -24,4 +26,19 @@ pub struct Struct {
 #[derive(Deserialize, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Enum {
     pub constants: LinkedHashMap<String, String>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct ImplEntry<T> {
+    pub path: PathBuf,
+    pub value: T,
+}
+
+impl<T, E> Trisult<ImplEntry<T>, E> {
+    pub fn map_impl_entry<U>(self, func: impl FnOnce(T) -> U) -> Trisult<ImplEntry<U>, E> {
+        self.map(|entry| ImplEntry {
+            path: entry.path,
+            value: func(entry.value),
+        })
+    }
 }

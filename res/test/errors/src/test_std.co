@@ -1,3 +1,7 @@
 Player {
 
 }
+
+pub native event TestPlayerEvent() {
+    native var player: Player;
+}

@@ -190,7 +190,7 @@ impl Compiler {
         self.database.set_secondary_files(secondary_files);
 
         let mut lookup = LookupSourceCache {
-            source_cache: &self.source_cache,
+            source_cache: &mut self.source_cache,
             interner: &self.database,
             src_dir: &self.src_dir,
         };

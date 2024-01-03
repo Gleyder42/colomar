@@ -54,3 +54,12 @@ fn test_cannot_find_native_def() {
         );
     });
 }
+
+#[test]
+fn test_bad_ongoing_global() {
+    const BAD_NAME: &str = "Zarya";
+
+    test_template("bad_enum.co", |src| {
+        assert_patterns!(&src, "caused", "by", "Expected", BAD_NAME);
+    })
+}

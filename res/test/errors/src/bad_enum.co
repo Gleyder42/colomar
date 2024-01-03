@@ -1,0 +1,13 @@
+import test_std;
+
+native enum BadHero {
+    Zarya
+}
+
+Player {
+    var test: BadHero;
+}
+
+rule "Hello" TestPlayerEvent() {
+    player.test = BadHero.Zarya;
+}

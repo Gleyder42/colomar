@@ -27,6 +27,7 @@ pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<
                     .complete_with_span(event_decl.span)
                     .flat_map(|event| {
                         event
+                            .value
                             .args
                             .into_iter()
                             .map(|arg_name| {

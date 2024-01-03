@@ -186,7 +186,6 @@ pub(super) fn query_namespaced_rvalue(
             .ok_or_else(|| {
                 println!("{}", db.lookup_intern_string(ident.value));
                 namespace.print_content(db);
-
                 dbg!(CompilerError::CannotFindIdent(ident))
             })
             .into()

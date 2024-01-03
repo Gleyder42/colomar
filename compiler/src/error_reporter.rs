@@ -2,11 +2,11 @@ use super::cir::{CalledType, CalledTypes, Type};
 use super::database::CompilerDatabase;
 use super::error::{CompilerError, ErrorCause};
 use super::span::{CopyRange, Span, SpanInterner, SpanSourceId};
-use super::{wst, Ident, InternedName, OwnedRich, TextId};
+use super::{Ident, InternedName, OwnedRich, Text, TextId};
 use crate::analysis::interner::Interner;
 use crate::cst::Path;
 use crate::source_cache::{EmptyLookupSource, LookupSourceCache};
-use ariadne::{Color, Fmt, Label, ReportBuilder, ReportKind, Source};
+use ariadne::{Color, Fmt, Label, ReportBuilder, ReportKind};
 use chumsky::error::{Rich, RichPattern, RichReason};
 use either::Either;
 use std::borrow::Cow;
@@ -36,18 +36,6 @@ pub fn new_print_errors(
     output: &mut Cursor<Vec<u8>>,
 ) {
     for error in unique_errors {
-        match error {
-            CompilerError::WstParserError(source, errors, cause) => {
-                print_workshop_errors(errors, &source, db);
-                return;
-            }
-            CompilerError::WstLexerError(source, errors, cause) => {
-                print_workshop_errors(errors, &source, db);
-                return;
-            }
-            _ => {}
-        };
-
         let report: Report = match error.main_span() {
             Some(main_span) => ariadne::Report::build(
                 ReportKind::Error,
@@ -112,8 +100,29 @@ pub fn new_print_errors(
             CompilerError::CannotFindStruct(name, cause) => {
                 report_cannot_find_struct_error(name, cause, report, db)
             }
-            CompilerError::WstParserError(_, _, _) | CompilerError::WstLexerError(_, _, _) => {
-                unreachable!("WstParserError and WstLexerError are already checked")
+            CompilerError::WstParserError(path, selection, source, errors, cause) => {
+                report_wst_error(
+                    db,
+                    &mut source_cache,
+                    report,
+                    path,
+                    selection,
+                    &source,
+                    errors,
+                    cause,
+                )
+            }
+            CompilerError::WstLexerError(path, selection, source, errors, cause) => {
+                report_wst_error(
+                    db,
+                    &mut source_cache,
+                    report,
+                    path,
+                    selection,
+                    &source,
+                    errors,
+                    cause,
+                )
             }
         };
 
@@ -122,6 +131,25 @@ pub fn new_print_errors(
             .write(&mut source_cache, output.get_mut())
             .expect(PRINTING_ERROR_MESSAGE);
     }
+}
+
+fn report_wst_error<'a, T: Debug + InternedName>(
+    db: &CompilerDatabase,
+    source_cache: &mut Cache,
+    report: Report<'a>,
+    path: PathBuf,
+    selection: Text,
+    source: &str,
+    errors: Vec<OwnedRich<T, Span>>,
+    cause: ErrorCause,
+) -> Report<'a> {
+    source_cache.source_cache.set_file(path, selection, source);
+    let mut report = report;
+    for error in errors {
+        report = to_report(report, error.reason(), *error.span(), db);
+    }
+    report = add_cause(report, cause);
+    report
 }
 
 fn report_cannot_find_native_def_error(
@@ -320,6 +348,7 @@ pub fn print_cannot_find_primitive_decl(db: &CompilerDatabase, error_code: u16, 
     .unwrap();
 }
 
+// TODO take report as reference
 pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(
     report: ReportBuilder<'a, S>,
     reason: &RichReason<'a, T>,
@@ -330,32 +359,35 @@ pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(
         RichReason::ExpectedFound { found, expected } => {
             let message = match found {
                 Some(token) => {
-                    format!("Found {}", token.name(interner))
+                    format!("Unexpected token '{}' found", token.name(interner))
                 }
-                None => "No token".to_string(),
+                None => "Expected some token, but found none".to_string(),
             };
 
             let mut report = report.with_message(message);
 
+            let label = Label::new(span).with_color(ind::UNKNOWN);
+
+            // If expected is empty the loop will not execute and not add the label.
+            // Therefore, if expected is empty, we need to add it now.
+            if expected.is_empty() {
+                report.add_label(label.clone());
+            }
+
             for pattern in expected {
-                match pattern {
+                let label = label.clone();
+
+                let label = match pattern {
                     RichPattern::Token(token) => {
-                        report = report.with_label(
-                            Label::new(span.clone())
-                                .with_message(format!("Expected token {token:?}")),
-                        );
+                        label.with_message(format!("Expected token {token:?}"))
                     }
-                    RichPattern::Label(label) => {
-                        report = report.with_label(
-                            Label::new(span.clone())
-                                .with_message(format!("Expected label {label:?}")),
-                        );
+                    RichPattern::Label(label_str) => {
+                        label.with_message(format!("Expected label {label_str:?}"))
                     }
-                    RichPattern::EndOfInput => {
-                        report = report
-                            .with_label(Label::new(span.clone()).with_message("Expected no token"));
-                    }
-                }
+                    RichPattern::EndOfInput => label.with_message("Expected no token"),
+                };
+
+                report.add_label(label);
             }
             report
         }
@@ -369,29 +401,6 @@ pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(
             }
             report
         }
-    }
-}
-
-fn print_workshop_errors<T: Debug + InternedName>(
-    errors: Vec<OwnedRich<T, wst::Span>>,
-    source: &str,
-    db: &CompilerDatabase,
-) {
-    let mut source = Source::from(source);
-    for rich in errors {
-        let span = rich.span();
-
-        let report = to_report(
-            ariadne::Report::build(ReportKind::Error, (), span.start),
-            rich.reason(),
-            span.clone(),
-            db,
-        );
-
-        report
-            .finish()
-            .eprint(&mut source)
-            .expect(PRINTING_ERROR_MESSAGE);
     }
 }
 

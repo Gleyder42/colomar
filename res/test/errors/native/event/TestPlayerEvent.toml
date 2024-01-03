@@ -1,0 +1,6 @@
+name = "Ongoing - EachPlayer"
+
+args = []
+
+[context]
+player = "Event Player"
