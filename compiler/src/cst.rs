@@ -124,7 +124,7 @@ impl PathName {
 }
 
 impl PathName {
-    pub fn name(&self, db: &impl StringInterner) -> String {
+    pub fn name(&self, db: &dyn StringInterner) -> String {
         let vec = self
             .segments
             .iter()

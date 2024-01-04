@@ -9,7 +9,6 @@ fn file(name: impl AsRef<Path>) -> PathBuf {
 
 fn setup(name: impl AsRef<Path>) -> String {
     let path = file(name);
-    dbg!(path.exists());
     let mut compiler = Compiler::new(path);
 
     let (mut stdout, stderr) = compiler.compile();

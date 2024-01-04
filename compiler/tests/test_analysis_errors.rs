@@ -6,7 +6,7 @@ use test_common::assert_patterns;
 
 fn test_template(name: &str, assert: impl Fn(&str)) {
     let mut compiler = Compiler::new(PathBuf::from("../resources/test/errors"));
-    compiler.set_main_file_path(&format!("{name}.co"));
+    compiler.set_main_name(&format!("{name}.co"));
     let (stdout, stderr) = compiler.compile();
     let lossy_utf8 = String::from_utf8_lossy(&stderr).to_string();
 

@@ -1,4 +1,3 @@
-use crate::database::CompilerDatabase;
 use crate::span;
 use crate::span::{SpanInterner, SpanSource, SpanSourceId};
 use ariadne::Source;
@@ -31,13 +30,13 @@ impl CachedFile {
 }
 
 #[derive(Debug)]
-pub struct SourceCache {
-    pub directories: Vec<PathBuf>,
+pub struct FileFetcher {
+    directories: Vec<PathBuf>,
     files: HashMap<PathBuf, CachedFile>,
 }
 
-impl SourceCache {
-    pub fn new(path: PathBuf) -> SourceCache {
+impl FileFetcher {
+    pub fn new(path: PathBuf) -> FileFetcher {
         Self {
             directories: vec![path],
             files: HashMap::new(),
@@ -98,35 +97,17 @@ impl SourceCache {
     }
 }
 
-pub struct LookupSourceCache<'a> {
-    pub source_cache: &'a mut SourceCache,
-    pub interner: &'a CompilerDatabase,
+pub struct SourceCache<'a> {
+    pub source_cache: &'a mut FileFetcher,
+    pub interner: &'a dyn SpanInterner,
     pub src_dir: &'a PathBuf,
-}
-
-pub struct EmptyLookupSource(Source);
-
-impl Default for EmptyLookupSource {
-    fn default() -> Self {
-        EmptyLookupSource(Source::from(""))
-    }
-}
-
-impl ariadne::Cache<SpanSourceId> for EmptyLookupSource {
-    fn fetch(&mut self, _id: &SpanSourceId) -> Result<&Source, Box<dyn Debug + '_>> {
-        Ok(&self.0)
-    }
-
-    fn display<'a>(&self, _id: &'a SpanSourceId) -> Option<Box<dyn Display + 'a>> {
-        Some(Box::new("none"))
-    }
 }
 
 lazy_static! {
     static ref EMPTY_SOURCE: Source = Source::from("");
 }
 
-impl<'a> ariadne::Cache<SpanSourceId> for LookupSourceCache<'a> {
+impl<'a> ariadne::Cache<SpanSourceId> for SourceCache<'a> {
     fn fetch(&mut self, id: &SpanSourceId) -> Result<&Source, Box<dyn Debug + '_>> {
         let span_source = self.interner.lookup_intern_span_source(*id);
 
@@ -170,6 +151,24 @@ impl<'a> ariadne::Cache<SpanSourceId> for LookupSourceCache<'a> {
             .cloned();
 
         Some(Box::new(SpanSourceDisplay(span_source, source_context)))
+    }
+}
+
+pub struct EmptyLookupSource(Source);
+
+impl ariadne::Cache<SpanSourceId> for EmptyLookupSource {
+    fn fetch(&mut self, _id: &SpanSourceId) -> Result<&Source, Box<dyn Debug + '_>> {
+        Ok(&self.0)
+    }
+
+    fn display<'a>(&self, _id: &'a SpanSourceId) -> Option<Box<dyn Display + 'a>> {
+        Some(Box::new("none"))
+    }
+}
+
+impl Default for EmptyLookupSource {
+    fn default() -> Self {
+        EmptyLookupSource(Source::from(""))
     }
 }
 
@@ -232,7 +231,7 @@ mod tests {
     fn test_read_files_first_time() -> io::Result<()> {
         let (_temp_dir, src_dir, files) = setup()?;
         println!("{:?}", fs::read_dir(&src_dir)?);
-        let mut cache = SourceCache::new(src_dir);
+        let mut cache = FileFetcher::new(src_dir);
 
         let updated = cache.update_files()?;
 
@@ -258,7 +257,7 @@ mod tests {
     #[test]
     fn test_update_content_after_file_changed() -> io::Result<()> {
         let (_temp_dir, src_dir, files) = setup()?;
-        let mut cache = SourceCache::new(src_dir);
+        let mut cache = FileFetcher::new(src_dir);
 
         let _ = cache.update_files()?;
         let expected = "The first file has changed";
@@ -282,7 +281,7 @@ mod tests {
     #[test]
     fn test_newer_read_will_update_timestamp() -> io::Result<()> {
         let (_temp_dir, src_dir, _) = setup()?;
-        let mut cache = SourceCache::new(src_dir);
+        let mut cache = FileFetcher::new(src_dir);
 
         let _ = cache.update_files()?;
         // Let the test sleep for a short durations, so the System time changes

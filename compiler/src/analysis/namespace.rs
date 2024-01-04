@@ -139,7 +139,6 @@ pub(super) fn query_struct_namespace(
     let struct_id: StructId = db.lookup_intern_struct_decl(struct_decl_id).name.value;
 
     db.query_ast_struct_def(struct_id).flat_map(|struct_def| {
-        println!("{}", struct_def.len());
         let (properties, functions): (PropertyDecls, FunctionDecls) =
             flatten(struct_def, |it| (it.properties, it.functions));
 

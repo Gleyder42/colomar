@@ -9,7 +9,7 @@ use crate::error_reporter::{new_print_errors, DummyReportValues};
 use crate::language::lexer::Token;
 use crate::loader::WorkshopScriptLoader;
 use crate::printer::PrinterQuery;
-use crate::source_cache::{LookupSourceCache, SourceCache};
+use crate::source_cache::{FileFetcher, SourceCache};
 use crate::span::{CopyRange, SpanInterner, SpanSourceId, StringInterner};
 use chumsky::error::Rich;
 use chumsky::input::Input;
@@ -82,7 +82,7 @@ macro_rules! parser_alias {
 pub struct Compiler {
     dummy_values: DummyReportValues,
     database: CompilerDatabase,
-    source_cache: SourceCache,
+    source_cache: FileFetcher,
     main_file: PathBuf,
     src_dir: PathBuf,
 }
@@ -137,13 +137,13 @@ impl Compiler {
         let dummy_values = DummyReportValues::new(&database);
         let mut compiler = Compiler {
             database,
-            source_cache: SourceCache::new(src_dir.clone()),
+            source_cache: FileFetcher::new(src_dir.clone()),
             main_file: PathBuf::new(),
             src_dir,
             dummy_values,
         };
 
-        compiler.set_main_file_path(MAIN_FILE_NAME);
+        compiler.set_main_name(MAIN_FILE_NAME);
 
         let impl_path = project_dir.join(NATIVE_DIR_NAME);
         let elements = loader::read_impls(&impl_path);
@@ -153,7 +153,7 @@ impl Compiler {
         compiler
     }
 
-    pub fn set_main_file_path(&mut self, name: &str) {
+    pub fn set_main_name(&mut self, name: &str) {
         self.main_file = self.src_dir.join(name);
         self.database.set_main_file_name_with_durability(
             create_path_from_path_buf(&self.database, &self.src_dir, &self.main_file),
@@ -161,8 +161,13 @@ impl Compiler {
         );
     }
 
+    /// Compiles the sources into workshop format.
+    ///
+    /// Compiler returns two buffers.
+    /// - The left (or first) buffer contains data to be printed to [std::io::stdout()]
+    /// - The right (or second) buffer contains data to be printed to [std::io::stderr()]
     pub fn compile(&mut self) -> (Vec<u8>, Vec<u8>) {
-        let result = Self::parse(&mut self.source_cache, &self.database);
+        let result = parse(&mut self.source_cache, &self.database);
 
         let secondary_files: LinkedHashMap<_, _> = result
             .cst
@@ -184,28 +189,25 @@ impl Compiler {
 
         println!("Src dir: {}", self.src_dir.display());
         println!("Main file: {}", self.main_file.display());
-
-        let mut stderr = Cursor::new(Vec::new());
-
         self.database.set_secondary_files(secondary_files);
 
-        let mut lookup = LookupSourceCache {
+        let mut cache = SourceCache {
             source_cache: &mut self.source_cache,
             interner: &self.database,
             src_dir: &self.src_dir,
         };
+        let mut stderr = Cursor::new(Vec::new());
 
         error_reporter::write_error(
             result.parser_errors,
-            &mut lookup,
+            &mut cache,
             &self.database,
             |_, error| *error.span(),
             &mut stderr,
         );
-
         error_reporter::write_error(
             result.lexer_errors,
-            &mut lookup,
+            &mut cache,
             &self.database,
             |id, error| (id, error.span().into_range()),
             &mut stderr,
@@ -220,7 +222,7 @@ impl Compiler {
                 new_print_errors(
                     unique_errors,
                     &self.database,
-                    lookup,
+                    cache,
                     &mut self.dummy_values,
                     &mut stderr,
                 );
@@ -229,48 +231,48 @@ impl Compiler {
             }
         }
     }
+}
 
-    fn parse<'a>(
-        source_cache: &'a mut SourceCache,
-        interner: &'a CompilerDatabase,
-    ) -> CompilerParseResult<cst::Cst> {
-        let files = source_cache.update_files().unwrap();
+fn parse<'a>(
+    source_cache: &'a mut FileFetcher,
+    interner: &'a CompilerDatabase,
+) -> CompilerParseResult<cst::Cst> {
+    let files = source_cache.update_files().unwrap();
 
-        let mut parse_result = CompilerParseResult::new();
-        for (path, file) in files.iter() {
-            let span_source_id = interner.intern_span_source(path.clone());
+    let mut parse_result = CompilerParseResult::new();
+    for (path, file) in files.iter() {
+        let span_source_id = interner.intern_span_source(path.clone());
 
-            use language::lexer::lexer as colomar_lexer;
-            let (output, lexer_errors) = colomar_lexer(span_source_id, interner)
-                .parse(&file.content)
-                .into_output_errors();
-
-            parse_result
-                .lexer_errors
-                .push((span_source_id, into_owned(lexer_errors)));
-
-            if let Some(tokens) = output {
-                use language::parser::parser as colomar_parser;
-
-                let eoi = Span::new(
-                    span_source_id,
-                    CopyRange::from(tokens.len()..tokens.len() + 1),
-                );
-                let stream = ChumskyStream::from_iter(tokens.into_iter()).spanned(eoi);
-                let (output, parser_errors) = colomar_parser().parse(stream).into_output_errors();
-
-                parse_result
-                    .parser_errors
-                    .push((span_source_id, into_owned(parser_errors)));
-
-                parse_result.cst.push((path.clone(), output));
-            } else {
-                parse_result.cst.push((path.clone(), None));
-            }
-        }
+        use language::lexer::lexer as colomar_lexer;
+        let (output, lexer_errors) = colomar_lexer(span_source_id, interner)
+            .parse(&file.content)
+            .into_output_errors();
 
         parse_result
+            .lexer_errors
+            .push((span_source_id, into_owned(lexer_errors)));
+
+        if let Some(tokens) = output {
+            use language::parser::parser as colomar_parser;
+
+            let eoi = Span::new(
+                span_source_id,
+                CopyRange::from(tokens.len()..tokens.len() + 1),
+            );
+            let stream = ChumskyStream::from_iter(tokens.into_iter()).spanned(eoi);
+            let (output, parser_errors) = colomar_parser().parse(stream).into_output_errors();
+
+            parse_result
+                .parser_errors
+                .push((span_source_id, into_owned(parser_errors)));
+
+            parse_result.cst.push((path.clone(), output));
+        } else {
+            parse_result.cst.push((path.clone(), None));
+        }
     }
+
+    parse_result
 }
 
 pub trait InternedName {

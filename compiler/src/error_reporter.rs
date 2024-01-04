@@ -5,17 +5,15 @@ use super::span::{CopyRange, Span, SpanInterner, SpanSourceId, FAKE_SPAN_SOURCE_
 use super::{Ident, InternedName, OwnedRich, Text, TextId};
 use crate::analysis::interner::Interner;
 use crate::cst::Path;
-use crate::source_cache::{EmptyLookupSource, LookupSourceCache};
+use crate::source_cache::{EmptyLookupSource, SourceCache};
 use ariadne::{Color, Fmt, Label, ReportBuilder, ReportKind};
-use chumsky::error::{Rich, RichPattern, RichReason};
+use chumsky::error::{RichPattern, RichReason};
 use either::Either;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::io::Cursor;
 use std::path::PathBuf;
-
-pub type Cache<'a> = LookupSourceCache<'a>;
 
 type Report<'a> = ReportBuilder<'a, Span>;
 
@@ -28,10 +26,15 @@ mod ind {
 
 const PRINTING_ERROR_MESSAGE: &'static str = "Error while printing. This is an error";
 
+struct Params<'a> {
+    db: &'a dyn Interner,
+    report: Report<'a>,
+}
+
 pub fn new_print_errors(
     unique_errors: HashSet<CompilerError>,
     db: &CompilerDatabase,
-    mut source_cache: Cache,
+    mut cache: SourceCache,
     dummy_report_values: &mut DummyReportValues,
     output: &mut Cursor<Vec<u8>>,
 ) {
@@ -51,27 +54,29 @@ pub fn new_print_errors(
         }
         .with_code(error.error_code());
 
-        let report: Report = match error {
+        let mut params = Params { db, report };
+
+        match error {
             CompilerError::NotImplemented(name, span) => {
-                report_not_implemented_error(name, span, report)
+                report_not_implemented_error(&mut params, name, span);
             }
             CompilerError::DuplicateIdent { first, second } => {
-                report_duplicate_ident_error(first, second, report, db)
+                report_duplicate_ident_error(&mut params, first, second);
             }
             CompilerError::CannotFindIdent(ident) => {
-                report_cannot_find_ident_error(ident, report, db)
+                report_cannot_find_ident_error(&mut params, ident)
             }
             CompilerError::NotA(name, actual, expected) => {
-                report_not_a_error(name, actual, expected, report, db)
+                report_not_a_error(&mut params, name, actual, expected);
             }
             CompilerError::WrongType { expected, actual } => {
-                report_wrong_type_error(expected, actual, report, db)
+                report_wrong_type_error(&mut params, expected, actual);
             }
             CompilerError::CannotFindPrimitiveDecl(text_id, cause) => {
-                report_cannot_find_primitive_decl_error(text_id, cause, report, db)
+                report_cannot_find_primitive_decl_error(&mut params, text_id, cause);
             }
             CompilerError::CannotFindNativeDef(def, cause) => {
-                report_cannot_find_native_def_error(def, cause, report)
+                report_cannot_find_native_def_error(&mut params, def, cause);
             }
             CompilerError::PlaceholderError(_, _) => {
                 todo!()
@@ -97,223 +102,196 @@ pub fn new_print_errors(
             CompilerError::WrongTypeInBinaryExpr(_, _) => {
                 todo!()
             }
-            CompilerError::CannotFindFile(path) => report_cannot_find_file(path, report, db),
+            CompilerError::CannotFindFile(path) => {
+                report_cannot_find_file(&mut params, path);
+            }
             CompilerError::CannotFindStruct(name, cause) => {
-                report_cannot_find_struct_error(name, cause, report, db)
+                report_cannot_find_struct_error(&mut params, name, cause);
             }
             CompilerError::WstParserError(path, selection, source, errors, cause) => {
                 report_wst_error(
-                    db,
-                    &mut source_cache,
-                    report,
+                    &mut params,
+                    &mut cache,
                     path,
                     selection,
                     &source,
                     errors,
                     cause,
-                )
+                );
             }
             CompilerError::WstLexerError(path, selection, source, errors, cause) => {
                 report_wst_error(
-                    db,
-                    &mut source_cache,
-                    report,
+                    &mut params,
+                    &mut cache,
                     path,
                     selection,
                     &source,
                     errors,
                     cause,
-                )
+                );
             }
         };
 
-        report
+        params
+            .report
             .finish()
-            .write(&mut source_cache, output.get_mut())
+            .write(&mut cache, &mut *output)
             .expect(PRINTING_ERROR_MESSAGE);
     }
 }
 
-fn is_fake_span(db: &CompilerDatabase, span: Span) -> bool {
+fn is_fake_span(db: &dyn SpanInterner, span: Span) -> bool {
     db.lookup_intern_span_source(span.context) == FAKE_SPAN_SOURCE_NAME.as_os_str()
 }
 
-fn report_wst_error<'a, T: Debug + InternedName>(
-    db: &CompilerDatabase,
-    source_cache: &mut Cache,
-    report: Report<'a>,
+fn report_wst_error<T: Debug + InternedName>(
+    params: &mut Params,
+    source_cache: &mut SourceCache,
     path: PathBuf,
     selection: Text,
     source: &str,
     errors: Vec<OwnedRich<T, Span>>,
     cause: ErrorCause,
-) -> Report<'a> {
+) {
     source_cache.source_cache.set_file(path, selection, source);
-    let mut report = report;
     for error in errors {
-        report = to_report(report, error.reason(), *error.span(), db);
+        to_report(params.db, &mut params.report, error.reason(), *error.span());
     }
-    report = add_cause(report, cause);
-    report
+    add_cause(params, cause);
 }
 
 fn report_cannot_find_native_def_error(
+    params: &mut Params,
     string: String,
     error_cause: ErrorCause,
-    report: Report,
-) -> Report {
-    let report = report.with_message(format!(
+) {
+    params.report.set_message(format!(
         "Cannot find native definition for {}",
         string.fg(ind::UNKNOWN)
     ));
 
-    add_cause(report, error_cause)
+    add_cause(params, error_cause);
 }
 
-fn report_cannot_find_primitive_decl_error<'a>(
+fn report_cannot_find_primitive_decl_error(
+    params: &mut Params,
     text_id: TextId,
     error_cause: ErrorCause,
-    report: Report<'a>,
-    db: &CompilerDatabase,
-) -> Report<'a> {
-    let report = report.with_message(format!(
+) {
+    params.report.set_message(format!(
         "Cannot find primitive declaration {}",
-        text_id.name(db).fg(ind::UNKNOWN)
+        text_id.name(params.db).fg(ind::UNKNOWN)
     ));
 
-    add_cause(report, error_cause)
+    add_cause(params, error_cause)
 }
 
-fn add_cause(report: Report, error_cause: ErrorCause) -> Report {
+fn add_cause(params: &mut Params, error_cause: ErrorCause) {
     match error_cause {
-        ErrorCause::Span(span) => {
-            report.with_label(Label::new(span).with_message("Caused by this"))
-        }
-        ErrorCause::Message(message) => {
-            report.with_note(format!("This error occurred while {}", message))
-        }
+        ErrorCause::Span(span) => params
+            .report
+            .add_label(Label::new(span).with_message("Caused by this")),
+        ErrorCause::Message(message) => params
+            .report
+            .set_note(format!("This error occurred while {}", message)),
     }
 }
 
-fn report_cannot_find_file<'a>(
-    path: Path,
-    report: Report<'a>,
-    db: &CompilerDatabase,
-) -> Report<'a> {
-    let mut report = report.with_message(format!(
+fn report_cannot_find_file(params: &mut Params, path: Path) {
+    params.report.set_message(format!(
         "Cannot find file {}",
-        format!("src/{}.co", path.name.name(db)).fg(ind::UNKNOWN)
+        format!("src/{}.co", path.name.name(params.db)).fg(ind::UNKNOWN)
     ));
 
-    if !is_fake_span(db, path.span) {
-        report.add_label(
+    if !is_fake_span(params.db, path.span) {
+        params.report.add_label(
             Label::new(path.span)
                 .with_message("Cannot find an associated with that path")
                 .with_color(ind::UNKNOWN),
-        )
-    };
-
-    report
+        );
+    }
 }
 
-fn report_cannot_find_struct_error<'a>(
-    name: TextId,
-    error_cause: ErrorCause,
-    report: Report<'a>,
-    db: &CompilerDatabase,
-) -> Report<'a> {
-    let report = report.with_message(format!(
+fn report_cannot_find_struct_error(params: &mut Params, name: TextId, error_cause: ErrorCause) {
+    params.report.set_message(format!(
         "Cannot find {} struct",
-        name.name(db).fg(ind::UNKNOWN)
+        name.name(params.db).fg(ind::UNKNOWN)
     ));
 
-    add_cause(report, error_cause)
+    add_cause(params, error_cause);
 }
 
 fn report_wrong_type_error<'a>(
+    params: &mut Params,
     expected: Either<Type, CalledTypes>,
     actual: CalledType,
-    report: Report<'a>,
-    db: &CompilerDatabase,
-) -> Report<'a> {
-    let report = report.with_message("Wrong type");
+) {
+    params.report.set_message("Wrong type");
 
-    let report = match expected {
-        Either::Left(_type) => report,
-        Either::Right(called_types) => report.with_label(
-            Label::new(called_types.span)
-                .with_message("Expected")
-                .with_color(Color::Red),
-        ),
+    match expected {
+        Either::Left(_type) => {}
+        Either::Right(called_types) => {
+            params.report.add_label(
+                Label::new(called_types.span)
+                    .with_message("Expected")
+                    .with_color(Color::Red),
+            );
+        }
     };
 
-    report.with_label(
+    params.report.add_label(
         Label::new(actual.span)
-            .with_message(format!("Actual type is {}", actual.r#type.name(db)))
+            .with_message(format!("Actual type is {}", actual.r#type.name(params.db)))
             .with_color(Color::Blue),
     )
 }
 
-fn report_not_a_error<'a>(
-    name: &'a str,
-    expected: Ident,
-    actual: Ident,
-    report: Report<'a>,
-    db: &CompilerDatabase,
-) -> Report<'a> {
-    report
-        .with_message(format!("{} is not {}", name, expected.value.name(db)))
-        .with_label(
-            Label::new(actual.span)
-                .with_message(format!("Found {} here", actual.value.name(db)))
-                .with_color(Color::Magenta),
-        )
-        .with_label(
-            Label::new(expected.span).with_message(format!("Expected {}", expected.value.name(db))),
-        )
+fn report_not_a_error(params: &mut Params, name: &str, expected: Ident, actual: Ident) {
+    params.report.set_message(format!(
+        "{} is not {}",
+        name,
+        expected.value.name(params.db)
+    ));
+    params.report.add_labels([
+        Label::new(actual.span)
+            .with_message(format!("Found {} here", actual.value.name(params.db)))
+            .with_color(Color::Magenta),
+        Label::new(expected.span)
+            .with_message(format!("Expected {}", expected.value.name(params.db))),
+    ]);
 }
 
-fn report_cannot_find_ident_error<'a>(
-    ident: Ident,
-    report: Report<'a>,
-    db: &CompilerDatabase,
-) -> Report<'a> {
-    report
-        .with_message(format!("Cannot find {}", ident.value.name(db)))
-        .with_label(Label::new(ident.span).with_color(Color::Red))
+fn report_cannot_find_ident_error(params: &mut Params, ident: Ident) {
+    params
+        .report
+        .set_message(format!("Cannot find {}", ident.value.name(params.db)));
+    params
+        .report
+        .add_label(Label::new(ident.span).with_color(Color::Red));
 }
 
-fn report_duplicate_ident_error<'a>(
-    first: Ident,
-    second: Ident,
-    report: Report<'a>,
-    db: &CompilerDatabase,
-) -> Report<'a> {
-    report
-        .with_message(format!(
-            "Duplicated ident {}",
-            first.value.name(db).fg(ind::NAME)
-        ))
-        .with_label(
-            Label::new(first.span)
-                .with_message("First defined here")
-                .with_color(ind::NAME),
-        )
-        .with_label(
-            Label::new(second.span)
-                .with_message("Second defined here")
-                .with_color(Color::Blue),
-        )
+fn report_duplicate_ident_error(params: &mut Params, first: Ident, second: Ident) {
+    params.report.set_message(format!(
+        "Duplicated ident {}",
+        first.value.name(params.db).fg(ind::NAME)
+    ));
+    params.report.add_labels([
+        Label::new(first.span)
+            .with_message("First defined here")
+            .with_color(ind::NAME),
+        Label::new(second.span)
+            .with_message("Second defined here")
+            .with_color(Color::Blue),
+    ]);
 }
 
-fn report_not_implemented_error<'a>(
-    name: Cow<'a, str>,
-    span: Span,
-    report: Report<'a>,
-) -> Report<'a> {
-    report
-        .with_message(format!("{} is not implemented", name))
-        .with_label(Label::new(span).with_color(Color::Magenta))
+fn report_not_implemented_error(params: &mut Params, name: Cow<str>, span: Span) {
+    params
+        .report
+        .set_message(format!("{} is not implemented", name));
+    params
+        .report
+        .add_label(Label::new(span).with_color(Color::Magenta));
 }
 
 const COMPILER_ERROR: ReportKind =
@@ -357,23 +335,22 @@ pub fn print_cannot_find_primitive_decl(db: &CompilerDatabase, error_code: u16, 
     .unwrap();
 }
 
-// TODO take report as reference
 pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(
-    report: ReportBuilder<'a, S>,
+    db: &dyn Interner,
+    report: &mut ReportBuilder<'a, S>,
     reason: &RichReason<'a, T>,
     span: S,
-    interner: &dyn Interner,
-) -> ReportBuilder<'a, S> {
+) {
     match reason {
         RichReason::ExpectedFound { found, expected } => {
             let message = match found {
                 Some(token) => {
-                    format!("Unexpected token '{}' found", token.name(interner))
+                    format!("Unexpected token '{}' found", token.name(db))
                 }
                 None => "Expected some token, but found none".to_string(),
             };
 
-            let mut report = report.with_message(message);
+            report.set_message(message);
 
             let label = Label::new(span).with_color(ind::UNKNOWN);
 
@@ -398,26 +375,23 @@ pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(
 
                 report.add_label(label);
             }
-            report
         }
         RichReason::Custom(custom) => {
-            report.with_label(Label::new(span.clone()).with_message(custom))
+            report.add_label(Label::new(span.clone()).with_message(custom))
         }
         RichReason::Many(errors) => {
-            let mut report = report;
             for reason in errors {
-                report = to_report(report, reason, span.clone(), interner);
+                to_report(db, &mut *report, reason, span.clone());
             }
-            report
         }
     }
 }
 
 pub fn write_error<T, S, U>(
-    errors: Vec<(SpanSourceId, Vec<Rich<'static, T, U>>)>,
-    cache: &mut LookupSourceCache,
+    errors: Vec<(SpanSourceId, Vec<OwnedRich<T, U>>)>,
+    cache: &mut SourceCache,
     interner: &dyn Interner,
-    span_func: impl for<'a> Fn(SpanSourceId, &'a Rich<'static, T, U>) -> S,
+    span_func: impl for<'a> Fn(SpanSourceId, &'a OwnedRich<T, U>) -> S,
     out_stderr: &mut Cursor<Vec<u8>>,
 ) where
     T: Debug + InternedName,
@@ -426,8 +400,9 @@ pub fn write_error<T, S, U>(
     for (span_source_id, errors) in errors {
         for error in errors {
             let span = span_func(span_source_id, &error);
-            let report = ariadne::Report::build(ReportKind::Error, span_source_id, span.start());
-            let report = to_report(report, error.reason(), span, interner);
+            let mut report =
+                ariadne::Report::build(ReportKind::Error, span_source_id, span.start());
+            to_report::<_, S>(interner, &mut report, error.reason(), span);
             report
                 .finish()
                 .write(&mut *cache, &mut *out_stderr)
