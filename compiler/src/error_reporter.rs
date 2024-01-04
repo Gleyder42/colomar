@@ -1,4 +1,4 @@
-use super::cir::{CalledType, CalledTypes, Type};
+use super::cir::{CalledType, CalledTypes, DeclArgId, Type};
 use super::database::CompilerDatabase;
 use super::error::{CompilerError, ErrorCause};
 use super::span::{CopyRange, Span, SpanInterner, SpanSourceId, FAKE_SPAN_SOURCE_NAME};
@@ -81,14 +81,21 @@ pub fn new_print_errors(
             CompilerError::PlaceholderError(_, _) => {
                 todo!()
             }
-            CompilerError::MissingArg { .. } => {
-                todo!()
+            CompilerError::MissingArg {
+                call_site,
+                missing_arg,
+            } => {
+                report_missing_arg_error(&mut params, call_site, missing_arg);
             }
             CompilerError::CannotFindNamedArg(_) => {
                 todo!()
             }
-            CompilerError::ArgOutOfRange(_, _) => {
-                todo!()
+            CompilerError::ArgOutOfRange {
+                max_index,
+                span,
+                index,
+            } => {
+                report_arg_out_of_range(&mut params, max_index, index, span);
             }
             CompilerError::DuplicateNamedArg(_) => {
                 todo!()
@@ -138,6 +145,36 @@ pub fn new_print_errors(
             .write(&mut cache, &mut *output)
             .expect(PRINTING_ERROR_MESSAGE);
     }
+}
+
+fn report_missing_arg_error(params: &mut Params, span: Span, decl_arg_id: DeclArgId) {
+    params.report.set_message("Missing argument");
+
+    let arg = params.db.lookup_intern_decl_arg(decl_arg_id);
+
+    params.report.add_labels([
+        Label::new(span)
+            .with_color(Color::Cyan)
+            .with_message("Missing argument"),
+        Label::new(arg.name.span)
+            .with_message("Required argument")
+            .with_color(Color::Cyan),
+    ])
+}
+
+fn report_arg_out_of_range(params: &mut Params, max_index: usize, index: usize, span: Span) {
+    params.report.set_message("Too many arguments supplied");
+
+    let message = format!(
+        "{} argument is out of range, {} is maximum",
+        format!("{}th", index + 1).fg(Color::Cyan),
+        (max_index + 1).fg(Color::Cyan),
+    );
+    params.report.add_label(
+        Label::new(span)
+            .with_message(message)
+            .with_color(Color::Red),
+    );
 }
 
 fn is_fake_span(db: &dyn SpanInterner, span: Span) -> bool {

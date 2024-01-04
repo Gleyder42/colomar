@@ -7,8 +7,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
-    let mut compiler = Compiler::new(PathBuf::from("res\\test\\errors"));
-    compiler.set_main_name("bad_enum.co");
+    let mut compiler = Compiler::new(PathBuf::from("docs/tutorials/example/test"));
     let (mut stdout, mut stderr) = compiler.compile();
 
     io::stdout().write_all(&mut stdout).unwrap();

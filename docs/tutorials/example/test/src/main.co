@@ -19,6 +19,8 @@ struct array<T> {
 }
 
 rule "Init" OngoingEachPlayer() {
+    player.g = array.new(1, 2, 3, 4, 5);
+
     player.currentAimSpeed = 100;
     player.currentMoveSpeed = 100;
 }

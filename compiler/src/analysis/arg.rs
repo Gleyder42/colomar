@@ -83,7 +83,11 @@ pub(super) fn query_called_args(
                                     Ok((Some(index), decl_args))
                                 }
                                 None => {
-                                    let error = CompilerError::ArgOutOfRange(index, arg.span);
+                                    let error = CompilerError::ArgOutOfRange {
+                                        index,
+                                        span: arg.span,
+                                        max_index: decl_arg_ids.len() - 1,
+                                    };
                                     Par((Some(index), decl_args), vec![error])
                                 }
                             }
