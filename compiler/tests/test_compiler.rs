@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use test_common::assert_patterns;
 
 fn file(name: impl AsRef<Path>) -> PathBuf {
-    PathBuf::from("../res/test/projects").join(name)
+    PathBuf::from("../resources/test/projects").join(name)
 }
 
 fn setup(name: impl AsRef<Path>) -> String {

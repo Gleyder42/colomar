@@ -238,7 +238,7 @@ fn test_parser_result<'src, Ex, Ac, F>(
 
 fn nothing<A, B>(_: A, _: B) {}
 
-const TEST_DIR: &str = "../res/test";
+const TEST_DIR: &str = "../resources/test/parser";
 
 fn assert_call_chain(
     expected: impl IntoIterator<Item = IdentTestData>,
