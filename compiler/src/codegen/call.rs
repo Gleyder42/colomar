@@ -203,7 +203,7 @@ fn query_wst_call_by_function_call(
         .into_iter()
         .map(|arg| {
             db.query_wst_call(caller.clone(), cir::Action::from(arg.value))
-                .map(|call| (arg.name, call))
+                .map(|call| (arg.name, arg.is_vararg, call))
         })
         .collect::<QueryTrisult<Vec<_>>>()
         .and(wscript_function)
@@ -211,7 +211,21 @@ fn query_wst_call_by_function_call(
             // TODO Should the map be cloned here?
             let mut replacement_map = replacement_map.clone();
 
-            for (name, call) in args {
+            let (varargs, args) = args
+                .into_iter()
+                .partition::<Vec<_>, _>(|(_, is_vararg, _)| *is_vararg);
+
+            let vararg = varargs.first().map(|(name, _, _)| name).copied();
+            if let Some(vararg_name) = vararg {
+                let calls: Vec<_> = varargs.into_iter().map(|(_, _, call)| call).collect();
+                let call = wst::Call::Vararg(calls);
+                replacement_map.insert(
+                    Placeholder::from(format!("${}$", vararg_name.value.name(db))),
+                    call,
+                );
+            }
+
+            for (name, _, call) in args {
                 // TAssumes that .name(db) is correct here.
                 replacement_map.insert(
                     Placeholder::from(format!("${}$", name.value.name(db))),
@@ -367,7 +381,7 @@ pub fn query_wst_call_from_args(
     let supplied_args = called_args;
 
     const ERROR: &str = "Compiler Bug:
-            Not supplied arguments (e.g. arguments for a function)\
+            Not supplied arguments (e.g. arguments for a function) \
             should have default values when generating native code";
 
     let mut args: Vec<_> = defaulted_args

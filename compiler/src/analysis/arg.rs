@@ -7,9 +7,9 @@ use super::super::{cir, cst, Ident, QueryTrisult, TextId};
 
 use super::super::span::Spanned;
 use either::Either;
-use hashlink::LinkedHashSet;
+use hashlink::{LinkedHashMap, LinkedHashSet};
 use smallvec::smallvec;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 pub(super) fn query_declared_args(
     db: &dyn DeclQuery,
@@ -26,61 +26,83 @@ pub(super) fn query_called_args(
     called_arg_avalues: Spanned<Vec<(Option<Ident>, AValueChain)>>,
     decl_arg_ids: DeclArgIds,
 ) -> QueryTrisult<CalledArgs> {
-    let mut decl_args_map: HashMap<TextId, (usize, cir::DeclArgId)> = decl_arg_ids
+    /// Intermediate declared argument
+    struct ImDeclArg {
+        index: usize,
+        id: cir::DeclArgId,
+        is_vararg: bool,
+    }
+
+    let mut decl_args_map: LinkedHashMap<TextId, ImDeclArg> = decl_arg_ids
         .iter()
         .enumerate()
         .map(|(index, id)| {
             let decl_arg = db.lookup_intern_decl_arg(*id);
             let arg_name = decl_arg.name.value;
-            (arg_name, (index, *id))
+            (
+                arg_name,
+                ImDeclArg {
+                    index,
+                    id: *id,
+                    is_vararg: decl_arg.is_vararg,
+                },
+            )
         })
         .collect();
 
     let called_span = called_arg_avalues.span;
 
+    let vararg_id = decl_args_map
+        .back()
+        .filter(|(_, value)| value.is_vararg)
+        .map(|(_, value)| value.id);
+
     let called_args: Vec<_> = called_arg_avalues.value.into_iter().enumerate().collect();
 
-    let initial_accumulator: (Option<usize>, Vec<cir::CalledArg>) = (None, Vec::new());
+    let initial_accumulator: Option<usize> = None;
     QueryTrisult::Ok(called_args)
-        .fold_flat_map(
-            initial_accumulator,
-            |(_, args)| args,
-            |(last_index, mut decl_args), (index, (name, arg))| {
-                use super::super::Trisult::*;
-                let is_index_valid = |index| last_index.is_none() || last_index.unwrap() < index;
+        .reduce(initial_accumulator, |last_index, (index, (name, arg))| {
+            use super::super::Trisult::*;
+            let is_index_valid = |index| last_index.is_none() || last_index.unwrap() < index;
 
-                match name {
-                    // If the called arguments is named
-                    Some(name) => match decl_args_map.remove(&name.value) {
-                        Some((index, decl_arg_id)) => {
-                            if is_index_valid(index) {
-                                let called_arg = cir::CalledArg {
-                                    declared: decl_arg_id,
+            match name {
+                // If the called arguments is named
+                Some(name) => match decl_args_map.remove(&name.value) {
+                    Some(ImDeclArg { index, id, .. }) => {
+                        if is_index_valid(index) {
+                            let called_arg = cir::CalledArg {
+                                declared: id,
+                                value: arg,
+                            };
+                            Ok((Some(index), Some(called_arg)))
+                        } else {
+                            let error = CompilerError::CannotMixArgs(arg.span);
+                            Par((Some(index), None), vec![error])
+                        }
+                    }
+                    None => {
+                        let error = CompilerError::DuplicateNamedArg(name);
+                        Par((Some(index), None), vec![error])
+                    }
+                },
+                // If the called argument is not named
+                None => {
+                    if is_index_valid(index) {
+                        match decl_arg_ids.get(index) {
+                            Some(decl_arg_id) => {
+                                let called = cir::CalledArg {
+                                    declared: *decl_arg_id,
                                     value: arg,
                                 };
-                                decl_args.push(called_arg);
-                                Ok((Some(index), decl_args))
-                            } else {
-                                let error = CompilerError::CannotMixArgs(arg.span);
-                                Par((Some(index), decl_args), vec![error])
+                                Ok((Some(index), Some(called)))
                             }
-                        }
-                        None => {
-                            let error = CompilerError::DuplicateNamedArg(name);
-                            Par((Some(index), decl_args), vec![error])
-                        }
-                    },
-                    // If the called argument is not named
-                    None => {
-                        if is_index_valid(index) {
-                            match decl_arg_ids.get(index) {
-                                Some(decl_arg_id) => {
+                            None => match vararg_id {
+                                Some(id) => {
                                     let called = cir::CalledArg {
-                                        declared: *decl_arg_id,
+                                        declared: id,
                                         value: arg,
                                     };
-                                    decl_args.push(called);
-                                    Ok((Some(index), decl_args))
+                                    Ok((Some(index), Some(called)))
                                 }
                                 None => {
                                     let error = CompilerError::ArgOutOfRange {
@@ -88,17 +110,17 @@ pub(super) fn query_called_args(
                                         span: arg.span,
                                         max_index: decl_arg_ids.len() - 1,
                                     };
-                                    Par((Some(index), decl_args), vec![error])
+                                    Par((Some(index), None), vec![error])
                                 }
-                            }
-                        } else {
-                            let error = CompilerError::CannotMixArgs(arg.span);
-                            Par((Some(index), decl_args), vec![error])
+                            },
                         }
+                    } else {
+                        let error = CompilerError::CannotMixArgs(arg.span);
+                        Par((Some(index), None), vec![error])
                     }
                 }
-            },
-        )
+            }
+        })
         .flat_map(|called_args| {
             called_args
                 .into_iter()

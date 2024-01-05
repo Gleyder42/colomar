@@ -159,6 +159,8 @@ impl<T, E> Trisult<T, E> {
         self.and_or(other, O::default())
     }
 
+    /// Combines this result's value [T] with another result's value [O].
+    /// If other result is [Trisult::Err] use the default value, supplied to the function
     pub fn and_or<O>(self, other: Trisult<O, E>, default: O) -> Trisult<(T, O), E> {
         self.and_or_recover(
             |value, errors| Trisult::Par((value, default), errors),
@@ -338,6 +340,42 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
         F: Fn(A, T) -> Trisult<A, E>,
     {
         self.fold_flat_map(initial, |it| it, func)
+    }
+
+    pub fn reduce<C, F, A>(self, initial: A, mut func: F) -> Trisult<Vec<C>, E>
+    where
+        F: FnMut(A, T) -> Trisult<(A, Option<C>), E>,
+    {
+        self.flat_map(|iter| {
+            let mut errors = Vec::new();
+            let mut values = Vec::new();
+            let mut current = initial;
+
+            for item in iter.into_iter() {
+                let result = func(current, item);
+                match result {
+                    Trisult::Ok((acc, new_value)) => {
+                        current = acc;
+                        new_value.map(|it| values.push(it));
+                    }
+                    Trisult::Par((acc, new_value), mut result_errors) => {
+                        current = acc;
+                        new_value.map(|it| values.push(it));
+                        errors.append(&mut result_errors);
+                    }
+                    Trisult::Err(mut result_errors) => {
+                        errors.append(&mut result_errors);
+                        return Trisult::Err(errors);
+                    }
+                }
+            }
+
+            if errors.is_empty() {
+                Trisult::Ok(values)
+            } else {
+                Trisult::Par(values, errors)
+            }
+        })
     }
 
     pub fn fold_flat_map<U, A, F, M>(self, initial: A, map_func: M, mut func: F) -> Trisult<U, E>

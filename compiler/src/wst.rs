@@ -206,7 +206,10 @@ impl Display for Call {
             Call::String(it) => format!("\"{}\"", it.to_string()),
             Call::Number(it) => it.to_string(),
             Call::Ident(it) => it.to_string(),
-            Call::Vararg(calls) => return calls.iter().map(|it| Debug::fmt(&it, f)).collect(),
+            Call::Vararg(calls) => {
+                let string: Vec<_> = calls.iter().map(|it| it.to_string()).collect();
+                string.join(", ")
+            }
             Call::Boolean(it) => match *it {
                 true => "True".to_owned(),
                 false => "False".to_owned(),
