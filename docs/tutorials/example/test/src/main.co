@@ -11,15 +11,27 @@ Player {
     var c: bool;
 
     var g: array<num>;
+    var d: array<num>;
 }
 
 struct array<T> {
 
-    native static fn new(vararg elements: num);
+    native static fn new(vararg elements: T);
+
+    native static fn empty();
+
+    native fn add(element: T);
+
+    native fn removeByValue(element: T);
+
+    native fn removeByIndex(index: T);
 }
 
 rule "Init" OngoingEachPlayer() {
     player.g = array.new(1, 2, 3, 4, 5);
+
+    player.g.add(6);
+    player.g.removeByIndex(1);
 
     player.currentAimSpeed = 100;
     player.currentMoveSpeed = 100;

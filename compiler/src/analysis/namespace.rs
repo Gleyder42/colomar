@@ -182,11 +182,7 @@ pub(super) fn query_namespaced_rvalue(
     db.query_namespace(nameholders).flat_map(|namespace| {
         namespace
             .get(ident.value)
-            .ok_or_else(|| {
-                println!("{}", db.lookup_intern_string(ident.value));
-                namespace.print_content(db);
-                dbg!(CompilerError::CannotFindIdent(ident))
-            })
+            .ok_or_else(|| CompilerError::CannotFindIdent(ident))
             .into()
     })
 }
