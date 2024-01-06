@@ -1,5 +1,5 @@
 use super::analysis::interner::Interner;
-use super::span::{CopyRange, Span, Spanned, SpannedBool, StringInterner};
+use super::span::{CopyRange, Span, Spanned, SpannedBool};
 use super::{AssignMod, UseRestriction, DECL_GENERICS_LEN};
 use super::{
     Ident, TextId, CALLED_ARGS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN, ENUM_CONSTANTS_LEN,
@@ -193,7 +193,7 @@ impl VirtualTypeKind {
     }
 
     // TODO Put method name maybe in a trait?
-    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
+    pub fn name(&self, db: &dyn Interner) -> String {
         match self {
             VirtualTypeKind::Type(r#type) => r#type.name(db),
             VirtualTypeKind::Generic(ident) => ident.value.name(db),
@@ -219,7 +219,7 @@ pub enum TypeDesc {
 }
 
 impl TypeDesc {
-    pub fn is_partial(&self, db: &(impl Interner + ?Sized)) -> Option<bool> {
+    pub fn is_partial(&self, db: &dyn Interner) -> Option<bool> {
         match self {
             TypeDesc::Enum(_) => None,
             TypeDesc::Struct(r#struct) => {

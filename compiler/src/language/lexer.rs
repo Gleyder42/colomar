@@ -1,6 +1,6 @@
 extern crate core;
 
-use super::super::span::{Offset, Span, SpanSourceId, StringId, StringInterner};
+use super::super::span::{Offset, Span, SpanSourceId, StringId};
 use chumsky::prelude::*;
 
 use crate::analysis::interner::Interner;
@@ -86,7 +86,7 @@ pub type LexerExtra<'a> = extra::Err<Rich<'a, char>>;
 
 pub fn lexer(
     span_source_id: SpanSourceId,
-    string_interner: &(impl StringInterner + ?Sized),
+    string_interner: &dyn Interner,
 ) -> impl Parser<&str, Vec<(Token, Span)>, LexerExtra> {
     let num = text::int(10)
         .then(just('.').then(text::digits(10)).or_not())

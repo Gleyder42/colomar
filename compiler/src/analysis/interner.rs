@@ -40,13 +40,13 @@ pub trait Interner: StringInterner + SpanInterner {
 pub trait IntoInternId {
     type Interned;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned;
+    fn intern(self, db: &dyn Interner) -> Self::Interned;
 }
 
 impl IntoInternId for FunctionDecl {
     type Interned = FunctionDeclId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_function_decl(self)
     }
 }
@@ -54,7 +54,7 @@ impl IntoInternId for FunctionDecl {
 impl IntoInternId for PropertyDecl {
     type Interned = PropertyDeclId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_property_decl(self)
     }
 }
@@ -62,7 +62,7 @@ impl IntoInternId for PropertyDecl {
 impl IntoInternId for StructDecl {
     type Interned = StructDeclId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> StructDeclId {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_struct_decl(self)
     }
 }
@@ -70,7 +70,7 @@ impl IntoInternId for StructDecl {
 impl IntoInternId for EnumDecl {
     type Interned = EnumDeclId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> EnumDeclId {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_enum_decl(self)
     }
 }
@@ -78,7 +78,7 @@ impl IntoInternId for EnumDecl {
 impl IntoInternId for EnumConstant {
     type Interned = EnumConstantId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> EnumConstantId {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_enum_constant(self)
     }
 }
@@ -86,7 +86,7 @@ impl IntoInternId for EnumConstant {
 impl IntoInternId for EventDecl {
     type Interned = EventDeclId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> EventDeclId {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_event_decl(self)
     }
 }
@@ -94,7 +94,7 @@ impl IntoInternId for EventDecl {
 impl IntoInternId for DeclArg {
     type Interned = DeclArgId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> DeclArgId {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_decl_arg(self)
     }
 }
@@ -102,13 +102,13 @@ impl IntoInternId for DeclArg {
 impl IntoInternId for CalledArg {
     type Interned = CalledArgId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> Self::Interned {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_called_arg(self)
     }
 }
 
 impl RValue {
-    pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> Type {
+    pub fn r#type(&self, db: &dyn Interner) -> Type {
         match self {
             // What is the type of type?
             RValue::Type(r#type) => (*r#type).into(),
@@ -125,7 +125,7 @@ impl RValue {
         }
     }
 
-    pub fn name<I: Interner + ?Sized>(&self, db: &I) -> Ident {
+    pub fn name(&self, db: &dyn Interner) -> Ident {
         match *self {
             RValue::Type(r#type) => match r#type {
                 TypeDesc::Enum(r#enum) => db.lookup_intern_enum_decl(r#enum).name,
@@ -147,7 +147,7 @@ impl RValue {
 }
 
 impl AValue {
-    pub fn return_called_type<I: Interner + ?Sized>(&self, db: &I) -> CalledType {
+    pub fn return_called_type(&self, db: &dyn Interner) -> CalledType {
         match self {
             AValue::RValue(rvalue, span) => CalledType {
                 r#type: rvalue.r#type(db).into(),
@@ -169,13 +169,13 @@ impl AValue {
 }
 
 impl Type {
-    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
+    pub fn name(&self, db: &dyn Interner) -> String {
         self.desc.name(db)
     }
 }
 
 impl TypeDesc {
-    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
+    pub fn name(&self, db: &dyn Interner) -> String {
         match self {
             TypeDesc::Enum(decl_id) => db.lookup_intern_enum_decl(*decl_id).name.value.name(db),
             TypeDesc::Struct(decl_id) => db.lookup_intern_struct_decl(*decl_id).name.value.name(db),
@@ -184,7 +184,7 @@ impl TypeDesc {
         }
     }
 
-    pub fn decl_ident(&self, db: &(impl Interner + ?Sized)) -> Option<Ident> {
+    pub fn decl_ident(&self, db: &dyn Interner) -> Option<Ident> {
         match self {
             TypeDesc::Enum(r#enum) => Some(db.lookup_intern_enum_decl(*r#enum).name),
             TypeDesc::Struct(r#struct) => Some(db.lookup_intern_struct_decl(*r#struct).name),
@@ -195,13 +195,13 @@ impl TypeDesc {
 }
 
 impl CalledType {
-    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
+    pub fn name(&self, db: &dyn Interner) -> String {
         self.r#type.name(db)
     }
 }
 
 impl CalledTypes {
-    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
+    pub fn name(&self, db: &dyn Interner) -> String {
         self.types
             .iter()
             .map(|it| it.name(db))
@@ -218,9 +218,8 @@ where
 {
     /// Available for [Trisult] having an [IntoIterator] as value.
     /// Interns the inner value [T] of iterator [I] to it's interned value [Id]
-    pub fn intern_inner<Db, Iu>(self, db: &Db) -> Trisult<Iu, E>
+    pub fn intern_inner<Iu>(self, db: &dyn Interner) -> Trisult<Iu, E>
     where
-        Db: Interner + ?Sized,
         Iu: IntoIterator<Item = Id> + FromIterator<Id>,
     {
         self.map_inner(|t| t.intern(db))
@@ -228,7 +227,7 @@ where
 }
 
 impl<Id, T: IntoInternId<Interned = Id>, E> Trisult<T, E> {
-    pub fn intern<Db: Interner + ?Sized>(self, db: &Db) -> Trisult<Id, E> {
+    pub fn intern(self, db: &dyn Interner) -> Trisult<Id, E> {
         self.map(|it| it.intern(db))
     }
 }

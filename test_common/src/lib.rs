@@ -1,3 +1,4 @@
+use compiler::analysis::interner::InternerDatabase;
 use compiler::span::SpanInterner;
 use compiler::span::SpanInternerDatabase;
 use compiler::span::SpanSourceId;
@@ -7,7 +8,8 @@ use regex::RegexBuilder;
 #[salsa::database(
     SpanInternerDatabase,
     TestDatabaseHelperDatabase,
-    StringInternerDatabase
+    StringInternerDatabase,
+    InternerDatabase
 )]
 #[derive(Default)]
 pub struct TestDatabase {

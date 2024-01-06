@@ -106,7 +106,7 @@ impl<T> CompilerParseResult<T> {
 }
 
 pub fn create_path_from_path_buf(
-    interner: &impl StringInterner,
+    interner: &dyn StringInterner,
     prefix: &PathBuf,
     path: &PathBuf,
 ) -> cst::PathName {

@@ -337,7 +337,7 @@ const COMPILER_ERROR: ReportKind =
 pub struct DummyReportValues(Span, EmptyLookupSource);
 
 impl DummyReportValues {
-    pub fn new(db: &impl SpanInterner) -> Self {
+    pub fn new(db: &dyn SpanInterner) -> Self {
         let dummy_span = Span {
             offset: CopyRange { start: 0, end: 0 },
             context: db.intern_span_source(PathBuf::from("DummySpanSource")),

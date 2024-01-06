@@ -1,4 +1,5 @@
 use super::Text;
+use crate::analysis::interner::Interner;
 use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
 use lazy_static::lazy_static;
@@ -129,7 +130,7 @@ pub trait StringInterner {
 }
 
 impl StringId {
-    pub fn name(&self, interner: &(impl StringInterner + ?Sized)) -> Text {
+    pub fn name(&self, interner: &dyn Interner) -> Text {
         interner.lookup_intern_string(*self)
     }
 }
@@ -143,7 +144,7 @@ pub struct FatSpan {
 }
 
 impl FatSpan {
-    pub fn from_span(db: &impl SpanInterner, span: Span) -> FatSpan {
+    pub fn from_span(db: &dyn SpanInterner, span: Span) -> FatSpan {
         FatSpan {
             location: span.offset,
             source: db.lookup_intern_span_source(span.context),

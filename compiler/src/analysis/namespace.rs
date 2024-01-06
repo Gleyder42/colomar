@@ -10,7 +10,6 @@ use super::super::{flatten, Ident, QueryTrisult, StructId, TextId};
 use crate::{cir, cst, query_error, tri, PartialQueryTrisult};
 
 use super::super::cst::{FunctionDecls, PropertyDecls};
-use super::super::span::StringInterner;
 use crate::error::PartialCompilerError;
 use crate::trisult::{Errors, IntoTrisult};
 use colomar_macros::Interned;
@@ -330,7 +329,7 @@ pub struct Namespace {
     map: LinkedHashMap<TextId, RValue>,
 }
 
-pub fn empty_namespace(db: &(impl Interner + ?Sized)) -> NamespaceId {
+pub fn empty_namespace(db: &dyn Interner) -> NamespaceId {
     Rc::new(Namespace::new()).intern(db)
 }
 
@@ -342,14 +341,14 @@ impl Namespace {
         }
     }
 
-    pub fn print_content(&self, db: &(impl StringInterner + Interner + ?Sized)) {
+    pub fn print_content(&self, db: &dyn Interner) {
         self.parent.iter().for_each(|it| it.print_content(db));
         for (key, value) in &self.map {
             println!("{} | {:?}", db.lookup_intern_string(*key), value.name(db))
         }
     }
 
-    pub fn from_enum_def(db: &(impl Interner + ?Sized), def: EnumDef) -> Namespace {
+    pub fn from_enum_def(db: &dyn Interner, def: EnumDef) -> Namespace {
         let map = def
             .constants
             .into_iter()
@@ -368,12 +367,12 @@ impl Namespace {
     }
 
     /// Ignore duplicates to support partial structs
-    fn add<I: Interner + ?Sized>(
+    fn add(
         &mut self,
         allow_duplicates: bool,
         ident: Ident,
         rvalue: RValue,
-        db: &I,
+        db: &dyn Interner,
     ) -> Result<(), CompilerError> {
         match (self.contains(ident.value), allow_duplicates) {
             (Some(root), false) => {
@@ -414,7 +413,7 @@ impl Namespace {
 impl IntoInternId for Rc<Namespace> {
     type Interned = NamespaceId;
 
-    fn intern<T: Interner + ?Sized>(self, db: &T) -> NamespaceId {
+    fn intern(self, db: &dyn Interner) -> Self::Interned {
         db.intern_namespace(self)
     }
 }
@@ -441,7 +440,7 @@ impl From<TypeDesc> for Nameholder {
 }
 
 impl Nameholder {
-    pub fn from_rvalue(value: RValue, db: &(impl Interner + ?Sized)) -> Self {
+    pub fn from_rvalue(value: RValue, db: &dyn Interner) -> Self {
         match value {
             RValue::Type(r#type) => r#type.into(),
             RValue::EnumConstant(enum_constant_id) => {

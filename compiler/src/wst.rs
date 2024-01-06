@@ -1,5 +1,5 @@
-use super::span::StringInterner;
 use super::{Op, Text, TextId};
+use crate::analysis::interner::Interner;
 use smol_str::SmolStr;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
@@ -134,7 +134,7 @@ pub mod partial {
 pub struct Ident(pub SmolStr);
 
 impl Ident {
-    pub fn from_ident(ident: super::Ident, interner: &(impl StringInterner + ?Sized)) -> Self {
+    pub fn from_ident(ident: super::Ident, interner: &dyn Interner) -> Self {
         Self(interner.lookup_intern_string(ident.value).into())
     }
 }

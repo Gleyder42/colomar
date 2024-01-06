@@ -2,15 +2,14 @@ use anyhow::anyhow;
 use chumsky::input::Stream;
 use chumsky::prelude::{end, Input};
 use chumsky::Parser;
+use compiler::analysis::interner::Interner;
 use compiler::assert_iterator;
 use compiler::cst::{Call, DeclArg, Expr, Rule};
 use compiler::language::lexer::{lexer, Token};
 use compiler::language::parser::{
     chain, declared_arg, expression, r#enum, rule, ParserExtra, ParserInput,
 };
-use compiler::span::{
-    CopyRange, Offset, Span, SpanInterner, SpanSourceId, Spanned, StringInterner,
-};
+use compiler::span::{CopyRange, Offset, Span, SpanSourceId, Spanned};
 use serde::Deserialize;
 use std::fmt::Debug;
 use std::fs;
@@ -148,7 +147,7 @@ fn read_test_data<T: for<'a> serde::Deserialize<'a>>(
 
 fn parse_code<'src, T>(
     span_source_id: SpanSourceId,
-    interner: &(impl StringInterner + SpanInterner + ?Sized),
+    interner: &dyn Interner,
     code: &str,
     parser: &impl Parser<'src, ParserInput, T, ParserExtra<'src>>,
 ) -> anyhow::Result<T> {
@@ -168,7 +167,7 @@ fn parse_code<'src, T>(
 
 fn lex_code(
     span_source_id: SpanSourceId,
-    interner: &(impl StringInterner + ?Sized),
+    interner: &dyn Interner,
     code: &str,
 ) -> anyhow::Result<Vec<(Token, Span)>> {
     lexer(span_source_id, interner)
@@ -189,7 +188,7 @@ fn test_parser_result<'src, Ex, Ac, F>(
     should_panic: bool,
     parser: impl Parser<'src, ParserInput, Ac, ParserExtra<'src>>,
     assertion: F,
-    interner: &(impl StringInterner + SpanInterner + ?Sized),
+    interner: &dyn Interner,
 ) where
     Ac: Debug,
     Ex: for<'a> serde::Deserialize<'a>,
@@ -243,7 +242,7 @@ const TEST_DIR: &str = "../resources/test/parser";
 fn assert_call_chain(
     expected: impl IntoIterator<Item = IdentTestData>,
     actual: impl IntoIterator<Item = Box<Call>>,
-    db: &impl StringInterner,
+    db: &dyn Interner,
 ) {
     actual.into_iter()
         .zip(expected)
@@ -394,7 +393,7 @@ fn test_valid_expr() {
     let key = ResKey::new(TEST_DIR, "expr", "valid");
     let db = TestDatabase::default();
 
-    fn assertion(expected: ExprTestData, actual: Expr, db: &impl StringInterner) {
+    fn assertion(expected: ExprTestData, actual: Expr, db: &dyn Interner) {
         match (expected, actual) {
             (ExprTestData::Chain(expected), Expr::Chain(actual)) => {
                 assert_call_chain(expected.idents.into_iter(), actual, db);
