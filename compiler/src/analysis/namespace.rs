@@ -7,7 +7,7 @@ use super::super::cir::{
 use super::super::error::CompilerError;
 use super::super::trisult::Trisult;
 use super::super::{flatten, Ident, QueryTrisult, StructId, TextId};
-use crate::{query_error, tri, PartialQueryTrisult};
+use crate::{cir, query_error, tri, PartialQueryTrisult};
 
 use super::super::cst::{FunctionDecls, PropertyDecls};
 use super::super::span::StringInterner;
@@ -277,6 +277,18 @@ pub enum Nameholder {
     Event(EventDeclId),
 }
 
+impl From<&cir::VirtualType> for Nameholder {
+    fn from(value: &VirtualType) -> Self {
+        Nameholder::from(value.r#type)
+    }
+}
+
+impl From<cir::VirtualType> for Nameholder {
+    fn from(value: VirtualType) -> Self {
+        Nameholder::from(value.r#type)
+    }
+}
+
 // TODO Reduce this to 1
 pub type Nameholders = SmallVec<[Nameholder; 2]>;
 
@@ -284,18 +296,6 @@ pub type Nameholders = SmallVec<[Nameholder; 2]>;
 pub enum EnumNameholder {
     ByEnum(EnumDeclId),
     ByConstant(EnumConstantId),
-}
-
-impl From<VirtualType> for Nameholder {
-    fn from(value: VirtualType) -> Self {
-        Nameholder::from(value.r#type)
-    }
-}
-
-impl From<&VirtualType> for Nameholder {
-    fn from(value: &VirtualType) -> Self {
-        Nameholder::from(value.r#type)
-    }
 }
 
 impl From<EnumNameholder> for Nameholder {

@@ -6,6 +6,9 @@ use super::super::error::CompilerError;
 use super::super::{cir, cst, Ident, QueryTrisult, TextId};
 
 use super::super::span::Spanned;
+use crate::cir::{GenericTypeBoundMap, VirtualTypeKind};
+use crate::tri;
+use crate::trisult::{Errors, IntoTrisult};
 use either::Either;
 use hashlink::{LinkedHashMap, LinkedHashSet};
 use smallvec::smallvec;
@@ -14,10 +17,11 @@ use std::collections::HashSet;
 pub(super) fn query_declared_args(
     db: &dyn DeclQuery,
     decl_args: cst::DeclArgs,
+    generic_names: LinkedHashSet<TextId>,
 ) -> QueryTrisult<DeclArgIds> {
     decl_args
         .into_iter()
-        .map(|decl_arg| db.query_declared_arg(decl_arg))
+        .map(|decl_arg| db.query_declared_arg(decl_arg, generic_names.clone())) // TODO can we prevent cloning here?
         .collect::<QueryTrisult<_>>()
 }
 
@@ -25,6 +29,7 @@ pub(super) fn query_called_args(
     db: &dyn DeclQuery,
     called_arg_avalues: Spanned<Vec<(Option<Ident>, AValueChain)>>,
     decl_arg_ids: DeclArgIds,
+    type_hint: Option<CalledType>,
 ) -> QueryTrisult<CalledArgs> {
     /// Intermediate declared argument
     struct ImDeclArg {
@@ -128,16 +133,32 @@ pub(super) fn query_called_args(
                     let decl_arg: cir::DeclArg = db.lookup_intern_decl_arg(called_arg.declared);
                     let called_type = called_arg.value.returning_avalue().return_called_type(db);
 
-                    if decl_arg.types.contains_type(&called_type.r#type) {
-                        QueryTrisult::Ok(called_arg)
+                    let bound_map = type_hint
+                        .clone()
+                        .map(|it| db.query_generic_type_bound_map(it))
+                        .unwrap_or(QueryTrisult::Ok(GenericTypeBoundMap::new()));
+                    let mut errors = Errors::new();
+                    let bound_map = tri!(bound_map, errors);
+
+                    let virtual_type = match &called_type.r#type {
+                        VirtualTypeKind::Type(it) => it,
+                        VirtualTypeKind::Generic(_) => {
+                            let error = CompilerError::NotImplemented(
+                                "Type must not be generic".into(),
+                                called_type.span,
+                            );
+                            return errors.fail(error);
+                        }
+                    };
+
+                    if decl_arg.types.contains_type(virtual_type, &bound_map) {
+                        errors.value(called_arg)
                     } else {
-                        QueryTrisult::Par(
-                            called_arg,
-                            vec![CompilerError::WrongType {
-                                expected: Either::Right(decl_arg.types),
-                                actual: called_type,
-                            }],
-                        )
+                        let error = CompilerError::WrongType {
+                            expected: Either::Right(decl_arg.types),
+                            actual: called_type,
+                        };
+                        errors.par(called_arg, error)
                     }
                 })
                 .collect::<QueryTrisult<Vec<cir::CalledArg>>>()
@@ -166,27 +187,37 @@ pub(super) fn query_called_args(
             errors
         })
         .map(|called_args| called_args.into())
+        .fail_when_par()
 }
 
 pub(super) fn query_declared_arg(
     db: &dyn DeclQuery,
     decl_arg: cst::DeclArg,
+    generic_names: LinkedHashSet<TextId>,
 ) -> QueryTrisult<cir::DeclArgId> {
     let default_value_option = decl_arg
         .default_value
-        .map(|call_chain| db.query_call_chain(smallvec![Nameholder::Root], call_chain));
+        .map(|call_chain| db.query_call_chain(smallvec![Nameholder::Root], call_chain, None));
 
     decl_arg
         .types
         .clone()
         .into_iter()
         .map(|r#type| {
-            let span = r#type.ident.span;
-            db.query_namespaced_type(smallvec![Nameholder::Root], r#type.ident.clone())
-                .map(|r#type| CalledType {
-                    r#type: r#type.into(),
-                    span,
-                })
+            if generic_names.contains(&r#type.ident.value) {
+                let called_type = CalledType {
+                    r#type: VirtualTypeKind::Generic(r#type.ident),
+                    span: r#type.ident.span,
+                };
+                QueryTrisult::Ok(called_type)
+            } else {
+                let span = r#type.ident.span;
+                db.query_namespaced_type2(smallvec![Nameholder::Root], r#type)
+                    .map(|r#type| CalledType {
+                        r#type: r#type.into(),
+                        span,
+                    })
+            }
         })
         .collect::<QueryTrisult<Vec<CalledType>>>()
         .and_maybe(default_value_option)

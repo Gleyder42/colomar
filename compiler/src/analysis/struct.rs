@@ -4,6 +4,7 @@ use super::super::analysis::interner::IntoInternId;
 use super::super::cir::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, Type};
 use super::super::QueryTrisult;
 use super::super::{cir, cst, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
+use hashlink::LinkedHashSet;
 
 use super::super::trisult::Errors;
 use crate::tri;
@@ -45,6 +46,7 @@ pub(super) fn query_struct_decl(
         name: r#struct.name,
         is_partial: r#struct.is_partial,
         is_native: r#struct.is_native,
+        generics: r#struct.generics,
     }
     .intern(db)
 }
@@ -54,9 +56,22 @@ pub(super) fn query_struct_functions(
     struct_decl_id: cir::StructDeclId,
     functions: cst::FunctionDecls,
 ) -> QueryTrisult<FunctionDeclIds> {
+    let struct_decl = db.lookup_intern_struct_decl(struct_decl_id);
+    let generic_names: LinkedHashSet<_> = struct_decl
+        .generics
+        .into_iter()
+        .map(|it| it.value)
+        .collect();
+
     functions
         .into_iter()
-        .map(|function_decl| db.query_function_decl(Some(struct_decl_id.into()), function_decl))
+        .map(|function_decl| {
+            db.query_function_decl(
+                Some(struct_decl_id.into()),
+                function_decl,
+                generic_names.clone(),
+            )
+        })
         .collect::<QueryTrisult<SmallVec<[FunctionDecl; FUNCTIONS_DECLS_LEN]>>>()
         .intern_inner(db)
 }

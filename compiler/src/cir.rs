@@ -1,16 +1,17 @@
 use super::analysis::interner::Interner;
-use super::span::{CopyRange, Span, Spanned, SpannedBool};
-use super::{AssignMod, UseRestriction};
+use super::span::{CopyRange, Span, Spanned, SpannedBool, StringInterner};
+use super::{AssignMod, UseRestriction, DECL_GENERICS_LEN};
 use super::{
     Ident, TextId, CALLED_ARGS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN, ENUM_CONSTANTS_LEN,
     FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use colomar_macros::Interned;
-use hashlink::LinkedHashSet;
+use hashlink::{LinkedHashMap, LinkedHashSet};
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 
+pub type DeclGenerics = SmallVec<[Ident; DECL_GENERICS_LEN]>;
 pub type DeclArgIds = SmallVec<[DeclArgId; DECL_ARGS_LEN]>;
 pub type FunctionDeclIds = SmallVec<[FunctionDeclId; FUNCTIONS_DECLS_LEN]>;
 pub type PropertyDecls = SmallVec<[PropertyDecl; PROPERTY_DECLS_LEN]>;
@@ -94,6 +95,7 @@ pub struct StructDecl {
     pub is_partial: SpannedBool,
     pub is_native: SpannedBool,
     pub name: Ident,
+    pub generics: DeclGenerics,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -133,10 +135,70 @@ pub struct BoundGeneric {
 }
 
 // TODO Virtual type is not the best description
+// Rename Type to TypeDesc
+// Rename VirtualType to Type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VirtualType {
     pub r#type: Type,
     pub generics: Vec<BoundGeneric>,
+}
+
+impl PartialEq<StructDeclId> for CalledType {
+    // TODO this functions should not exist in its current state
+    fn eq(&self, other: &StructDeclId) -> bool {
+        let r#type = match &self.r#type {
+            VirtualTypeKind::Type(it) => it,
+            VirtualTypeKind::Generic(_) => return false,
+        };
+
+        if !r#type.generics.is_empty() {
+            return false;
+        }
+
+        // TODO how to compare generic structs
+        match r#type.r#type {
+            Type::Enum(_) => false,
+            Type::Struct(id) => id == *other,
+            Type::Event(_) => false,
+            Type::Unit => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum VirtualTypeKind {
+    Type(VirtualType),
+    Generic(Ident),
+}
+
+impl From<Type> for VirtualTypeKind {
+    fn from(value: Type) -> Self {
+        VirtualTypeKind::Type(VirtualType::from(value))
+    }
+}
+
+impl From<VirtualType> for VirtualTypeKind {
+    fn from(value: VirtualType) -> Self {
+        VirtualTypeKind::Type(value)
+    }
+}
+
+impl VirtualTypeKind {
+    /// Checks if the virtual type has generics, but of if the type itself is generic
+    pub fn has_generics(&self) -> bool {
+        match self {
+            VirtualTypeKind::Type(r#type) => !r#type.generics.is_empty(),
+            VirtualTypeKind::Generic(_) => false,
+        }
+    }
+
+    // TODO Put method name maybe in a trait?
+    pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
+        match self {
+            VirtualTypeKind::Type(r#type) => r#type.name(db),
+            VirtualTypeKind::Generic(ident) => ident.value.name(db),
+        }
+    }
 }
 
 impl VirtualType {}
@@ -199,24 +261,8 @@ pub struct Predicate(pub Expr);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CalledType {
-    pub r#type: VirtualType,
+    pub r#type: VirtualTypeKind,
     pub span: Span,
-}
-
-impl PartialEq<StructDeclId> for CalledType {
-    fn eq(&self, other: &StructDeclId) -> bool {
-        if !self.r#type.generics.is_empty() {
-            return false;
-        }
-
-        // TODO how to compare generic structs
-        match self.r#type.r#type {
-            Type::Enum(_) => false,
-            Type::Struct(id) => id == *other,
-            Type::Event(_) => false,
-            Type::Unit => false,
-        }
-    }
 }
 
 impl TypeComparison<CalledType> for CalledType {
@@ -232,14 +278,19 @@ pub trait TypeComparison<Rhs> {
 impl Display for CalledType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // TODO Write a proper display
-        write!(f, "{}", self.r#type.r#type)
+        write!(f, "{:?}", self.r#type)
     }
 }
 
 impl TypeComparison<StructDeclId> for CalledType {
     fn has_same_return_type(&self, rhs: &StructDeclId) -> bool {
-        match self.r#type.r#type {
-            Type::Struct(r#struct) if self.r#type.generics.is_empty() => r#struct == *rhs,
+        let r#type = match &self.r#type {
+            VirtualTypeKind::Type(r#type) => r#type,
+            VirtualTypeKind::Generic(_) => return false,
+        };
+
+        match r#type.r#type {
+            Type::Struct(r#struct) if r#type.generics.is_empty() => r#struct == *rhs,
             _ => false,
         }
     }
@@ -262,9 +313,19 @@ impl From<CalledType> for CalledTypes {
     }
 }
 
+pub type GenericTypeBoundMap = LinkedHashMap<TextId, VirtualType>;
+
 impl CalledTypes {
-    pub fn contains_type(&self, r#type: &VirtualType) -> bool {
-        self.types.iter().any(|it| it.r#type == *r#type)
+    pub fn contains_type(&self, r#type: &VirtualType, bound_map: &GenericTypeBoundMap) -> bool {
+        self.types
+            .iter()
+            .any(|called_type| match &called_type.r#type {
+                VirtualTypeKind::Type(other_type) => r#type == other_type,
+                VirtualTypeKind::Generic(ident) => bound_map
+                    .get(&ident.value)
+                    .map(|it| it == r#type)
+                    .unwrap_or(false),
+            })
     }
 }
 

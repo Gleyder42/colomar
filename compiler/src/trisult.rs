@@ -46,7 +46,25 @@ impl<T, E: Debug> Trisult<T, E> {
     }
 }
 
+impl<T, E> Trisult<Trisult<T, E>, E> {
+    pub fn flatten(self) -> Trisult<T, E> {
+        match self {
+            Trisult::Ok(value) => value,
+            Trisult::Par(value, errors) => value.merge_errors(Errors::from(errors)),
+            Trisult::Err(errors) => Trisult::Err(errors),
+        }
+    }
+}
+
 impl<T, E> Trisult<T, E> {
+    pub fn fail_when_par(self) -> Trisult<T, E> {
+        match self {
+            Trisult::Ok(value) => Trisult::Ok(value),
+            Trisult::Par(_, errors) => Trisult::Err(errors),
+            err @ Trisult::Err(_) => err,
+        }
+    }
+
     pub fn inner_into_some(self) -> Trisult<Option<T>, E> {
         self.map(|value| Some(value))
     }
@@ -541,6 +559,12 @@ pub struct Errors<E> {
     vec: Vec<E>,
 }
 
+impl<E> From<Vec<E>> for Errors<E> {
+    fn from(value: Vec<E>) -> Self {
+        Errors { vec: value }
+    }
+}
+
 impl<E> Errors<E> {
     pub fn new() -> Self {
         Self { vec: Vec::new() }
@@ -560,7 +584,16 @@ impl<E> Errors<E> {
     ///
     /// If you have one more error to add, use [Errors::fail] instead.
     pub fn fail_directly<T>(self) -> Trisult<T, E> {
+        // TODO make this check with trisult.
+        // Maybe encapsulate trisult more?
+        // Maybe make an non empty vec
+        assert!(!self.vec.is_empty(), "errors must not be empty");
         Trisult::Err(self.vec)
+    }
+
+    pub fn par<T>(mut self, value: T, error: E) -> Trisult<T, E> {
+        self.vec.push(error);
+        Trisult::Par(value, self.vec)
     }
 
     /// Returns [Trisult::Err] with all previously collected errors, but also

@@ -9,11 +9,12 @@ use super::super::cst::{Actions, TypeRoot};
 use super::super::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, TextId};
 
 use super::super::span::Spanned;
+use crate::cir::{CalledType, GenericTypeBoundMap};
 use crate::cst::{Def, Root};
 use crate::PartialQueryTrisult;
 use cir::DeclArgId;
 use cst::Cst;
-use hashlink::LinkedHashMap;
+use hashlink::{LinkedHashMap, LinkedHashSet};
 use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -103,15 +104,24 @@ pub trait DeclQuery: Interner {
         &self,
         called_arg_avalue_chain: Spanned<Vec<(Option<Ident>, AValueChain)>>,
         decl_arg_ids: DeclArgIds,
+        type_hint: Option<CalledType>,
     ) -> QueryTrisult<CalledArgs>;
 
     /// [arg::query_declared_arg]
     #[salsa::invoke(arg::query_declared_arg)]
-    fn query_declared_arg(&self, decl_arg: cst::DeclArg) -> QueryTrisult<DeclArgId>;
+    fn query_declared_arg(
+        &self,
+        decl_arg: cst::DeclArg,
+        generic_names: LinkedHashSet<TextId>,
+    ) -> QueryTrisult<DeclArgId>;
 
     /// [arg::query_declared_args]
     #[salsa::invoke(arg::query_declared_args)]
-    fn query_declared_args(&self, decl_args: cst::DeclArgs) -> QueryTrisult<DeclArgIds>;
+    fn query_declared_args(
+        &self,
+        decl_args: cst::DeclArgs,
+        generic_names: LinkedHashSet<TextId>,
+    ) -> QueryTrisult<DeclArgIds>;
 
     // Call
 
@@ -130,7 +140,7 @@ pub trait DeclQuery: Interner {
     #[salsa::invoke(call::query_expr)]
     fn query_expr(
         &self,
-        inital_nameholders: Nameholders,
+        initial_nameholders: Nameholders,
         enforce_bool: bool,
         expr: cst::Expr,
     ) -> QueryTrisult<cir::Expr>;
@@ -141,6 +151,7 @@ pub trait DeclQuery: Interner {
         &self,
         nameholders: Nameholders,
         call_chain: cst::CallChain,
+        type_hint: Option<CalledType>,
     ) -> QueryTrisult<AValueChain>;
 
     // Enum
@@ -185,6 +196,7 @@ pub trait DeclQuery: Interner {
         &self,
         instance: Option<cir::Type>,
         function: cst::FunctionDecl,
+        generic_names: LinkedHashSet<TextId>,
     ) -> QueryTrisult<cir::FunctionDecl>;
 
     /// [event::query_event_context_variables]
@@ -315,6 +327,13 @@ pub trait DeclQuery: Interner {
     fn query_struct_decl(&self, r#struct: cst::StructDecl) -> StructDeclId;
 
     // Type
+
+    /// Impl [ttype::query_generic_type_bound_map]
+    #[salsa::invoke(ttype::query_generic_type_bound_map)]
+    fn query_generic_type_bound_map(
+        &self,
+        called_type: CalledType,
+    ) -> QueryTrisult<GenericTypeBoundMap>;
 
     /// Queries the type map.
     /// If you want to find a type by ident, use [query_type] instead.

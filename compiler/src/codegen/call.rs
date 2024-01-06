@@ -8,6 +8,7 @@ use super::super::span::Span;
 use super::super::wst::partial::Placeholder;
 use super::super::wst::Ident;
 use super::super::{cir, compiler_todo, wst, Op, QueryTrisult};
+use crate::cir::VirtualTypeKind;
 use crate::error::ErrorCause;
 use crate::query_error;
 use cir::{CalledArgs, FunctionDecl};
@@ -313,6 +314,16 @@ fn process_wscript(
     caller: Caller,
 ) -> QueryTrisult<Option<wst::Call>> {
     let r#type = caller.cir.return_called_type(db).r#type;
+    let r#type = match r#type {
+        VirtualTypeKind::Type(it) => it,
+        VirtualTypeKind::Generic(_) => {
+            let message = "Caller must not be generic";
+            return query_error!(CompilerError::NotImplemented(
+                message.into(),
+                caller.cir.span()
+            ));
+        }
+    };
 
     // TODO should we drop the generics here?
     // NO

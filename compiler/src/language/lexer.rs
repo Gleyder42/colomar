@@ -98,7 +98,7 @@ pub fn lexer(
         .then_ignore(just('"'))
         .map(|it| Token::String(string_interner.intern_string(it)));
 
-    let ctrl = one_of("<>(){},.:|=;+-/*&|!").map(Token::Ctrl);
+    let ctrl = one_of("<>(){},.:|=;+-/*&|!-").map(Token::Ctrl);
 
     let ident = text::ident().map(|ident: &str| match ident {
         "rule" => Token::Rule,

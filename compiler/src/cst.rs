@@ -2,7 +2,7 @@ use super::span::{Span, Spanned, SpannedBool, StringInterner};
 use super::trisult::Trisult;
 use super::{
     AssignMod, Ident, TextId, UseRestriction, ACTIONS_LEN, CONDITIONS_LEN, DECL_ARGS_LEN,
-    FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
+    DECL_GENERICS_LEN, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN,
 };
 use crate::analysis::decl::DeclQuery;
 use smallvec::SmallVec;
@@ -13,6 +13,7 @@ pub type Actions = SmallVec<[Action; ACTIONS_LEN]>;
 pub type DeclArgs = SmallVec<[DeclArg; DECL_ARGS_LEN]>;
 pub type PropertyDecls = SmallVec<[PropertyDecl; PROPERTY_DECLS_LEN]>;
 pub type FunctionDecls = SmallVec<[FunctionDecl; FUNCTIONS_DECLS_LEN]>;
+pub type DeclGenerics = SmallVec<[Ident; DECL_GENERICS_LEN]>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Def {
@@ -212,6 +213,7 @@ pub struct FunctionDecl {
     pub is_static: SpannedBool,
     pub name: Ident,
     pub args: Spanned<DeclArgs>,
+    pub return_type: Option<Type>,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -223,9 +225,6 @@ pub struct StructDecl {
     pub span: Span,
     pub generics: DeclGenerics,
 }
-
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct DeclGenerics(pub Vec<Ident>);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct BoundGeneric {

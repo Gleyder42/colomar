@@ -5,6 +5,9 @@ use super::super::cir::{EventDeclId, PropertyDecls};
 use super::super::cst::{Action, Actions};
 use super::super::QueryTrisult;
 use super::super::{cir, cst};
+use crate::tri;
+use crate::trisult::Errors;
+use hashlink::LinkedHashSet;
 
 pub(super) fn query_event_def_by_id(
     db: &dyn DefQuery,
@@ -48,7 +51,7 @@ pub(super) fn query_event_def(
     event_def
         .args
         .into_iter()
-        .map(|decl_arg| db.query_declared_arg(decl_arg))
+        .map(|decl_arg| db.query_declared_arg(decl_arg, LinkedHashSet::new())) // TODO events have no generics
         .collect::<QueryTrisult<_>>()
         .and_or_default(db.query_event_properties(event_decl_id, event_def.actions))
         .map(|(args, properties)| cir::EventDef { args, properties })

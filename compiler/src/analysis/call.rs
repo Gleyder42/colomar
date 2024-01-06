@@ -7,6 +7,7 @@ use super::super::error::CompilerError;
 use super::super::span::Spanned;
 use super::super::QueryTrisult;
 use super::super::{cir, cst};
+use crate::cir::CalledType;
 use either::Either;
 use smallvec::smallvec;
 
@@ -37,7 +38,7 @@ pub(super) fn query_expr(
         cst::Expr::Chain(call_chain) => {
             let span = call_chain.span;
 
-            db.query_call_chain(inital_nameholders, call_chain)
+            db.query_call_chain(inital_nameholders, call_chain, None)
                 .soft_filter_with(
                     db.query_bool_type().complete_with_span(span),
                     |chain, id| {
@@ -108,6 +109,7 @@ pub(super) fn query_call_chain(
     db: &dyn DeclQuery,
     initial_nameholders: Nameholders,
     call_chain: cst::CallChain,
+    type_hint: Option<CalledType>,
 ) -> QueryTrisult<AValueChain> {
     assert!(
         !call_chain.value.is_empty(),
@@ -141,6 +143,11 @@ pub(super) fn query_call_chain(
                 cst::Call::IdentArgs { name, args, span } => {
                     let args_span = args.span;
 
+                    let last_value_type_hint = avalues
+                        .last()
+                        .map(|last_value| last_value.return_called_type(db));
+                    let type_hint = type_hint.clone().or(last_value_type_hint);
+
                     db.query_namespaced_function(nameholders, name)
                         .and_or(
                             args.value
@@ -150,6 +157,7 @@ pub(super) fn query_call_chain(
                                         initial_nameholders.clone(),
                                         // TODO Call argument should also hava an expression
                                         call_arg.clone().call_chain(),
+                                        type_hint.clone(),
                                     )
                                     .map(|it| match call_arg {
                                         CallArg::Named(name, _, _) => (Some(name), it),
@@ -161,9 +169,13 @@ pub(super) fn query_call_chain(
                             Spanned::default_inner(args_span),
                         )
                         .flat_map(|(function_decl, called_avalue_args)| {
-                            db.query_called_args(called_avalue_args, function_decl.args.clone())
-                                .intern_inner(db)
-                                .map(|args| (function_decl, args))
+                            db.query_called_args(
+                                called_avalue_args,
+                                function_decl.args.clone(),
+                                type_hint.clone(),
+                            )
+                            .intern_inner(db)
+                            .map(|args| (function_decl, args))
                         })
                         .map(|(function_decl, function_args)| {
                             (

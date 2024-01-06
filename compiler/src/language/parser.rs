@@ -24,9 +24,12 @@ pub fn decl_generics<'src>() -> impl PParser<'src, DeclGenerics> {
         .separated_by(just(Token::Ctrl(',')))
         .collect::<Vec<_>>()
         .delimited_by(just(Token::Ctrl('<')), just(Token::Ctrl('>')))
-        .map(DeclGenerics)
         .or_not()
-        .map(|generics| generics.unwrap_or_else(|| DeclGenerics(Vec::new())))
+        .map(|generics| {
+            generics
+                .map(DeclGenerics::from_vec)
+                .unwrap_or_else(|| DeclGenerics::new())
+        })
 }
 
 pub fn bound_generics<'src>() -> impl PParser<'src, Vec<BoundGeneric>> {
@@ -306,17 +309,26 @@ pub fn import<'src>() -> impl PParser<'src, Import> {
 }
 
 pub fn function_decl<'src>() -> impl PParser<'src, FunctionDecl> {
+    let return_type = just(Token::Ctrl('-'))
+        .then(just(Token::Ctrl('>')))
+        .ignore_then(r#type())
+        .or_not();
+
     native()
         .then(r#static())
         .then_ignore(just(Token::Fn))
         .then(ident())
         .then(declared_arg())
-        .map(|(((is_native, is_static), name), args)| FunctionDecl {
-            name,
-            is_native,
-            is_static,
-            args: args.inner_into(),
-        })
+        .then(return_type)
+        .map(
+            |((((is_native, is_static), name), args), return_type)| FunctionDecl {
+                name,
+                is_native,
+                is_static,
+                args: args.inner_into(),
+                return_type,
+            },
+        )
 }
 
 pub fn r#struct<'src>() -> impl PParser<'src, Struct> {

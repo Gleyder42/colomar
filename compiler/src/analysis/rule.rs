@@ -21,13 +21,24 @@ pub(super) fn query_rule_actions(
                 .query_call_chain(
                     smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)],
                     call_chain,
+                    None,
                 )
                 .map(cir::Action::AValueChain),
             Action::Assignment(left, right, assign_mod) => {
                 let nameholders = smallvec![Nameholder::Root, Nameholder::Event(event_decl_id)];
 
-                let left = db.query_call_chain(nameholders.clone(), left);
-                let right = db.query_call_chain(nameholders, right);
+                let left = db.query_call_chain(nameholders.clone(), left, None);
+                let right = left
+                    .clone()
+                    .map(|left| {
+                        db.query_call_chain(
+                            nameholders,
+                            right,
+                            Some(left.returning_avalue().return_called_type(db)),
+                        )
+                    })
+                    .flatten();
+
                 left.and(right)
                     .map(|(left, right)| cir::Action::Assigment(left, right, assign_mod))
             }
@@ -69,16 +80,20 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisul
             .value
             .into_iter()
             .map(|call_arg| {
-                db.query_call_chain(smallvec![Nameholder::Root], call_arg.clone().call_chain())
-                    .map(|it| match call_arg {
-                        CallArg::Named(name, _, _) => (Some(name), it),
-                        CallArg::Pos(_) => (None, it),
-                    })
+                db.query_call_chain(
+                    smallvec![Nameholder::Root],
+                    call_arg.clone().call_chain(),
+                    None,
+                )
+                .map(|it| match call_arg {
+                    CallArg::Named(name, _, _) => (Some(name), it),
+                    CallArg::Pos(_) => (None, it),
+                })
             })
             .collect::<QueryTrisult<Vec<_>>>()
             .spanned(args_span)
             .and(db.query_event_def_by_id(*event_decl_id))
-            .flat_map(|(args, event_def)| db.query_called_args(args, event_def.args))
+            .flat_map(|(args, event_def)| db.query_called_args(args, event_def.args, None))
     };
 
     db.query_namespaced_event(smallvec![Nameholder::Root], rule.event)

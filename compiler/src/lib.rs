@@ -60,6 +60,8 @@ pub type OwnedRich<T, S = SimpleSpan<usize>> = Rich<'static, T, S>;
 pub const CONDITIONS_LEN: usize = 6;
 pub const ACTIONS_LEN: usize = 8;
 pub const DECL_ARGS_LEN: usize = 4;
+
+pub const DECL_GENERICS_LEN: usize = 1;
 // TODO Give this a more generic name
 pub const PROPERTY_DECLS_LEN: usize = 4;
 pub const FUNCTIONS_DECLS_LEN: usize = 6;

@@ -150,7 +150,7 @@ impl AValue {
     pub fn return_called_type<I: Interner + ?Sized>(&self, db: &I) -> CalledType {
         match self {
             AValue::RValue(rvalue, span) => CalledType {
-                r#type: rvalue.r#type(db),
+                r#type: rvalue.r#type(db).into(),
                 span: *span,
             },
             AValue::CValue(cvalue) => CalledType {
@@ -160,7 +160,7 @@ impl AValue {
             AValue::FunctionCall(function_decl_id, _, span) => {
                 let function_decl: FunctionDecl = db.lookup_intern_function_decl(*function_decl_id);
                 CalledType {
-                    r#type: function_decl.return_type,
+                    r#type: function_decl.return_type.into(),
                     span: *span,
                 }
             }

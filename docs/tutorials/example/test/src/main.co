@@ -11,7 +11,6 @@ Player {
     var c: bool;
 
     var g: array<num>;
-    var d: array<num>;
 }
 
 struct array<T> {
@@ -24,14 +23,16 @@ struct array<T> {
 
     native fn removeByValue(element: T);
 
-    native fn removeByIndex(index: T);
+    native fn removeByIndex(index: num);
+
+    native fn contains(element: T) -> bool;
 }
 
 rule "Init" OngoingEachPlayer() {
-    player.g = array.new(1, 2, 3, 4, 5);
+    cond player.g.contains(1);
 
-    player.g.add(6);
-    player.g.removeByIndex(1);
+    player.g = array.new(1, 2, 3, 4);
+    player.g.add(1);
 
     player.currentAimSpeed = 100;
     player.currentMoveSpeed = 100;
