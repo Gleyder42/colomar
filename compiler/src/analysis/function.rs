@@ -1,9 +1,9 @@
 use super::super::analysis::decl::DeclQuery;
-use super::super::cir::Type;
+use super::super::cir::TypeDesc;
 use super::super::QueryTrisult;
 use super::super::{cir, cst};
 use crate::analysis::namespace::Nameholder;
-use crate::cir::VirtualType;
+use crate::cir::Type;
 use crate::trisult::Errors;
 use crate::{tri, TextId};
 use hashlink::LinkedHashSet;
@@ -11,7 +11,7 @@ use smallvec::smallvec;
 
 pub(super) fn query_function_decl(
     db: &dyn DeclQuery,
-    instance: Option<Type>,
+    instance: Option<TypeDesc>,
     function: cst::FunctionDecl,
     generic_names: LinkedHashSet<TextId>,
 ) -> QueryTrisult<cir::FunctionDecl> {
@@ -26,12 +26,12 @@ pub(super) fn query_function_decl(
         Some(return_type) => {
             let root_namespace = smallvec![Nameholder::Root];
             let return_type = tri!(
-                db.query_namespaced_type2(root_namespace, return_type),
+                db.query_namespaced_type(root_namespace, return_type),
                 errors
             );
             return_type
         }
-        None => VirtualType::from(Type::Unit),
+        None => Type::from(TypeDesc::Unit),
     };
 
     let function = cir::FunctionDecl {

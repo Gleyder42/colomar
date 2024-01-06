@@ -1,4 +1,4 @@
-use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, Type};
+use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, TypeDesc};
 use super::cst::Path;
 use super::span::Span;
 use super::trisult::Trisult;
@@ -109,7 +109,7 @@ pub enum CompilerError {
     // TODO Dont use either here, make an own type
     WrongType {
         actual: CalledType,
-        expected: Either<Type, CalledTypes>,
+        expected: Either<TypeDesc, CalledTypes>,
     },
 
     MissingArg {

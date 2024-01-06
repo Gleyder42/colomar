@@ -15,11 +15,11 @@ pub type Assigner = (wst::Call, Option<AssignMod>);
 
 #[salsa::query_group(CodegenDatabase)]
 pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
-    /// Impl: [rule::query_wst_rule]
+    /// Impl [rule::query_wst_rule]
     #[salsa::invoke(rule::query_wst_rule)]
     fn query_wst_rule(&self, rule: cir::Rule) -> QueryTrisult<wst::Rule>;
 
-    /// Impl: [call::query_wst_call]
+    /// Impl [call::query_wst_call]
     #[salsa::invoke(call::query_wst_call)]
     fn query_wst_call(
         &self,
@@ -27,11 +27,11 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
         action: cir::Action,
     ) -> QueryTrisult<wst::Call>;
 
-    /// Impl: [call::query_const_eval]
+    /// Impl [call::query_const_eval]
     #[salsa::invoke(call::query_const_eval)]
     fn query_const_eval(&self, call: wst::Call) -> QueryTrisult<wst::Ident>;
 
-    /// Impl: [call::query_wst_call_by_avalue]
+    /// Impl [call::query_wst_call_by_avalue]
     #[salsa::invoke(call::query_wst_call_by_avalue)]
     fn query_wst_call_by_avalue(
         &self,
@@ -40,7 +40,7 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
         avalue: cir::AValue,
     ) -> QueryTrisult<Option<wst::Call>>;
 
-    /// Impl: [call::query_wst_call_from_args]
+    /// Impl [call::query_wst_call_from_args]
     #[salsa::invoke(call::query_wst_call_from_args)]
     fn query_wst_call_from_args(
         &self,
@@ -48,7 +48,7 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
         called_args: cir::CalledArgs,
     ) -> Vec<Arg>;
 
-    /// Impl: [variables::query_player_variables]
+    /// Impl [variables::query_player_variables]
     #[salsa::invoke(variables::query_player_variables)]
     fn query_player_variables(&self) -> QueryTrisult<Vec<Variable>>;
 }

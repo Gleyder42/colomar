@@ -1,4 +1,4 @@
-use super::cir::{CalledType, CalledTypes, DeclArgId, Type};
+use super::cir::{CalledType, CalledTypes, DeclArgId, TypeDesc};
 use super::database::CompilerDatabase;
 use super::error::{CompilerError, ErrorCause};
 use super::span::{CopyRange, Span, SpanInterner, SpanSourceId, FAKE_SPAN_SOURCE_NAME};
@@ -260,7 +260,7 @@ fn report_cannot_find_struct_error(params: &mut Params, name: TextId, error_caus
 
 fn report_wrong_type_error<'a>(
     params: &mut Params,
-    expected: Either<Type, CalledTypes>,
+    expected: Either<TypeDesc, CalledTypes>,
     actual: CalledType,
 ) {
     params.report.set_message("Wrong type");

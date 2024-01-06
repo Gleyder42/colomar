@@ -1,4 +1,4 @@
-use super::super::cir::Type;
+use super::super::cir::TypeDesc;
 use super::super::codegen::Codegen;
 use super::super::wst::Ident;
 use super::super::{cir, cst, wst, QueryTrisult};
@@ -20,7 +20,7 @@ pub(super) fn query_player_variables(db: &dyn Codegen) -> QueryTrisult<Vec<wst::
         .properties
         .into_iter()
         .filter(|property| property.is_native.is_none())
-        .map(|property| db.query_property(Some(Type::Struct(struct_decl_id)), property))
+        .map(|property| db.query_property(Some(TypeDesc::Struct(struct_decl_id)), property))
         .collect::<PropertiesTrisult>()
         .merge_errors(errors)
         .map(|properties| {

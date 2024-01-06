@@ -28,7 +28,7 @@ pub(super) fn query_event_properties(
     event_decl_id: EventDeclId,
     actions: Actions,
 ) -> QueryTrisult<PropertyDecls> {
-    let event_type = cir::Type::Event(event_decl_id);
+    let event_type = cir::TypeDesc::Event(event_decl_id);
 
     actions
         .into_iter()

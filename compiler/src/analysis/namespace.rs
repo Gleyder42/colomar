@@ -2,12 +2,12 @@ use super::super::analysis::decl::DeclQuery;
 use super::super::analysis::interner::{Interner, IntoInternId};
 use super::super::cir::{
     EnumConstant, EnumConstantId, EnumDeclId, EnumDef, EventDeclId, FunctionDecl, PropertyDecl,
-    RValue, StructDeclId, Type, VirtualType,
+    RValue, StructDeclId, TypeDesc,
 };
 use super::super::error::CompilerError;
 use super::super::trisult::Trisult;
 use super::super::{flatten, Ident, QueryTrisult, StructId, TextId};
-use crate::{cir, query_error, tri, PartialQueryTrisult};
+use crate::{cir, cst, query_error, tri, PartialQueryTrisult};
 
 use super::super::cst::{FunctionDecls, PropertyDecls};
 use super::super::span::StringInterner;
@@ -85,7 +85,7 @@ pub(super) fn query_number_name(db: &dyn DeclQuery) -> TextId {
     db.intern_string("num".to_owned())
 }
 
-pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<TextId, Type>> {
+pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<TextId, TypeDesc>> {
     db.query_namespace(smallvec![Nameholder::Root])
         .map(|namespace| {
             let mut map = HashMap::new();
@@ -106,12 +106,12 @@ pub(super) fn query_primitives(db: &dyn DeclQuery) -> QueryTrisult<HashMap<TextI
         })
 }
 
-fn struct_decl_id_or_panic(r#type: &Type) -> StructDeclId {
+fn struct_decl_id_or_panic(r#type: &TypeDesc) -> StructDeclId {
     match r#type {
-        Type::Struct(struct_decl_id) => *struct_decl_id,
-        Type::Enum(_) => panic!("Cannot get struct decl id of type Enum"),
-        Type::Event(_) => panic!("Cannot get struct decl id of type Event"),
-        Type::Unit => panic!("Cannot get struct decl id of type Unit"),
+        TypeDesc::Struct(struct_decl_id) => *struct_decl_id,
+        TypeDesc::Enum(_) => panic!("Cannot get struct decl id of type Enum"),
+        TypeDesc::Event(_) => panic!("Cannot get struct decl id of type Event"),
+        TypeDesc::Unit => panic!("Cannot get struct decl id of type Unit"),
     }
 }
 
@@ -223,8 +223,28 @@ pub(super) fn query_namespace(
 pub(super) fn query_namespaced_type(
     db: &dyn DeclQuery,
     nameholders: Nameholders,
+    r#type: cst::Type,
+) -> QueryTrisult<cir::Type> {
+    let mut errors = Errors::new();
+
+    let cir_type = tri!(
+        db.query_namespaced_type_desc(nameholders.clone(), r#type.ident),
+        errors
+    );
+    let cir_generics = tri!(db.resolve_generics(nameholders, r#type.generics), errors);
+
+    let virtual_type = cir::Type {
+        desc: cir_type,
+        generics: cir_generics,
+    };
+    errors.value(virtual_type)
+}
+
+pub(super) fn query_namespaced_type_desc(
+    db: &dyn DeclQuery,
+    nameholders: Nameholders,
     ident: Ident,
-) -> QueryTrisult<Type> {
+) -> QueryTrisult<TypeDesc> {
     db.query_namespaced_rvalue(nameholders, ident.clone())
         .flat_map(|rvalue| match rvalue {
             RValue::Type(r#type) => Trisult::Ok(r#type),
@@ -253,10 +273,10 @@ pub(super) fn query_namespaced_event(
     nameholders: Nameholders,
     ident: Ident,
 ) -> QueryTrisult<EventDeclId> {
-    db.query_namespaced_type(nameholders, ident.clone())
+    db.query_namespaced_type_desc(nameholders, ident.clone())
         .flat_map(|r#type| match r#type {
-            Type::Event(event) => Trisult::Ok(event),
-            r#type @ (Type::Enum(_) | Type::Struct(_) | Type::Unit) => {
+            TypeDesc::Event(event) => Trisult::Ok(event),
+            r#type @ (TypeDesc::Enum(_) | TypeDesc::Struct(_) | TypeDesc::Unit) => {
                 Trisult::Err(vec![CompilerError::NotA(
                     "Event",
                     RValue::Type(r#type).name(db),
@@ -277,15 +297,15 @@ pub enum Nameholder {
     Event(EventDeclId),
 }
 
-impl From<&cir::VirtualType> for Nameholder {
-    fn from(value: &VirtualType) -> Self {
-        Nameholder::from(value.r#type)
+impl From<&cir::Type> for Nameholder {
+    fn from(value: &cir::Type) -> Self {
+        Nameholder::from(value.desc)
     }
 }
 
-impl From<cir::VirtualType> for Nameholder {
-    fn from(value: VirtualType) -> Self {
-        Nameholder::from(value.r#type)
+impl From<cir::Type> for Nameholder {
+    fn from(value: cir::Type) -> Self {
+        Nameholder::from(value.desc)
     }
 }
 
@@ -409,13 +429,13 @@ impl<E> Trisult<Namespace, E> {
     }
 }
 
-impl From<Type> for Nameholder {
-    fn from(value: Type) -> Self {
+impl From<TypeDesc> for Nameholder {
+    fn from(value: TypeDesc) -> Self {
         match value {
-            Type::Enum(r#enum) => Nameholder::Enum(EnumNameholder::ByEnum(r#enum)),
-            Type::Struct(r#struct) => Nameholder::Struct(r#struct),
-            Type::Event(event) => Nameholder::Event(event),
-            Type::Unit => Nameholder::Empty,
+            TypeDesc::Enum(r#enum) => Nameholder::Enum(EnumNameholder::ByEnum(r#enum)),
+            TypeDesc::Struct(r#struct) => Nameholder::Struct(r#struct),
+            TypeDesc::Event(event) => Nameholder::Event(event),
+            TypeDesc::Unit => Nameholder::Empty,
         }
     }
 }

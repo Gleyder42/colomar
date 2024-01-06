@@ -3,7 +3,7 @@ use super::super::{cir, cst, Ident, QueryTrisult};
 
 use super::super::analysis::namespace::Nameholders;
 use super::super::trisult::Errors;
-use crate::cir::{CalledType, GenericTypeBoundMap, Type, VirtualType, VirtualTypeKind};
+use crate::cir::{CalledType, GenericTypeBoundMap, Type, TypeDesc, VirtualTypeKind};
 use crate::error::CompilerError;
 use crate::tri;
 use std::collections::HashMap;
@@ -25,15 +25,14 @@ pub(super) fn query_generic_type_bound_map(
                         called_type.span,
                     ));
                 } else {
-                    let mut generics = match r#type.r#type {
-                        Type::Struct(r#struct) => db.lookup_intern_struct_decl(r#struct).generics,
+                    let mut generics = match r#type.desc {
+                        TypeDesc::Struct(r#struct) => {
+                            db.lookup_intern_struct_decl(r#struct).generics
+                        }
                         _ => continue,
                     };
 
-                    bound_map.insert(
-                        generics.remove(0).value,
-                        VirtualType::from(bound_generic.r#type),
-                    );
+                    bound_map.insert(generics.remove(0).value, Type::from(bound_generic.r#type));
                 }
             }
             errors.value(bound_map)
@@ -43,26 +42,6 @@ pub(super) fn query_generic_type_bound_map(
             errors.par(bound_map, error)
         }
     }
-}
-
-pub(super) fn query_namespaced_type2(
-    db: &dyn DeclQuery,
-    nameholders: Nameholders,
-    r#type: cst::Type,
-) -> QueryTrisult<cir::VirtualType> {
-    let mut errors = Errors::new();
-
-    let cir_type = tri!(
-        db.query_namespaced_type(nameholders.clone(), r#type.ident),
-        errors
-    );
-    let cir_generics = tri!(db.resolve_generics(nameholders, r#type.generics), errors);
-
-    let virtual_type = cir::VirtualType {
-        r#type: cir_type,
-        generics: cir_generics,
-    };
-    errors.value(virtual_type)
 }
 
 pub(super) fn resolve_generics(
@@ -75,8 +54,8 @@ pub(super) fn resolve_generics(
         .map(|generic| {
             let mut errors = Errors::new();
 
-            let r#type: cir::Type = tri!(
-                db.query_namespaced_type(nameholders.clone(), generic.ident),
+            let r#type: TypeDesc = tri!(
+                db.query_namespaced_type_desc(nameholders.clone(), generic.ident),
                 errors
             );
             let generics = tri!(
@@ -90,7 +69,7 @@ pub(super) fn resolve_generics(
         .collect()
 }
 
-pub(super) fn query_type_map(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Ident, cir::Type>> {
+pub(super) fn query_type_map(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Ident, TypeDesc>> {
     let mut errors = Errors::new();
 
     let type_items = tri!(db.query_type_items(), errors);
@@ -100,15 +79,15 @@ pub(super) fn query_type_map(db: &dyn DeclQuery) -> QueryTrisult<HashMap<Ident, 
         .filter_map(|root| match root {
             cst::TypeRoot::Event(event) => Some((
                 event.decl.name.clone(),
-                cir::Type::Event(db.query_event_decl(event.decl)),
+                TypeDesc::Event(db.query_event_decl(event.decl)),
             )),
             cst::TypeRoot::Enum(r#enum) => Some((
                 r#enum.decl.name.clone(),
-                cir::Type::Enum(db.query_enum_decl(r#enum.decl)),
+                TypeDesc::Enum(db.query_enum_decl(r#enum.decl)),
             )),
             cst::TypeRoot::Struct(r#struct) => Some((
                 r#struct.decl.name.clone(),
-                cir::Type::Struct(db.query_struct_decl(r#struct.decl)),
+                TypeDesc::Struct(db.query_struct_decl(r#struct.decl)),
             )),
         })
         .collect();

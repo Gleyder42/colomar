@@ -68,20 +68,20 @@ impl Root {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct FunctionDecl {
-    pub instance: Option<Type>,
+    pub instance: Option<TypeDesc>,
     pub is_native: SpannedBool,
     pub name: Ident,
     pub args: DeclArgIds,
-    pub return_type: VirtualType,
+    pub return_type: Type,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Interned)]
 pub struct PropertyDecl {
-    pub instance: Option<Type>,
+    pub instance: Option<TypeDesc>,
     pub is_native: SpannedBool,
     pub name: Ident,
     pub desc: Spanned<UseRestriction>,
-    pub r#type: VirtualType,
+    pub r#type: Type,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -130,7 +130,7 @@ pub struct Enum {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BoundGeneric {
-    pub r#type: Type,
+    pub r#type: TypeDesc,
     pub generics: Vec<BoundGeneric>,
 }
 
@@ -138,8 +138,8 @@ pub struct BoundGeneric {
 // Rename Type to TypeDesc
 // Rename VirtualType to Type
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct VirtualType {
-    pub r#type: Type,
+pub struct Type {
+    pub desc: TypeDesc,
     pub generics: Vec<BoundGeneric>,
 }
 
@@ -156,29 +156,29 @@ impl PartialEq<StructDeclId> for CalledType {
         }
 
         // TODO how to compare generic structs
-        match r#type.r#type {
-            Type::Enum(_) => false,
-            Type::Struct(id) => id == *other,
-            Type::Event(_) => false,
-            Type::Unit => false,
+        match r#type.desc {
+            TypeDesc::Enum(_) => false,
+            TypeDesc::Struct(id) => id == *other,
+            TypeDesc::Event(_) => false,
+            TypeDesc::Unit => false,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum VirtualTypeKind {
-    Type(VirtualType),
+    Type(Type),
     Generic(Ident),
+}
+
+impl From<TypeDesc> for VirtualTypeKind {
+    fn from(value: TypeDesc) -> Self {
+        VirtualTypeKind::Type(Type::from(value))
+    }
 }
 
 impl From<Type> for VirtualTypeKind {
     fn from(value: Type) -> Self {
-        VirtualTypeKind::Type(VirtualType::from(value))
-    }
-}
-
-impl From<VirtualType> for VirtualTypeKind {
-    fn from(value: VirtualType) -> Self {
         VirtualTypeKind::Type(value)
     }
 }
@@ -201,57 +201,55 @@ impl VirtualTypeKind {
     }
 }
 
-impl VirtualType {}
-
-impl From<Type> for VirtualType {
-    fn from(value: Type) -> Self {
-        VirtualType {
-            r#type: value,
+impl From<TypeDesc> for Type {
+    fn from(value: TypeDesc) -> Self {
+        Type {
+            desc: value,
             generics: Vec::new(),
         }
     }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum Type {
+pub enum TypeDesc {
     Enum(EnumDeclId),
     Struct(StructDeclId),
     Event(EventDeclId),
     Unit,
 }
 
-impl Type {
+impl TypeDesc {
     pub fn is_partial(&self, db: &(impl Interner + ?Sized)) -> Option<bool> {
         match self {
-            Type::Enum(_) => None,
-            Type::Struct(r#struct) => {
+            TypeDesc::Enum(_) => None,
+            TypeDesc::Struct(r#struct) => {
                 Some(db.lookup_intern_struct_decl(*r#struct).is_partial.is_some())
             }
-            Type::Event(_) => None,
-            Type::Unit => None,
+            TypeDesc::Event(_) => None,
+            TypeDesc::Unit => None,
         }
     }
 }
 
-impl From<StructDeclId> for Type {
+impl From<StructDeclId> for TypeDesc {
     fn from(value: StructDeclId) -> Self {
-        Type::Struct(value)
+        TypeDesc::Struct(value)
     }
 }
 
-impl From<EventDeclId> for Type {
+impl From<EventDeclId> for TypeDesc {
     fn from(value: EventDeclId) -> Self {
-        Type::Event(value)
+        TypeDesc::Event(value)
     }
 }
 
-impl Display for Type {
+impl Display for TypeDesc {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Enum(_) => write!(f, "Enum"),
-            Type::Struct(_) => write!(f, "Struct"),
-            Type::Event(_) => write!(f, "Event"),
-            Type::Unit => write!(f, "Unit"),
+            TypeDesc::Enum(_) => write!(f, "Enum"),
+            TypeDesc::Struct(_) => write!(f, "Struct"),
+            TypeDesc::Event(_) => write!(f, "Event"),
+            TypeDesc::Unit => write!(f, "Unit"),
         }
     }
 }
@@ -289,8 +287,8 @@ impl TypeComparison<StructDeclId> for CalledType {
             VirtualTypeKind::Generic(_) => return false,
         };
 
-        match r#type.r#type {
-            Type::Struct(r#struct) if r#type.generics.is_empty() => r#struct == *rhs,
+        match r#type.desc {
+            TypeDesc::Struct(r#struct) if r#type.generics.is_empty() => r#struct == *rhs,
             _ => false,
         }
     }
@@ -313,10 +311,10 @@ impl From<CalledType> for CalledTypes {
     }
 }
 
-pub type GenericTypeBoundMap = LinkedHashMap<TextId, VirtualType>;
+pub type GenericTypeBoundMap = LinkedHashMap<TextId, Type>;
 
 impl CalledTypes {
-    pub fn contains_type(&self, r#type: &VirtualType, bound_map: &GenericTypeBoundMap) -> bool {
+    pub fn contains_type(&self, r#type: &Type, bound_map: &GenericTypeBoundMap) -> bool {
         self.types
             .iter()
             .any(|called_type| match &called_type.r#type {
@@ -444,13 +442,13 @@ impl Expr {
 /// to some other code
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum RValue {
-    Type(Type),
+    Type(TypeDesc),
     Function(FunctionDeclId),
     Property(PropertyDeclId),
     EnumConstant(EnumConstantId),
 }
 
-impl<T: Into<Type>> From<T> for RValue {
+impl<T: Into<TypeDesc>> From<T> for RValue {
     fn from(value: T) -> Self {
         RValue::Type(value.into())
     }
@@ -540,10 +538,10 @@ impl CValue {
         }
     }
 
-    pub fn r#type(&self) -> Type {
+    pub fn r#type(&self) -> TypeDesc {
         match self {
-            CValue::String(_, struct_decl_id, _) => Type::Struct(*struct_decl_id),
-            CValue::Number(_, struct_decl_id, _) => Type::Struct(*struct_decl_id),
+            CValue::String(_, struct_decl_id, _) => TypeDesc::Struct(*struct_decl_id),
+            CValue::Number(_, struct_decl_id, _) => TypeDesc::Struct(*struct_decl_id),
         }
     }
 }

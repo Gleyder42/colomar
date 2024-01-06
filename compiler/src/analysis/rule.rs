@@ -12,7 +12,7 @@ pub(super) fn query_rule_actions(
     event_decl_id: EventDeclId,
     actions: Actions,
 ) -> QueryTrisult<cir::Actions> {
-    let event_type = cir::Type::Event(event_decl_id);
+    let event_type = cir::TypeDesc::Event(event_decl_id);
 
     actions
         .into_iter()

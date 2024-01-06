@@ -1,7 +1,7 @@
 use super::super::analysis::decl::DeclQuery;
 use super::super::analysis::def::DefQuery;
 use super::super::analysis::interner::IntoInternId;
-use super::super::cir::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, Type};
+use super::super::cir::{FunctionDecl, FunctionDeclIds, PropertyDecl, PropertyDeclIds, TypeDesc};
 use super::super::QueryTrisult;
 use super::super::{cir, cst, FUNCTIONS_DECLS_LEN, PROPERTY_DECLS_LEN};
 use hashlink::LinkedHashSet;
@@ -81,7 +81,7 @@ pub(super) fn query_struct_properties(
     struct_decl_id: cir::StructDeclId,
     properties: cst::PropertyDecls,
 ) -> QueryTrisult<PropertyDeclIds> {
-    let struct_type = Type::Struct(struct_decl_id);
+    let struct_type = TypeDesc::Struct(struct_decl_id);
 
     properties
         .into_iter()

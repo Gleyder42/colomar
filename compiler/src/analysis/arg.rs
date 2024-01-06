@@ -212,7 +212,7 @@ pub(super) fn query_declared_arg(
                 QueryTrisult::Ok(called_type)
             } else {
                 let span = r#type.ident.span;
-                db.query_namespaced_type2(smallvec![Nameholder::Root], r#type)
+                db.query_namespaced_type(smallvec![Nameholder::Root], r#type)
                     .map(|r#type| CalledType {
                         r#type: r#type.into(),
                         span,

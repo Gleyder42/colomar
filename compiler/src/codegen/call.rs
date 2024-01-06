@@ -1,4 +1,4 @@
-use super::super::cir::{AValueChain, CValue, RValue, Type};
+use super::super::cir::{AValueChain, CValue, RValue, TypeDesc};
 use super::super::codegen::{
     Arg, Assigner, Caller, Codegen, ASSIGMENT_PLACEHOLDER, CALLER_PLACEHOLDER,
 };
@@ -127,7 +127,9 @@ fn query_wst_call_by_rvalue(
     span: Span,
 ) -> QueryTrisult<Option<wst::Call>> {
     match rvalue {
-        RValue::Type(Type::Enum(_)) | RValue::Type(Type::Struct(_)) => QueryTrisult::Ok(None),
+        RValue::Type(TypeDesc::Enum(_)) | RValue::Type(TypeDesc::Struct(_)) => {
+            QueryTrisult::Ok(None)
+        }
         RValue::Function(_func_id) => compiler_todo("Functions are not implemented", span),
         RValue::Property(property_id) => {
             let property = db.lookup_intern_property_decl(property_id);
@@ -327,8 +329,8 @@ fn process_wscript(
 
     // TODO should we drop the generics here?
     // NO
-    match r#type.r#type {
-        Type::Enum(enum_id) => {
+    match r#type.desc {
+        TypeDesc::Enum(enum_id) => {
             let enum_decl: cir::EnumDecl = db.lookup_intern_enum_decl(enum_id);
             db.query_wscript_enum_constant_impl(
                 enum_decl.name.value.name(db),
@@ -337,7 +339,7 @@ fn process_wscript(
             .complete_with_span(property_decl.name.span) // TODO this should be the return type span
             .inner_into_some()
         }
-        Type::Struct(struct_id) => {
+        TypeDesc::Struct(struct_id) => {
             let struct_decl: cir::StructDecl = db.lookup_intern_struct_decl(struct_id);
             db.query_wscript_struct_property_impl(
                 struct_decl.name.value.name(db),
@@ -357,7 +359,7 @@ fn process_wscript(
             })
             .inner_into_some()
         }
-        Type::Event(event_id) => {
+        TypeDesc::Event(event_id) => {
             let event_decl: cir::EventDecl = db.lookup_intern_event_decl(event_id);
             db.query_wscript_event_context_property_impl(
                 event_decl.name.value.name(db),
@@ -366,7 +368,7 @@ fn process_wscript(
             .complete_with_span(property_decl.name.span)
             .inner_into_some()
         }
-        Type::Unit => query_error!(CompilerError::NotImplemented(
+        TypeDesc::Unit => query_error!(CompilerError::NotImplemented(
             "Unit as caller is currently not implemented".into(),
             property_decl.name.span
         )),

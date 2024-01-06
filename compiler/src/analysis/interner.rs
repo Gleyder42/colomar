@@ -108,13 +108,13 @@ impl IntoInternId for CalledArg {
 }
 
 impl RValue {
-    pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> VirtualType {
+    pub fn r#type<I: Interner + ?Sized>(&self, db: &I) -> Type {
         match self {
             // What is the type of type?
             RValue::Type(r#type) => (*r#type).into(),
             RValue::EnumConstant(enum_constant_id) => {
                 let enum_constant: EnumConstant = db.lookup_intern_enum_constant(*enum_constant_id);
-                Type::Enum(enum_constant.r#enum).into()
+                TypeDesc::Enum(enum_constant.r#enum).into()
             }
             RValue::Property(property_decl_id) => {
                 db.lookup_intern_property_decl(*property_decl_id).r#type
@@ -128,10 +128,10 @@ impl RValue {
     pub fn name<I: Interner + ?Sized>(&self, db: &I) -> Ident {
         match *self {
             RValue::Type(r#type) => match r#type {
-                Type::Enum(r#enum) => db.lookup_intern_enum_decl(r#enum).name,
-                Type::Struct(r#struct) => db.lookup_intern_struct_decl(r#struct).name,
-                Type::Event(event) => db.lookup_intern_event_decl(event).name,
-                Type::Unit => panic!("Unit type has no name"),
+                TypeDesc::Enum(r#enum) => db.lookup_intern_enum_decl(r#enum).name,
+                TypeDesc::Struct(r#struct) => db.lookup_intern_struct_decl(r#struct).name,
+                TypeDesc::Event(event) => db.lookup_intern_event_decl(event).name,
+                TypeDesc::Unit => panic!("Unit type has no name"),
             },
             RValue::EnumConstant(enum_constant) => {
                 db.lookup_intern_enum_constant(enum_constant).name
@@ -168,28 +168,28 @@ impl AValue {
     }
 }
 
-impl VirtualType {
+impl Type {
     pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
-        self.r#type.name(db)
+        self.desc.name(db)
     }
 }
 
-impl Type {
+impl TypeDesc {
     pub fn name(&self, db: &(impl Interner + StringInterner + ?Sized)) -> String {
         match self {
-            Type::Enum(decl_id) => db.lookup_intern_enum_decl(*decl_id).name.value.name(db),
-            Type::Struct(decl_id) => db.lookup_intern_struct_decl(*decl_id).name.value.name(db),
-            Type::Event(decl_id) => db.lookup_intern_event_decl(*decl_id).name.value.name(db),
-            Type::Unit => "Unit".to_owned(),
+            TypeDesc::Enum(decl_id) => db.lookup_intern_enum_decl(*decl_id).name.value.name(db),
+            TypeDesc::Struct(decl_id) => db.lookup_intern_struct_decl(*decl_id).name.value.name(db),
+            TypeDesc::Event(decl_id) => db.lookup_intern_event_decl(*decl_id).name.value.name(db),
+            TypeDesc::Unit => "Unit".to_owned(),
         }
     }
 
     pub fn decl_ident(&self, db: &(impl Interner + ?Sized)) -> Option<Ident> {
         match self {
-            Type::Enum(r#enum) => Some(db.lookup_intern_enum_decl(*r#enum).name),
-            Type::Struct(r#struct) => Some(db.lookup_intern_struct_decl(*r#struct).name),
-            Type::Event(event) => Some(db.lookup_intern_event_decl(*event).name),
-            Type::Unit => None,
+            TypeDesc::Enum(r#enum) => Some(db.lookup_intern_enum_decl(*r#enum).name),
+            TypeDesc::Struct(r#struct) => Some(db.lookup_intern_struct_decl(*r#struct).name),
+            TypeDesc::Event(event) => Some(db.lookup_intern_event_decl(*event).name),
+            TypeDesc::Unit => None,
         }
     }
 }
