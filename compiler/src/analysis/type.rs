@@ -3,11 +3,9 @@ use super::super::{cir, cst, Ident, QueryTrisult};
 
 use super::super::analysis::namespace::Nameholders;
 use super::super::trisult::Errors;
-use crate::analysis::namespace::Nameholder;
 use crate::cir::{CalledType, GenericTypeBoundMap, Type, VirtualType, VirtualTypeKind};
 use crate::error::CompilerError;
 use crate::tri;
-use smallvec::smallvec;
 use std::collections::HashMap;
 
 pub(super) fn query_generic_type_bound_map(

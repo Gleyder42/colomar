@@ -5,8 +5,6 @@ use super::super::cir::{EventDeclId, PropertyDecls};
 use super::super::cst::{Action, Actions};
 use super::super::QueryTrisult;
 use super::super::{cir, cst};
-use crate::tri;
-use crate::trisult::Errors;
 use hashlink::LinkedHashSet;
 
 pub(super) fn query_event_def_by_id(

@@ -8,7 +8,7 @@ use super::super::{cir, cst, Ident, QueryTrisult, TextId};
 use super::super::span::Spanned;
 use crate::cir::{GenericTypeBoundMap, VirtualTypeKind};
 use crate::tri;
-use crate::trisult::{Errors, IntoTrisult};
+use crate::trisult::Errors;
 use either::Either;
 use hashlink::{LinkedHashMap, LinkedHashSet};
 use smallvec::smallvec;
