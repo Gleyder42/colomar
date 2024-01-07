@@ -9,8 +9,6 @@ pub trait PrinterQuery: Codegen {
     fn query_workshop_output(&self) -> QueryTrisult<String>;
 }
 
-const SPACES: &str = "        ";
-
 fn query_workshop_output(db: &dyn PrinterQuery) -> QueryTrisult<String> {
     db.query_im().flat_map(|root| {
         let rules: QueryTrisult<_> = root
@@ -27,19 +25,14 @@ fn query_workshop_output(db: &dyn PrinterQuery) -> QueryTrisult<String> {
             .collect::<QueryTrisult<Vec<String>>>()
             .map(|rules| rules.join("\n"));
 
-        let variables = db
-            .query_player_variables()
-            .map_inner::<_, _, Vec<_>>(|variable| {
-                [SPACES.to_string(), variable.to_string()].join(" ")
-            })
-            .map(|player_variables| {
-                let player_variables = player_variables.join("\n");
+        let variables = db.query_player_variables().map(|player_variables| {
+            let player_variables = join_to_string(player_variables, 10);
 
-                format!(
-                    include_str!("player_variables.txt"),
-                    player_variables = player_variables
-                )
-            });
+            format!(
+                include_str!("player_variables.txt"),
+                player_variables = player_variables
+            )
+        });
 
         rules
             .and(variables)
@@ -48,13 +41,15 @@ fn query_workshop_output(db: &dyn PrinterQuery) -> QueryTrisult<String> {
 }
 
 fn query_wst_rule_to_string(db: &dyn PrinterQuery, rule: wst::Rule) -> String {
+    const SPACES: u8 = 16;
+
     if rule.event.hero_slot.is_none() && rule.event.team.is_none() {
         format!(
             include_str!("workshop_global_rule_template.txt"),
             rule = rule.title.name(db),
             event = rule.event.name,
-            conditions = join_to_string(rule.conditions),
-            actions = join_to_string(rule.actions)
+            conditions = join_to_string(rule.conditions, SPACES),
+            actions = join_to_string(rule.actions, SPACES)
         )
     } else {
         format!(
@@ -63,24 +58,22 @@ fn query_wst_rule_to_string(db: &dyn PrinterQuery, rule: wst::Rule) -> String {
             event = rule.event.name,
             team = rule.event.team.unwrap(),
             hero_slot = rule.event.hero_slot.unwrap(),
-            conditions = join_to_string(rule.conditions),
-            actions = join_to_string(rule.actions)
+            conditions = join_to_string(rule.conditions, SPACES),
+            actions = join_to_string(rule.actions, SPACES)
         )
     }
 }
 
-fn join_to_string<T: ToString>(iter: impl IntoIterator<Item = T>) -> String {
-    let mut string = iter
-        .into_iter()
+fn join_to_string<T: ToString>(iter: impl IntoIterator<Item = T>, spaces: u8) -> String {
+    let spaces: String = (0..spaces).into_iter().map(|_| ' ').collect();
+
+    iter.into_iter()
         .map(|it| {
-            let mut spaces = SPACES.to_string();
-            spaces.push_str(&it.to_string());
-            spaces
+            let mut output = spaces.clone();
+            output.push_str(&it.to_string());
+            output.push(';');
+            output
         })
         .collect::<Vec<_>>()
-        .join(";\n");
-    if string.len() > 0 {
-        string.push(';');
-    }
-    string
+        .join("\n")
 }
