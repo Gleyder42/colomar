@@ -1,12 +1,10 @@
 use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, TypeDesc};
 use super::cst::Path;
 use super::span::Span;
-use super::trisult::Trisult;
+use super::trisult::{NonEmptyVec, Trisult};
 use super::wst::partial::SaturateError;
-use super::{workshop, Ident, OwnedRich, PartialQueryTrisult, QueryTrisult, Text, TextId};
-use crate::query_error;
+use super::{trisult, workshop, Ident, OwnedRich, PartialQueryTrisult, QueryTrisult, Text, TextId};
 use either::Either;
-use smallvec::{smallvec, SmallVec};
 use std::borrow::Cow;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -24,18 +22,18 @@ pub enum PartialCompilerError {
         Rc<str>,
         Vec<OwnedRich<workshop::lexer::Token, Span>>,
     ),
-    CompilerErrors(Vec<CompilerError>),
+    CompilerErrors(NonEmptyVec<CompilerError>),
 }
 
 impl PartialCompilerError {
     /// Use a SmallVec as return type, because most of the time one partial error corresponds to one CompilerError.
     /// Using a SmallVec avoids allocating many 1 length vectors.
-    fn into_compiler_error(self, error_cause: ErrorCause) -> SmallVec<[CompilerError; 1]> {
+    fn into_compiler_error(self, error_cause: ErrorCause) -> NonEmptyVec<CompilerError> {
         use CompilerError as C;
         use PartialCompilerError as P;
 
         let error = match self {
-            P::CompilerErrors(errors) => return SmallVec::from_vec(errors),
+            P::CompilerErrors(errors) => return errors,
             P::CannotFindPrimitiveDecl(text_id) => C::CannotFindPrimitiveDecl(text_id, error_cause),
             P::CannotFindNativeDef(string) => C::CannotFindNativeDef(string, error_cause),
             P::PlaceholderError(error) => C::PlaceholderError(error, error_cause),
@@ -47,14 +45,14 @@ impl PartialCompilerError {
                 C::WstLexerError(path, text, source, errors, error_cause)
             }
         };
-        smallvec![error]
+        NonEmptyVec::new(error)
     }
 }
 
 fn complete_partial_errors(
-    errors: Vec<PartialCompilerError>,
+    errors: NonEmptyVec<PartialCompilerError>,
     error_cause: ErrorCause,
-) -> Vec<CompilerError> {
+) -> NonEmptyVec<CompilerError> {
     errors
         .into_iter()
         .map(|partial_error| partial_error.into_compiler_error(error_cause.clone()))
@@ -78,7 +76,7 @@ impl<T> PartialQueryTrisult<T> {
 
 impl<T> QueryTrisult<T> {
     pub fn partial_errors(self) -> PartialQueryTrisult<T> {
-        self.map_error(|errors| vec![PartialCompilerError::CompilerErrors(errors)])
+        self.map_error(|errors| NonEmptyVec::new(PartialCompilerError::CompilerErrors(errors)))
     }
 }
 
@@ -203,7 +201,7 @@ impl QueryTrisult<()> {
         if expr {
             QueryTrisult::Ok(())
         } else {
-            query_error!(CompilerError::NotImplemented(reason.into(), span))
+            trisult::err(CompilerError::NotImplemented(reason.into(), span))
         }
     }
 }
@@ -216,6 +214,6 @@ impl<T> From<CompilerError> for Result<T, CompilerError> {
 
 impl<T> From<CompilerError> for Trisult<T, CompilerError> {
     fn from(value: CompilerError) -> Self {
-        query_error!(value)
+        trisult::err(value)
     }
 }

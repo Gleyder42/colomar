@@ -7,7 +7,7 @@ use super::super::cir::{
 use super::super::error::CompilerError;
 use super::super::trisult::Trisult;
 use super::super::{flatten, Ident, QueryTrisult, StructId, TextId};
-use crate::{cir, cst, query_error, tri, PartialQueryTrisult};
+use crate::{cir, cst, tri, trisult, PartialQueryTrisult};
 
 use super::super::cst::{FunctionDecls, PropertyDecls};
 use crate::error::PartialCompilerError;
@@ -262,7 +262,7 @@ pub(super) fn query_namespaced_function(
         .flat_map(|rvalue| match rvalue {
             RValue::Function(function) => Trisult::Ok(db.lookup_intern_function_decl(function)),
             rvalue @ (RValue::Type(_) | RValue::Property(_) | RValue::EnumConstant(_)) => {
-                query_error!(CompilerError::NotA("Function", rvalue.name(db), ident))
+                trisult::err(CompilerError::NotA("Function", rvalue.name(db), ident))
             }
         })
 }
@@ -276,11 +276,8 @@ pub(super) fn query_namespaced_event(
         .flat_map(|r#type| match r#type {
             TypeDesc::Event(event) => Trisult::Ok(event),
             r#type @ (TypeDesc::Enum(_) | TypeDesc::Struct(_) | TypeDesc::Unit) => {
-                Trisult::Err(vec![CompilerError::NotA(
-                    "Event",
-                    RValue::Type(r#type).name(db),
-                    ident,
-                )])
+                let error = CompilerError::NotA("Event", RValue::Type(r#type).name(db), ident);
+                trisult::err(error)
             }
         })
 }

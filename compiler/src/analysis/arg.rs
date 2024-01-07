@@ -8,7 +8,7 @@ use super::super::{cir, cst, Ident, QueryTrisult, TextId};
 use super::super::span::Spanned;
 use crate::cir::{GenericTypeBoundMap, VirtualTypeKind};
 use crate::tri;
-use crate::trisult::Errors;
+use crate::trisult::{Errors, NonEmptyVec};
 use either::Either;
 use hashlink::{LinkedHashMap, LinkedHashSet};
 use smallvec::smallvec;
@@ -82,12 +82,12 @@ pub(super) fn query_called_args(
                             Ok((Some(index), Some(called_arg)))
                         } else {
                             let error = CompilerError::CannotMixArgs(arg.span);
-                            Par((Some(index), None), vec![error])
+                            Par((Some(index), None), NonEmptyVec::new(error))
                         }
                     }
                     None => {
                         let error = CompilerError::DuplicateNamedArg(name);
-                        Par((Some(index), None), vec![error])
+                        Par((Some(index), None), NonEmptyVec::new(error))
                     }
                 },
                 // If the called argument is not named
@@ -115,13 +115,13 @@ pub(super) fn query_called_args(
                                         span: arg.span,
                                         max_index: decl_arg_ids.len() - 1,
                                     };
-                                    Par((Some(index), None), vec![error])
+                                    Par((Some(index), None), NonEmptyVec::new(error))
                                 }
                             },
                         }
                     } else {
                         let error = CompilerError::CannotMixArgs(arg.span);
-                        Par((Some(index), None), vec![error])
+                        Par((Some(index), None), NonEmptyVec::new(error))
                     }
                 }
             }

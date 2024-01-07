@@ -1,5 +1,6 @@
 use super::span::{Span, Spanned};
 use std::fmt::Debug;
+use std::hash::Hash;
 
 /// Trisult is similar to [Result] but has one more in-between state.
 /// These states are
@@ -11,9 +12,13 @@ pub enum Trisult<T, E> {
     /// Contains the success value
     Ok(T),
     /// Contains the partial success value and the error values
-    Par(T, Vec<E>),
+    Par(T, NonEmptyVec<E>),
     /// Contains the error values
-    Err(Vec<E>),
+    Err(NonEmptyVec<E>),
+}
+
+pub fn err<T, E>(error: E) -> Trisult<T, E> {
+    Trisult::Err(NonEmptyVec::new(error))
 }
 
 impl<T: Debug, E: Debug> Trisult<T, E> {
@@ -77,7 +82,10 @@ impl<T, E> Trisult<T, E> {
         if errors.is_empty() {
             Trisult::Ok(value)
         } else {
-            Trisult::Par(value, errors)
+            Trisult::Par(
+                value,
+                NonEmptyVec::try_from(errors).expect("Errors are already checked to be not empty"),
+            )
         }
     }
 
@@ -89,25 +97,13 @@ impl<T, E> Trisult<T, E> {
         }
     }
 
-    pub fn reduce_errors<L>(self, func: impl Fn(Vec<E>) -> L) -> Trisult<T, L> {
-        match self {
-            Trisult::Ok(value) => Trisult::Ok(value),
-            Trisult::Par(value, errors) => Trisult::Par(value, vec![func(errors)]),
-            Trisult::Err(errors) => Trisult::Err(vec![func(errors)]),
-        }
-    }
-
-    pub fn merge_errors(self, mut errors: Errors<E>) -> Trisult<T, E> {
+    pub fn merge_errors(self, errors: Errors<E>) -> Trisult<T, E> {
         match self {
             ok @ Trisult::Ok(_) => ok,
-            Trisult::Par(value, mut other_errors) => {
-                other_errors.append(&mut errors.vec);
-                Trisult::Par(value, other_errors)
+            Trisult::Par(value, other_errors) => {
+                Trisult::Par(value, other_errors.append_vec(errors.vec))
             }
-            Trisult::Err(mut other_errors) => {
-                other_errors.append(&mut errors.vec);
-                Trisult::Err(other_errors)
-            }
+            Trisult::Err(other_errors) => Trisult::Err(other_errors.append_vec(errors.vec)),
         }
     }
 
@@ -144,8 +140,8 @@ impl<T, E> Trisult<T, E> {
     pub fn to_option(self) -> (Option<T>, Vec<E>) {
         match self {
             Trisult::Ok(value) => (Some(value), Vec::new()),
-            Trisult::Par(value, errors) => (Some(value), errors),
-            Trisult::Err(errors) => (None, errors),
+            Trisult::Par(value, errors) => (Some(value), errors.into()),
+            Trisult::Err(errors) => (None, errors.into()),
         }
     }
 
@@ -156,14 +152,14 @@ impl<T, E> Trisult<T, E> {
         self.and(with)
             .flat_map(|(value, with)| match filter(&value, with) {
                 Ok(_) => Trisult::Ok(value),
-                Err(error) => Trisult::Par(value, vec![error]),
+                Err(error) => Trisult::Par(value, NonEmptyVec::new(error)),
             })
     }
 
     pub fn soft_filter<F: FnOnce(&T) -> Result<(), E>>(self, filter: F) -> Trisult<T, E> {
         self.flat_map(|value| match filter(&value) {
             Ok(_) => Trisult::Ok(value),
-            Err(error) => Trisult::Par(value, vec![error]),
+            Err(error) => Trisult::Par(value, NonEmptyVec::new(error)),
         })
     }
 
@@ -208,7 +204,7 @@ impl<T, E> Trisult<T, E> {
     /// * If the other result is [Trisult::Err] the recovery function defines the combined result
     fn and_or_recover<O, F>(self, recovery: F, other: Trisult<O, E>) -> Trisult<(T, O), E>
     where
-        F: FnOnce(T, Vec<E>) -> Trisult<(T, O), E>,
+        F: FnOnce(T, NonEmptyVec<E>) -> Trisult<(T, O), E>,
     {
         use Trisult::*;
 
@@ -217,23 +213,13 @@ impl<T, E> Trisult<T, E> {
             (Ok(value), Par(other_value, other_errors)) => Par((value, other_value), other_errors),
             (Ok(value), Err(errors)) => recovery(value, errors),
             (Par(value, errors), Ok(other_value)) => Par((value, other_value), errors),
-            (Par(value, mut errors), Par(other_value, mut other_errors)) => {
-                errors.append(&mut other_errors);
-                Par((value, other_value), errors)
+            (Par(value, errors), Par(other_value, other_errors)) => {
+                Par((value, other_value), errors.append(other_errors))
             }
-            (Par(value, mut errors), Err(mut other_errors)) => {
-                errors.append(&mut other_errors);
-                recovery(value, errors)
-            }
+            (Par(value, errors), Err(other_errors)) => recovery(value, errors.append(other_errors)),
             (Err(errors), Ok(_other_value)) => Err(errors),
-            (Err(mut errors), Par(_other_value, mut other_errors)) => {
-                errors.append(&mut other_errors);
-                Err(errors)
-            }
-            (Err(mut errors), Err(mut other_errors)) => {
-                errors.append(&mut other_errors);
-                Err(errors)
-            }
+            (Err(errors), Par(_other_value, other_errors)) => Err(errors.append(other_errors)),
+            (Err(errors), Err(other_errors)) => Err(errors.append(other_errors)),
         }
     }
 
@@ -288,7 +274,10 @@ impl<T, E> Trisult<T, E> {
         }
     }
 
-    pub fn map_error<U>(self, func: impl FnOnce(Vec<E>) -> Vec<U>) -> Trisult<T, U> {
+    pub fn map_error<U>(
+        self,
+        func: impl FnOnce(NonEmptyVec<E>) -> NonEmptyVec<U>,
+    ) -> Trisult<T, U> {
         match self {
             Trisult::Ok(value) => Trisult::Ok(value),
             Trisult::Par(value, errors) => Trisult::Par(value, func(errors)),
@@ -304,18 +293,14 @@ impl<T, E> Trisult<T, E> {
     pub fn flat_map<U, F: FnOnce(T) -> Trisult<U, E>>(self, func: F) -> Trisult<U, E> {
         match self {
             Trisult::Ok(value) => func(value),
-            Trisult::Par(value, mut errors) => {
+            Trisult::Par(value, errors) => {
                 let result = func(value);
                 match result {
                     Trisult::Ok(value) => Trisult::Par(value, errors),
-                    Trisult::Par(value, mut mapped_errors) => {
-                        errors.append(&mut mapped_errors);
-                        Trisult::Par(value, errors)
+                    Trisult::Par(value, mapped_errors) => {
+                        Trisult::Par(value, errors.append(mapped_errors))
                     }
-                    Trisult::Err(mut mapped_errors) => {
-                        errors.append(&mut mapped_errors);
-                        Trisult::Err(errors)
-                    }
+                    Trisult::Err(mapped_errors) => Trisult::Err(errors.append(mapped_errors)),
                 }
             }
             Trisult::Err(errors) => Trisult::Err(errors),
@@ -376,23 +361,18 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
                         current = acc;
                         new_value.map(|it| values.push(it));
                     }
-                    Trisult::Par((acc, new_value), mut result_errors) => {
+                    Trisult::Par((acc, new_value), result_errors) => {
                         current = acc;
                         new_value.map(|it| values.push(it));
-                        errors.append(&mut result_errors);
+                        result_errors.add_to_vec(&mut errors);
                     }
-                    Trisult::Err(mut result_errors) => {
-                        errors.append(&mut result_errors);
-                        return Trisult::Err(errors);
+                    Trisult::Err(result_errors) => {
+                        return Trisult::Err(result_errors.with(errors));
                     }
                 }
             }
 
-            if errors.is_empty() {
-                Trisult::Ok(values)
-            } else {
-                Trisult::Par(values, errors)
-            }
+            Trisult::new(values, errors)
         })
     }
 
@@ -409,22 +389,17 @@ impl<T, I: IntoIterator<Item = T>, E> Trisult<I, E> {
                 let result = func(current, item);
                 match result {
                     Trisult::Ok(value) => current = value,
-                    Trisult::Par(value, mut result_errors) => {
+                    Trisult::Par(value, result_errors) => {
                         current = value;
-                        errors.append(&mut result_errors);
+                        result_errors.add_to_vec(&mut errors);
                     }
-                    Trisult::Err(mut result_errors) => {
-                        errors.append(&mut result_errors);
-                        return Trisult::Err(errors);
+                    Trisult::Err(result_errors) => {
+                        return Trisult::Err(result_errors.with(errors));
                     }
                 }
             }
 
-            if errors.is_empty() {
-                Trisult::Ok(map_func(current))
-            } else {
-                Trisult::Par(map_func(current), errors)
-            }
+            Trisult::new(map_func(current), errors)
         })
     }
 
@@ -462,14 +437,14 @@ impl<T, E> IntoTrisult<T, E> for Option<T> {
     fn trisult_ok_or(self, error: E) -> Trisult<T, E> {
         match self {
             Some(value) => Trisult::Ok(value),
-            None => Trisult::Err(vec![error]),
+            None => err(error),
         }
     }
 
     fn trisult_ok_or_else(self, error: impl Fn() -> E) -> Trisult<T, E> {
         match self {
             Some(value) => Trisult::Ok(value),
-            None => Trisult::Err(vec![error()]),
+            None => err(error()),
         }
     }
 }
@@ -478,7 +453,7 @@ impl<T, E> From<Result<Trisult<T, E>, E>> for Trisult<T, E> {
     fn from(value: Result<Trisult<T, E>, E>) -> Self {
         match value {
             Ok(query_result) => query_result,
-            Err(error) => Trisult::Err(vec![error]),
+            Err(error) => err(error),
         }
     }
 }
@@ -487,14 +462,23 @@ impl<T, E> TryFrom<(Option<T>, Vec<E>)> for Trisult<T, E> {
     type Error = &'static str;
 
     fn try_from(value: (Option<T>, Vec<E>)) -> Result<Self, Self::Error> {
-        let trisult = match value {
-            (Some(value), errors) if errors.is_empty() => Trisult::Ok(value),
-            (Some(value), errors) => Trisult::Par(value, errors),
-            (None, errors) if errors.is_empty() => {
-                return Err("If option is none, errors must have at least one value");
+        const ERROR_MESSAGE: &str = "Errors are already checked to be not empty";
+
+        let is_empty = value.1.is_empty();
+
+        let trisult = match (value.0, value.1, is_empty) {
+            (Some(value), _, true) => Trisult::Ok(value),
+            (Some(value), errors, false) => {
+                Trisult::Par(value, NonEmptyVec::try_from(errors).expect(ERROR_MESSAGE))
             }
-            (None, errors) => Trisult::Err(errors),
+            (None, errors, false) => {
+                Trisult::Err(NonEmptyVec::try_from(errors).expect(ERROR_MESSAGE))
+            }
+            (None, _, true) => {
+                return Err("If option is none, errors must have at least one value")
+            }
         };
+
         Ok(trisult)
     }
 }
@@ -503,7 +487,7 @@ impl<T, E> From<Result<T, E>> for Trisult<T, E> {
     fn from(value: Result<T, E>) -> Self {
         match value {
             Ok(value) => Trisult::Ok(value),
-            Err(error) => Trisult::Err(vec![error]),
+            Err(error) => err(error),
         }
     }
 }
@@ -538,16 +522,15 @@ impl<T, E> From<(T, Vec<E>)> for Trisult<T, E> {
         if value.1.is_empty() {
             Trisult::Ok(value.0)
         } else {
-            Trisult::Par(value.0, value.1)
+            Trisult::Par(
+                value.0,
+                value
+                    .1
+                    .try_into()
+                    .expect("Vec is already checked to be not empty"),
+            )
         }
     }
-}
-
-#[macro_export]
-macro_rules! query_error {
-    ($($x:expr),+ $(,)?) => {
-        $crate::trisult::Trisult::Err(vec![$($x),+])
-    };
 }
 
 pub trait ErrorHolder<E> {
@@ -557,6 +540,15 @@ pub trait ErrorHolder<E> {
 #[derive(Debug)]
 pub struct Errors<E> {
     vec: Vec<E>,
+}
+
+impl<E> From<NonEmptyVec<E>> for Errors<E> {
+    fn from(value: NonEmptyVec<E>) -> Self {
+        match value.0 {
+            NonEmptyVecRepr::Vec(vec) => Errors { vec },
+            NonEmptyVecRepr::Inline(inline) => Errors { vec: vec![inline] },
+        }
+    }
 }
 
 impl<E> From<Vec<E>> for Errors<E> {
@@ -576,7 +568,12 @@ impl<E> Errors<E> {
         if self.vec.is_empty() {
             Trisult::Ok(value)
         } else {
-            Trisult::Par(value, self.vec)
+            Trisult::Par(
+                value,
+                self.vec
+                    .try_into()
+                    .expect("Vec is already checked to be not empty"),
+            )
         }
     }
 
@@ -584,23 +581,32 @@ impl<E> Errors<E> {
     ///
     /// If you have one more error to add, use [Errors::fail] instead.
     pub fn fail_directly<T>(self) -> Trisult<T, E> {
-        // TODO make this check with trisult.
-        // Maybe encapsulate trisult more?
-        // Maybe make an non empty vec
-        assert!(!self.vec.is_empty(), "errors must not be empty");
-        Trisult::Err(self.vec)
+        Trisult::Err(
+            self.vec
+                .try_into()
+                .expect("Errors should at lease have one value"),
+        )
     }
 
     pub fn par<T>(mut self, value: T, error: E) -> Trisult<T, E> {
         self.vec.push(error);
-        Trisult::Par(value, self.vec)
+        Trisult::Par(
+            value,
+            self.vec
+                .try_into()
+                .expect("Vec is guaranteed to not be empty"),
+        )
     }
 
     /// Returns [Trisult::Err] with all previously collected errors, but also
     /// adds one more error.
     pub fn fail<T>(mut self, error: E) -> Trisult<T, E> {
         self.vec.push(error);
-        Trisult::Err(self.vec)
+        Trisult::Err(
+            self.vec
+                .try_into()
+                .expect("Vec is guaranteed to not be empty"),
+        )
     }
 }
 impl<E> Default for Errors<E> {
@@ -615,15 +621,15 @@ impl<E> Into<Vec<E>> for Errors<E> {
     }
 }
 
-impl<E> ErrorHolder<E> for Vec<E> {
-    fn consume(self) -> Vec<E> {
-        self
-    }
-}
-
 impl<E> ErrorHolder<E> for Errors<E> {
     fn consume(self) -> Vec<E> {
         self.vec
+    }
+}
+
+impl<E> ErrorHolder<E> for NonEmptyVec<E> {
+    fn consume(self) -> Vec<E> {
+        self.into()
     }
 }
 
@@ -637,13 +643,170 @@ impl<E> Errors<E> {
     }
 
     pub fn push(&mut self, error: E) {
-        if self.vec.is_empty() {
-            self.vec = vec![error];
+        self.vec.push(error);
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum NonEmptyVecRepr<T> {
+    Vec(Vec<T>),
+    Inline(T),
+}
+
+/// An array which always has at least one element.
+/// A singular element does may not allocate.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct NonEmptyVec<T>(NonEmptyVecRepr<T>);
+
+impl<T> NonEmptyVec<T> {
+    /// Combines this vec with another.
+    /// Order is not preserved.
+    /// If your other vec is not owned, use [NonEmptyVec::add_to_vec]
+    pub fn with(self, mut other: Vec<T>) -> NonEmptyVec<T> {
+        let repr = match self.0 {
+            NonEmptyVecRepr::Vec(mut vec) => {
+                other.append(&mut vec);
+                std::mem::swap(&mut vec, &mut other);
+                NonEmptyVecRepr::Vec(vec)
+            }
+            NonEmptyVecRepr::Inline(inline) => {
+                other.push(inline);
+                NonEmptyVecRepr::Vec(other)
+            }
+        };
+        NonEmptyVec(repr)
+    }
+
+    /// Combines this vec with another.
+    /// Order is not preserved.
+    pub fn add_to_vec(self, other: &mut Vec<T>) {
+        match self.0 {
+            NonEmptyVecRepr::Vec(mut vec) => other.append(&mut vec),
+            NonEmptyVecRepr::Inline(inline) => other.push(inline),
+        }
+    }
+
+    /// Combines this vec with another.
+    /// Order is not preserved.
+    pub fn append_vec(self, mut other: Vec<T>) -> Self {
+        let repr = match self.0 {
+            NonEmptyVecRepr::Vec(mut vec) => {
+                Self::merge_vec_into(&mut vec, other);
+                NonEmptyVecRepr::Vec(vec)
+            }
+            NonEmptyVecRepr::Inline(inline) => {
+                other.push(inline);
+                NonEmptyVecRepr::Vec(other)
+            }
+        };
+        NonEmptyVec(repr)
+    }
+
+    /// Combines this vec with another.
+    /// Order is not preserved.
+    pub fn append(self, other: Self) -> Self {
+        let repr = match (self.0, other.0) {
+            (NonEmptyVecRepr::Vec(mut vec), NonEmptyVecRepr::Vec(other_vec)) => {
+                Self::merge_vec_into(&mut vec, other_vec);
+                NonEmptyVecRepr::Vec(vec)
+            }
+            (NonEmptyVecRepr::Vec(mut vec), NonEmptyVecRepr::Inline(inline)) => {
+                vec.push(inline);
+                NonEmptyVecRepr::Vec(vec)
+            }
+            (NonEmptyVecRepr::Inline(inline), NonEmptyVecRepr::Vec(mut other_vec)) => {
+                other_vec.push(inline);
+                NonEmptyVecRepr::Vec(other_vec)
+            }
+            (NonEmptyVecRepr::Inline(inline), NonEmptyVecRepr::Inline(other_inline)) => {
+                NonEmptyVecRepr::Vec(vec![inline, other_inline])
+            }
+        };
+        NonEmptyVec(repr)
+    }
+
+    /// Merges two vecs into one.
+    /// Appends the smaller vec to the larger one.
+    fn merge_vec_into(out_vec: &mut Vec<T>, mut other_vec: Vec<T>) {
+        if out_vec.len() > other_vec.len() {
+            out_vec.append(&mut other_vec);
         } else {
-            self.vec.push(error);
+            other_vec.append(out_vec);
+            std::mem::swap(out_vec, &mut other_vec);
         }
     }
 }
+
+impl<T> FromIterator<T> for NonEmptyVec<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let vec: Vec<_> = iter.into_iter().collect(); // TODO can we avoid allocation here?
+        if vec.is_empty() {
+            panic!("Cannot collect an empty iterator into NonEmptyVec");
+        }
+
+        NonEmptyVec(NonEmptyVecRepr::Vec(vec))
+    }
+}
+
+impl<T> IntoIterator for NonEmptyVec<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self.0 {
+            NonEmptyVecRepr::Vec(iter) => iter.into_iter(),
+            NonEmptyVecRepr::Inline(element) => vec![element].into_iter(), // TODO can we avoid an allocation here?
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct VecIsEmptyError;
+
+impl<T> TryFrom<Errors<T>> for NonEmptyVec<T> {
+    type Error = VecIsEmptyError;
+
+    fn try_from(value: Errors<T>) -> Result<Self, Self::Error> {
+        TryFrom::<Vec<_>>::try_from(value.vec)
+    }
+}
+
+impl<T> TryFrom<Vec<T>> for NonEmptyVec<T> {
+    type Error = VecIsEmptyError;
+
+    fn try_from(value: Vec<T>) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            Err(VecIsEmptyError)
+        } else {
+            Ok(NonEmptyVec(NonEmptyVecRepr::Vec(value)))
+        }
+    }
+}
+
+impl<T> NonEmptyVec<T> {
+    pub fn new(element: T) -> NonEmptyVec<T> {
+        NonEmptyVec(NonEmptyVecRepr::Inline(element))
+    }
+}
+
+impl<T> Into<Vec<T>> for NonEmptyVec<T> {
+    fn into(self) -> Vec<T> {
+        match self.0 {
+            NonEmptyVecRepr::Vec(vec) => vec,
+            NonEmptyVecRepr::Inline(inline) => vec![inline],
+        }
+    }
+}
+
+impl<T: Default> Default for NonEmptyVec<T> {
+    fn default() -> Self {
+        NonEmptyVec::new(T::default())
+    }
+}
+
+pub const MESSAGE: &str =
+    "Errors cannot be empty because errors are combined with a Trisult errors \
+which can never be empty";
 
 #[macro_export]
 macro_rules! tri {
@@ -656,7 +819,9 @@ macro_rules! tri {
             }
             $crate::trisult::Trisult::Err(errors) => {
                 $context.append(errors);
-                return $crate::trisult::Trisult::Err($context.into());
+                return $crate::trisult::Trisult::Err(
+                    $context.try_into().expect($crate::trisult::MESSAGE),
+                );
             }
         }
     };
@@ -665,16 +830,54 @@ macro_rules! tri {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn _test_function() -> Trisult<i32, &'static str> {
-        let mut errors = Errors::default();
-        let trisult = Trisult::Ok(10);
 
-        let value = tri!(trisult, errors);
+    #[test]
+    fn test_non_empty_vec_with() {
+        let vec = NonEmptyVec::try_from(vec![1, 2, 3]).unwrap();
+        let other = vec![4, 5, 6];
 
-        let b = tri!(Trisult::Ok(10), errors);
+        let vec: Vec<_> = vec.with(other).into();
 
-        let a = value + b;
+        assert_eq!(vec, vec![4, 5, 6, 1, 2, 3]);
+    }
 
-        errors.value(a)
+    #[test]
+    fn test_inline_non_empty_vec_with() {
+        let vec = NonEmptyVec::new(10);
+        let other = vec![1, 2, 3];
+
+        let vec: Vec<_> = vec.with(other).into();
+
+        assert_eq!(vec, vec![1, 2, 3, 10]);
+    }
+
+    #[test]
+    fn test_inline_add_to_vec() {
+        let vec = NonEmptyVec::new(10);
+        let mut other = vec![1, 2, 3];
+
+        vec.add_to_vec(&mut other);
+
+        assert_eq!(other, vec![1, 2, 3, 10]);
+    }
+
+    #[test]
+    fn test_add_to_vec() {
+        let vec = NonEmptyVec::try_from(vec![1, 2, 3]).unwrap();
+        let mut other = vec![4, 5];
+
+        vec.add_to_vec(&mut other);
+
+        assert_eq!(other, vec![4, 5, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_add_to_vec_other_order() {
+        let vec = NonEmptyVec::try_from(vec![1, 2, 3]).unwrap();
+        let mut other = vec![4, 5, 6, 7];
+
+        vec.add_to_vec(&mut other);
+
+        assert_eq!(other, vec![4, 5, 6, 7, 1, 2, 3]);
     }
 }

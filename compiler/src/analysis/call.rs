@@ -8,6 +8,7 @@ use super::super::span::Spanned;
 use super::super::QueryTrisult;
 use super::super::{cir, cst};
 use crate::cir::CalledType;
+use crate::trisult::NonEmptyVec;
 use either::Either;
 use smallvec::smallvec;
 
@@ -99,7 +100,7 @@ pub(super) fn check_equal_return_avalue(
                 // TODO Add info
                 QueryTrisult::Par(
                     rhs.clone(),
-                    vec![CompilerError::WrongTypeInBinaryExpr(lhs, rhs)],
+                    NonEmptyVec::new(CompilerError::WrongTypeInBinaryExpr(lhs, rhs)),
                 )
             }
         })

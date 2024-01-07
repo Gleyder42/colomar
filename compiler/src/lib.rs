@@ -402,7 +402,7 @@ impl Display for AssignMod {
 }
 
 fn compiler_todo<T>(string: impl Into<Cow<'static, str>>, span: Span) -> QueryTrisult<T> {
-    QueryTrisult::Err(vec![CompilerError::NotImplemented(string.into(), span)])
+    trisult::err(CompilerError::NotImplemented(string.into(), span))
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

@@ -10,7 +10,7 @@ use super::super::wst::Ident;
 use super::super::{cir, compiler_todo, wst, Op, QueryTrisult};
 use crate::cir::VirtualTypeKind;
 use crate::error::ErrorCause;
-use crate::query_error;
+use crate::trisult;
 use cir::{CalledArgs, FunctionDecl};
 use std::collections::{HashMap, HashSet};
 
@@ -320,9 +320,9 @@ fn process_wscript(
         VirtualTypeKind::Type(it) => it,
         VirtualTypeKind::Generic(_) => {
             let message = "Caller must not be generic";
-            return query_error!(CompilerError::NotImplemented(
+            return trisult::err(CompilerError::NotImplemented(
                 message.into(),
-                caller.cir.span()
+                caller.cir.span(),
             ));
         }
     };
@@ -368,9 +368,9 @@ fn process_wscript(
             .complete_with_span(property_decl.name.span)
             .inner_into_some()
         }
-        TypeDesc::Unit => query_error!(CompilerError::NotImplemented(
+        TypeDesc::Unit => trisult::err(CompilerError::NotImplemented(
             "Unit as caller is currently not implemented".into(),
-            property_decl.name.span
+            property_decl.name.span,
         )),
     }
 }
@@ -422,13 +422,13 @@ pub fn query_wst_call_from_args(
 
 pub(super) fn query_const_eval(_db: &dyn Codegen, call: wst::Call) -> QueryTrisult<Ident> {
     match call {
-        wst::Call::Condition(_) => query_error!(CompilerError::CannotEvalAsConst),
-        wst::Call::String(_) => query_error!(CompilerError::CannotEvalAsConst),
-        wst::Call::Number(_) => query_error!(CompilerError::CannotEvalAsConst),
-        wst::Call::Boolean(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::Condition(_) => trisult::err(CompilerError::CannotEvalAsConst),
+        wst::Call::String(_) => trisult::err(CompilerError::CannotEvalAsConst),
+        wst::Call::Number(_) => trisult::err(CompilerError::CannotEvalAsConst),
+        wst::Call::Boolean(_) => trisult::err(CompilerError::CannotEvalAsConst),
         wst::Call::Ident(ident) => QueryTrisult::Ok(ident),
-        wst::Call::Property(_, _) => query_error!(CompilerError::CannotEvalAsConst),
-        wst::Call::Function(_) => query_error!(CompilerError::CannotEvalAsConst),
-        wst::Call::Vararg(_) => query_error!(CompilerError::CannotEvalAsConst),
+        wst::Call::Property(_, _) => trisult::err(CompilerError::CannotEvalAsConst),
+        wst::Call::Function(_) => trisult::err(CompilerError::CannotEvalAsConst),
+        wst::Call::Vararg(_) => trisult::err(CompilerError::CannotEvalAsConst),
     }
 }

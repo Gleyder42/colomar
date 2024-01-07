@@ -8,10 +8,11 @@ fn test_template(name: &str, assert: impl Fn(&str)) {
     let mut compiler = Compiler::new(PathBuf::from("../resources/test/errors"));
     compiler.set_main_name(&format!("{name}.co"));
     let (stdout, stderr) = compiler.compile();
+
     let lossy_utf8 = String::from_utf8_lossy(&stderr).to_string();
 
-    io::stdout().write(&stdout).unwrap();
-    io::stderr().write(&stderr).unwrap();
+    io::stdout().write_all(&stdout).unwrap();
+    io::stderr().write_all(&stderr).unwrap();
 
     assert(&lossy_utf8);
 }
