@@ -222,18 +222,12 @@ fn query_wst_call_by_function_call(
             if let Some(vararg_name) = vararg {
                 let calls: Vec<_> = varargs.into_iter().map(|(_, _, call)| call).collect();
                 let call = wst::Call::Vararg(calls);
-                replacement_map.insert(
-                    Placeholder::from(format!("${}$", vararg_name.value.name(db))),
-                    call,
-                );
+                replacement_map.insert(Placeholder::from(vararg_name.value.name(db)), call);
             }
 
             for (name, _, call) in args {
                 // TAssumes that .name(db) is correct here.
-                replacement_map.insert(
-                    Placeholder::from(format!("${}$", name.value.name(db))),
-                    call,
-                );
+                replacement_map.insert(Placeholder::from(name.value.name(db)), call);
             }
 
             wscript_function
@@ -253,7 +247,7 @@ fn query_wst_call_by_assignment(
     // TODO Should the map be cloned here?
     let mut replacement_map = replacement_map.clone();
     replacement_map.insert(
-        Placeholder::from("$name$"),
+        Placeholder::from("name"),
         wst::Call::Ident(Ident::from_ident(property_decl.name, db)),
     );
 
@@ -263,7 +257,7 @@ fn query_wst_call_by_assignment(
     let function = match assign_mod {
         Some(assign_mod) => {
             replacement_map.insert(
-                Placeholder::from("$assign_mod$"),
+                Placeholder::from("assign_mod"),
                 wst::Call::Ident(Ident::from(assign_mod.to_string())),
             );
 
@@ -273,10 +267,10 @@ fn query_wst_call_by_assignment(
             partial::Function {
                 name: wst::Ident::from(MODIFY_PLAYER_VARIABLE),
                 args: vec![
-                    placeholder("$caller$"),
-                    placeholder("$name$"),
-                    placeholder("$assign_mod$"),
-                    placeholder("$value$"),
+                    placeholder("caller"),
+                    placeholder("name"),
+                    placeholder("assign_mod"),
+                    placeholder("value"),
                 ],
             }
         }
@@ -285,9 +279,9 @@ fn query_wst_call_by_assignment(
             partial::Function {
                 name: wst::Ident::from(SET_PLAYER_VARIABLE),
                 args: vec![
-                    placeholder("$caller$"),
-                    placeholder("$name$"),
-                    placeholder("$value$"),
+                    placeholder("caller"),
+                    placeholder("name"),
+                    placeholder("value"),
                 ],
             }
         }

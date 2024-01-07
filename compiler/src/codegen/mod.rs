@@ -8,8 +8,8 @@ use super::loader::WorkshopScriptLoader;
 use super::wst::Variable;
 use super::{cir, wst, AssignMod, Ident, QueryTrisult};
 
-const CALLER_PLACEHOLDER: &str = "$caller$";
-const ASSIGMENT_PLACEHOLDER: &str = "$value$";
+const CALLER_PLACEHOLDER: &str = "caller";
+const ASSIGMENT_PLACEHOLDER: &str = "value";
 
 pub type Assigner = (wst::Call, Option<AssignMod>);
 

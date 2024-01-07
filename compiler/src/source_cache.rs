@@ -264,6 +264,8 @@ mod tests {
         let first_file = &files[0];
         fs::write(first_file, expected)?;
 
+        sleep(Duration::from_millis(1));
+
         let actual = &cache.update_files()?[first_file];
 
         assert_eq!(

@@ -81,21 +81,15 @@ pub fn input_from_str(wscript: &str, id: SpanSourceId) -> ParserInput {
 fn placeholder<'src>() -> impl PParser<'src, Token> {
     any()
         .filter(|c: &char| *c == PLACEHOLDER_DELIMITER)
-        .then(
+        .ignore_then(
             any()
                 .filter(|c: &char| c.is_ascii_alphanumeric() || *c == '_')
                 .repeated()
                 .at_least(1)
                 .collect::<Vec<_>>(),
         )
-        .then(any().filter(|c: &char| *c == PLACEHOLDER_DELIMITER))
-        .map(|((first, mut mid), last)| {
-            let mut combined = Vec::with_capacity(mid.len() + 2);
-            combined.push(first);
-            combined.append(&mut mid);
-            combined.push(last);
-            Token::Placeholder(combined.into_iter().collect())
-        })
+        .then_ignore(any().filter(|c: &char| *c == PLACEHOLDER_DELIMITER))
+        .map(|chars| Token::Placeholder(chars.into_iter().collect()))
 }
 
 fn ident<'src>() -> impl PParser<'src, Token> {
@@ -147,7 +141,9 @@ mod tests {
                 .parse(input_from_str(code, id))
                 .into_result()
                 .expect(&format!("Cannot parse {code}"));
-            assert_eq!(actual, Token::Placeholder(code.into()))
+            let name = &code[1..code.len() - 1];
+
+            assert_eq!(actual, Token::Placeholder(name.into()))
         }
     }
 
