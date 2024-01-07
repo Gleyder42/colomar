@@ -32,7 +32,6 @@ pub enum Token {
     String(StringId),
     Num(StringId),
     Ctrl(char),
-    Dctrl([char; 2]), // Delete this maybe?
 }
 
 impl InternedName for char {
@@ -77,7 +76,6 @@ impl Display for Token {
             Token::String(string) => write!(f, "{string:?}"),
             Token::Num(string) => write!(f, "{string:?}"),
             Token::Ctrl(ctrl) => write!(f, "{ctrl}"),
-            Token::Dctrl(ctrl) => write!(f, "{}{}", ctrl[0], ctrl[1]),
         }
     }
 }
