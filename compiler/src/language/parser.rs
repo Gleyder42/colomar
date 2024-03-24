@@ -61,23 +61,28 @@ pub fn r#type<'src>() -> impl PParser<'src, Type> {
     with_generics.or(without_generics)
 }
 
-pub fn declared_arg<'src>() -> impl PParser<'src, Spanned<Vec<DeclArg>>> {
-    let types = r#type()
+pub fn types<'src>() -> impl PParser<'src, Types> {
+    r#type()
         .separated_by(just(Token::Ctrl('|')))
         .collect::<Vec<_>>()
         .map_with_span(|types, span| Types {
             values: types.into(),
             span,
-        });
-    let default_value = just(Token::Ctrl('='))
-        .ignore_then(chain().ident_chain())
-        .or_not();
+        })
+}
 
+pub fn default_value<'src>() -> impl PParser<'src, Option<CallChain>> {
+    just(Token::Ctrl('='))
+        .ignore_then(chain().ident_chain())
+        .or_not()
+}
+
+pub fn declared_arg<'src>() -> impl PParser<'src, Spanned<Vec<DeclArg>>> {
     vararg()
         .then(ident())
         .then_ignore(just(Token::Ctrl(':')))
-        .then(types)
-        .then(default_value)
+        .then(types())
+        .then(default_value())
         .map_with_span(|(((is_vararg, name), types), default_value), span| {
             (is_vararg, name, types, default_value, span)
         })
@@ -285,9 +290,7 @@ pub fn expression<'src>() -> impl PParser<'src, Expr> {
 }
 
 pub fn partial<'src>() -> impl PParser<'src, SpannedBool> {
-    just(Token::Partial)
-        .or_not()
-        .map_with_span(Spanned::ignore_value)
+    spanned_bool(Token::Partial)
 }
 
 pub fn path<'src>() -> impl PParser<'src, Path> {
