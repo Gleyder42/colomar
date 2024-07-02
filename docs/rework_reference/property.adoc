@@ -1,97 +1,37 @@
-= Property
-
-A property stores information.
+= Variables
 
 == Syntax
 
 [source]
 ----
-Property = ( VariableModifier ) Ident [ ":" Type ] [InitValue] ";"
-InitValue = "=" AValue
-VariableModifier = "val" | "var" | "getvar" | "setvar"
+Variable = [reuse] ( "val" | "var" ) Ident [ ":" Type ] InitValue ";"
+InitValue = [ "=" AValue ]
 ----
 
 === Examples
 
 [source]
 ----
-val message: string = "Greeting";
-val message = "Greeting";
+val message: string = "Greeting"
+val message = "Greeting"
 val message;
 val message: String;
 
 var number = 10;
 
-val message;
-var message;
+reuse var result = true;
 ----
-
-[cols="30, ~, ~"]
-|===
-|Applicable in| Modifier | Effect
-
-|Rule, Struct, Global | val | Makes the variable immutable
-|Rule, Struct, Global | var | Makes the variable mutable
-|Native Struct | getvar | You can access the variable but not set it.
-|Native Struct | setvar | You can set the variable but not access it
-|===
 
 == Transpiled Workshop Code
 
-=== Examples
-
-==== Global variable
-
-*Colomar*
-
-[source]
-----
-val name = "Hello World"
-----
-
-*Workshop Code*
+=== Reuse
 
 [source]
 ----
 variables
 {
-	global:
-		0: name
-}
-
-rule("Init")
-{
-	event
-	{
-		Ongoing - Global;
-	}
-
-	actions
-	{
-		Global.name = Custom String("Hello World");
-	}
-}
-----
-
-==== Rule variable
-
-*Colomar*
-
-[source]
-----
-rule "Hello World" OngoingEachPlayer() {
-    val hello = "World"
-}
-----
-
-*Workshop Code*
-
-[source]
-----
-variables
-{
-	player:
-		0: hello
+    player:
+        <Index>: <Ident>
 }
 
 rule("Rule 1")
@@ -105,42 +45,72 @@ rule("Rule 1")
 
 	actions
 	{
-		Event Player.hello = Custom String("World");
+		Event Player.<Ident> = <InitValue_Def_0>;
+	}
+}
+
+rule("Rule 2")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.<Ident> = <InitValue_Def_1>;
 	}
 }
 ----
 
-==== Rule variable with global context
-
-*Colomar*
-
-[source]
-----
-rule "Hello World" OngoingGlobal() {
-    val hello = "World"
-}
-----
-
-*Workshop Code*
+=== Rule Context
 
 [source]
 ----
 variables
 {
-	global:
-		0: hello
+    player:
+        <Index>: <Ident>
 }
 
-rule("Hello World")
+rule("Global Context Initialization")
 {
-	event
-	{
-		Ongoing - Global;
-	}
+    event
+    {
+        Ongoing - Each Player;
+        All;
+        All;
+    }
 
-	actions
-	{
-		Global.hello = Custom String("World");
-	}
+    actions
+    {
+        Event Player.<Index> = <InitValue>
+    }
+}
+----
+
+=== Global Context
+
+[source]
+----
+variables
+{
+    global:
+        <Index>: <Ident>
+}
+
+rule("Global Context Initialization")
+{
+    event
+    {
+        Ongoing - Global;
+    }
+
+    actions
+    {
+        Global.<Index> = <InitValue>
+    }
 }
 ----
