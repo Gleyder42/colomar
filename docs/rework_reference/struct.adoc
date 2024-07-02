@@ -1,0 +1,188 @@
+= Struct
+
+A struct groups functions and properties together to organize code.
+
+== Syntax
+
+[source]
+----
+Struct = "struct" Ident Generics "{"
+    (Property+ | FunctionDecl+)
+"}"
+----
+
+=== Examples
+
+[source]
+----
+struct Player {
+    var name: string
+}
+
+struct vector {
+    var x: num;
+    var z; num;
+    var y: num;
+}
+
+struct holder<T> {
+    var value: T;
+}
+----
+
+== Transpiled Workshop Code
+
+A struct either transpiles using arrays (Array-based) or by destructing its properties into variables (Variable-based)
+
+=== Array-based struct
+
+==== Example
+
+[source]
+----
+struct vector {
+    var x: num;
+    var z; num;
+    var y: num;
+}
+
+rule "Test Rule" OngoingEachPlayer() {
+    var pos = vector(4, 5, 7);
+
+    val x = pos.x;
+    val y = pos.y;
+    pos.z = 20;
+}
+----
+
+[source]
+----
+variables
+{
+    player:
+        0: vector
+        1: x
+        2: y
+}
+
+rule ("Test Rule") {
+
+    event
+    {
+        Ongoing - Each Player;
+        All;
+        All;
+    }
+
+    actions
+    {
+        Event Player.vector = Array(4, 5, 7);
+        Event Player.x = Event Player.vector[0];
+        Event Player.y = Event Player.vector[1];
+        Event Player.vector[3] = 20;
+    }
+}
+----
+
+==== Variable Naming
+
+[source]
+----
+FreeIndex ":" StructName
+----
+
+==== Property Initialization
+
+[source]
+----
+Context "." StructName "=" "Array(" (PropertyValue,)+ ")"
+----
+
+==== Property Read
+
+[source]
+----
+Context "." StructName "[" StructPropertyIndex "]"
+----
+
+==== Property Write
+
+[source]
+----
+Context "." StructName "[" StructPropertyIndex "]" = Value
+----
+
+=== Variable-based struct
+
+[source]
+----
+struct vector {
+    var x: num;
+    var z; num;
+    var y: num;
+}
+
+rule "Test Rule" OngoingEachPlayer() {
+    var pos = vector(4, 5, 7);
+
+    val x = pos.x;
+    val y = pos.y;
+    pos.z = 20;
+}
+----
+
+[source]
+----
+variables
+{
+    player:
+        0: vector_x
+        1: vector_y
+        2: vector_z
+}
+
+rule ("Test Rule") {
+
+    event
+    {
+        Ongoing - Each Player;
+        All;
+        All;
+    }
+
+    actions
+    {
+        Event Player.vector_x = 4;
+        Event Player.vector_y = 5;
+        Event Player.vector_z = 7;
+    }
+}
+----
+
+==== Variable Naming
+
+[source]
+----
+FreeIndex ":" StructName_PropertyName
+----
+
+==== Property Initialization
+
+[source]
+----
+Context "." StructName_PropertyName "=" PropertyValue
+----
+
+==== Property Read
+
+[source]
+----
+Context "." StructName_PropertyName
+----
+
+==== Property Write
+
+[source]
+----
+Context "." StructName_PropertyName = Value
+----

@@ -15,9 +15,11 @@ smallvec = { version = "1.10.0", features = ["const_generics", "union"] } # comp
 serde = { version = "1.0.163", features = ["derive"] } # codegen
 toml = "0.8.8" # codegen
 regex = "1.8.4" # codegen
-hashlink = { version = "0.8.3", features = ["serde_impl"] } # codegen
+hashlink = { version = "0.9.1", features = ["serde_impl"] } # codegen
 lazy_static = "1.4.0" # compiler
 colomar_macros = { path = "../colomar_macros" } # compiler
+# Use to force depdendencies to use 0.8.11
+ahash = "0.8.11"
 
 [dev-dependencies]
 serde_yaml = "0.9.21"
@@ -26,4 +28,4 @@ derive-new = "0.6.0"
 anyhow = "1.0.71"
 pretty_assertions = "1.4.0"
 tempdir = "0.3.7"
-test_common = { path = "../test_common"}
+test_common = { path = "../test_common" }

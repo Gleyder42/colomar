@@ -1,0 +1,22 @@
+= Rule
+
+== Syntax
+
+[source]
+----
+RuleDecl = "rule" Ident Event DeclArgs Block
+----
+
+=== Examples
+
+[source]
+----
+rule "" OngoingEachPlayer() { }
+
+rule OngoingEachPlayer(Team.Team1, Hero.Ana) {
+    cond player.isJumping;
+    cond player.counter >= 1;
+
+    rule.player.sendMessage("You are Jumping")
+}
+----

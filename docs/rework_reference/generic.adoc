@@ -1,0 +1,10 @@
+= Generics
+
+== Syntax
+
+[source]
+----
+Generics = "<" ((Ident | Generics), )+ ">"
+
+BoundGenerics = "<" ((Type | BoundGenerics), )+ ">"
+----

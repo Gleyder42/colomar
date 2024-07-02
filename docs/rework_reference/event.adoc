@@ -1,0 +1,33 @@
+= Event
+
+Definition Directory: `native/event/<name>.toml`
+
+== Syntax
+
+[source]
+----
+[Visibility] ["native"] "event" Type DeclArgs Block
+----
+
+=== Examples
+
+[source]
+----
+event PlayerWeaponReloading(
+    team: Team = Team.All,
+    heroSlot: Hero | Slot = Slot.All
+) by OngoingEachPlayer(team, heroSlot) {
+    val player = by.player;
+
+    cond player.isReloading;
+
+    self();
+}
+
+pub native event OngoingEachPlayer(
+    team: Team = Team.All,
+    heroSlot: Hero | Slot = Slot.All
+) {
+    native val player: Player;
+}
+----

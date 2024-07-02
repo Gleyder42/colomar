@@ -1,0 +1,13 @@
+= Block
+
+== Syntax
+
+[source]
+----
+Block = "{" Conditions Actions "}"
+
+Action = Assigment | CallChain | Property
+Actions = (Action;)*
+Cond = "cond" Expression
+Conditions = (Condition;)*
+----

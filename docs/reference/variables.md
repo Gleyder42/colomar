@@ -4,7 +4,7 @@ Immutable types are declared by the `val` keyword.
 They can only be set once.
 They are read only.
 
-```
+``` 
 val foo: Number = 10
 val bar: String = "Hello World"
 val isSometing: Boolean = false

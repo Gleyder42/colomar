@@ -1,5 +1,6 @@
 #![feature(map_try_insert)]
 #![feature(iter_intersperse)]
+#![feature(trait_upcasting)]
 
 use crate::analysis::decl::DeclQuery;
 use crate::analysis::interner::Interner;
@@ -169,9 +170,9 @@ impl Compiler {
     /// - The left (or first) buffer contains data to be printed to [std::io::stdout()]
     /// - The right (or second) buffer contains data to be printed to [std::io::stderr()]
     pub fn compile(&mut self) -> (Vec<u8>, Vec<u8>) {
-        let result = parse(&mut self.source_cache, &self.database);
+        let parse_result = parse(&mut self.source_cache, &self.database);
 
-        let secondary_files: LinkedHashMap<_, _> = result
+        let secondary_files: LinkedHashMap<cst::PathName, cst::Cst> = parse_result
             .cst
             .into_iter()
             .map(|(path, cst)| {
@@ -201,14 +202,14 @@ impl Compiler {
         let mut stderr = Cursor::new(Vec::new());
 
         error_reporter::write_error(
-            result.parser_errors,
+            parse_result.parser_errors,
             &mut cache,
             &self.database,
             |_, error| *error.span(),
             &mut stderr,
         );
         error_reporter::write_error(
-            result.lexer_errors,
+            parse_result.lexer_errors,
             &mut cache,
             &self.database,
             |id, error| (id, error.span().into_range()),

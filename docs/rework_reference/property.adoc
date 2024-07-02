@@ -1,0 +1,146 @@
+= Property
+
+A property stores information.
+
+== Syntax
+
+[source]
+----
+Property = ( VariableModifier ) Ident [ ":" Type ] [InitValue] ";"
+InitValue = "=" AValue
+VariableModifier = "val" | "var" | "getvar" | "setvar"
+----
+
+=== Examples
+
+[source]
+----
+val message: string = "Greeting";
+val message = "Greeting";
+val message;
+val message: String;
+
+var number = 10;
+
+val message;
+var message;
+----
+
+[cols="30, ~, ~"]
+|===
+|Applicable in| Modifier | Effect
+
+|Rule, Struct, Global | val | Makes the variable immutable
+|Rule, Struct, Global | var | Makes the variable mutable
+|Native Struct | getvar | You can access the variable but not set it.
+|Native Struct | setvar | You can set the variable but not access it
+|===
+
+== Transpiled Workshop Code
+
+=== Examples
+
+==== Global variable
+
+*Colomar*
+
+[source]
+----
+val name = "Hello World"
+----
+
+*Workshop Code*
+
+[source]
+----
+variables
+{
+	global:
+		0: name
+}
+
+rule("Init")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.name = Custom String("Hello World");
+	}
+}
+----
+
+==== Rule variable
+
+*Colomar*
+
+[source]
+----
+rule "Hello World" OngoingEachPlayer() {
+    val hello = "World"
+}
+----
+
+*Workshop Code*
+
+[source]
+----
+variables
+{
+	player:
+		0: hello
+}
+
+rule("Rule 1")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.hello = Custom String("World");
+	}
+}
+----
+
+==== Rule variable with global context
+
+*Colomar*
+
+[source]
+----
+rule "Hello World" OngoingGlobal() {
+    val hello = "World"
+}
+----
+
+*Workshop Code*
+
+[source]
+----
+variables
+{
+	global:
+		0: hello
+}
+
+rule("Hello World")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.hello = Custom String("World");
+	}
+}
+----

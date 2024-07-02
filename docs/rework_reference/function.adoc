@@ -1,0 +1,74 @@
+= Function
+
+A function groups statements to organize code.
+
+== Syntax
+
+[source]
+----
+FunctionDecl =
+    ["native"]
+    ["static"]
+    "fn" Ident DeclArgs ReturnType
+
+ReturnType = "->" Type
+
+DeclArgs = "(" ( (["vararg"] Ident ":" Types DefaultValue), )+ ")"
+Types = (Type "|")+
+----
+
+=== Examples
+
+==== Global Function
+
+[source]
+----
+fn greet(player: Player, message: string) {
+    player.sendSmallMessage(message);
+}
+
+rule "Test Rule" OngoingEachPlayer() {
+    greet(player, "Hello World");
+}
+----
+
+===== Transpiled Workshop Code
+
+====== Inline
+
+[source]
+----
+Small Message(Event Player, Custom String("Hello World"));
+----
+
+====== Subroutine
+
+[source]
+----
+Event.Player.param[0] = Event Player;
+Event.Player.param[1] = Custom String("Hello World");
+Call Subroutine(greet);
+
+Small Message(Event.Player.param[0], Event.Player.param[1]);
+----
+
+==== Instance Function
+
+[source]
+----
+struct Data {
+
+    var name: string
+    var counter: num
+
+    fn rename(name: string) {
+        counter += 1;
+        this.name = name
+    }
+}
+----
+
+[source]
+----
+
+----

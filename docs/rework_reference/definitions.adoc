@@ -1,0 +1,5 @@
+= Definitions
+
+[cols="1,1"]
+|===
+| Name | Definition

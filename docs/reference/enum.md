@@ -1,13 +1,18 @@
 # Enum
 
+## Syntax
+
+```
+```
+
 ### Description
 
 An enum is an enumeration of constants.
 
 ### Declaration
 
-
 #### Workshop Enums
+
 ```
 native enum Slot {
     Slot0,

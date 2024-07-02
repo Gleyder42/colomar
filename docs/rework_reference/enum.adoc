@@ -1,0 +1,9 @@
+= Enum
+
+== Syntax
+
+[source]
+----
+Enum = "enum" Ident "{" (EnumConstant, )+ "}"
+EnumConstant = Ident [("=" AValue) | StructDef]
+----

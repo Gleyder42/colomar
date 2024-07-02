@@ -1,0 +1,8 @@
+= Type
+
+[source]
+----
+Type = BoundGenerics | Type
+
+Types = (Type |)+
+----

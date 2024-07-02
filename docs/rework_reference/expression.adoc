@@ -1,0 +1,14 @@
+= Expression
+
+== Syntax
+
+[source]
+----
+Expr = Expr | Chain
+
+
+Chain = IdentChain
+Atom = Chain | Expr
+
+Or = And
+----

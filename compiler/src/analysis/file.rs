@@ -22,9 +22,9 @@ pub(super) fn query_structs(
 ) -> QueryTrisult<HashMap<TextId, SmallVec<[cst::Struct; 1]>>> {
     let mut errors = Errors::new();
 
-    let ast = tri!(db.query_main_file(), errors);
+    let main_file_cst = tri!(db.query_main_file(), errors);
 
-    let struct_decls: Vec<_> = ast
+    let struct_decls: Vec<_> = main_file_cst
         .into_iter()
         .filter_map(|element| match element {
             Root::Struct(r#struct) => Some((r#struct.decl.name.value, r#struct)),
