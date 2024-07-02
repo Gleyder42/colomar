@@ -1,0 +1,116 @@
+= Variables
+
+== Syntax
+
+[source]
+----
+Variable = [reuse] ( "val" | "var" ) Ident [ ":" Type ] InitValue ";"
+InitValue = [ "=" AValue ]
+----
+
+=== Examples
+
+[source]
+----
+val message: string = "Greeting"
+val message = "Greeting"
+val message;
+val message: String;
+
+var number = 10;
+
+reuse var result = true;
+----
+
+== Transpiled Workshop Code
+
+=== Reuse
+
+[source]
+----
+variables
+{
+    player:
+        <Index>: <Ident>
+}
+
+rule("Rule 1")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.<Ident> = <InitValue_Def_0>;
+	}
+}
+
+rule("Rule 2")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.<Ident> = <InitValue_Def_1>;
+	}
+}
+----
+
+=== Rule Context
+
+[source]
+----
+variables
+{
+    player:
+        <Index>: <Ident>
+}
+
+rule("Global Context Initialization")
+{
+    event
+    {
+        Ongoing - Each Player;
+        All;
+        All;
+    }
+
+    actions
+    {
+        Event Player.<Index> = <InitValue>
+    }
+}
+----
+
+=== Global Context
+
+[source]
+----
+variables
+{
+    global:
+        <Index>: <Ident>
+}
+
+rule("Global Context Initialization")
+{
+    event
+    {
+        Ongoing - Global;
+    }
+
+    actions
+    {
+        Global.<Index> = <InitValue>
+    }
+}
+----
