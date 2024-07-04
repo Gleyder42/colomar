@@ -1,4 +1,4 @@
-use compiler::Compiler;
+use compiler::{Compiler, CompilerOutput};
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
@@ -7,7 +7,7 @@ use test_common::assert_patterns;
 fn test_template(name: &str, assert: impl Fn(&str)) {
     let mut compiler = Compiler::new(PathBuf::from("../resources/test/errors"));
     compiler.set_main_name(&format!("{name}.co"));
-    let (stdout, stderr) = compiler.compile();
+    let CompilerOutput { stdout, stderr } = compiler.compile();
 
     let lossy_utf8 = String::from_utf8_lossy(&stderr).to_string();
 

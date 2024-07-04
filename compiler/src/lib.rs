@@ -169,7 +169,7 @@ impl Compiler {
     /// Compiler returns two buffers.
     /// - The left (or first) buffer contains data to be printed to [std::io::stdout()]
     /// - The right (or second) buffer contains data to be printed to [std::io::stderr()]
-    pub fn compile(&mut self) -> (Vec<u8>, Vec<u8>) {
+    pub fn compile(&mut self) -> CompilerOutput {
         let parse_result = parse(&mut self.source_cache, &self.database);
 
         let secondary_files: LinkedHashMap<cst::PathName, cst::Cst> = parse_result
@@ -218,7 +218,10 @@ impl Compiler {
 
         let workshop_output = self.database.query_workshop_output();
         match workshop_output {
-            Trisult::Ok(value) => (format!("{value}").into_bytes(), Vec::new()),
+            Trisult::Ok(value) => CompilerOutput {
+                stdout: format!("{value}").into_bytes(),
+                stderr: Vec::new(),
+            },
             Trisult::Par(_, errors) | Trisult::Err(errors) => {
                 let unique_errors = errors.into_iter().collect();
 
@@ -230,10 +233,18 @@ impl Compiler {
                     &mut stderr,
                 );
 
-                (Vec::new(), stderr.into_inner())
+                CompilerOutput {
+                    stdout: Vec::new(),
+                    stderr: stderr.into_inner(),
+                }
             }
         }
     }
+}
+
+pub struct CompilerOutput {
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
 }
 
 fn parse<'a>(

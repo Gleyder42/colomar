@@ -1,4 +1,4 @@
-use compiler::Compiler;
+use compiler::{Compiler, CompilerOutput};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use test_common::assert_patterns;
@@ -11,7 +11,7 @@ fn setup(name: impl AsRef<Path>) -> String {
     let path = file(name);
     let mut compiler = Compiler::new(path);
 
-    let (mut stdout, stderr) = compiler.compile();
+    let CompilerOutput { mut stdout, stderr } = compiler.compile();
     std::io::stdout().write_all(&mut stdout).unwrap();
     let lossy_utf8 = String::from_utf8_lossy(&stderr).to_string();
     println!("{lossy_utf8}");
