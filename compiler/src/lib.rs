@@ -247,8 +247,10 @@ fn parse<'a>(
         let span_source_id = interner.intern_span_source(path.clone());
 
         use language::lexer::lexer as colomar_lexer;
+
+        let string = file.source.chars().collect::<String>();
         let (output, lexer_errors) = colomar_lexer(span_source_id, interner)
-            .parse(&file.content)
+            .parse(string.as_str())
             .into_output_errors();
 
         parse_result

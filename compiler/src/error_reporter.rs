@@ -190,7 +190,9 @@ fn report_wst_error<T: Debug + InternedName>(
     errors: Vec<OwnedRich<T, Span>>,
     cause: ErrorCause,
 ) {
-    source_cache.source_cache.set_file(path, selection, source);
+    source_cache
+        .source_cache
+        .insert_file(path, selection, source);
     for error in errors {
         to_report(params.db, &mut params.report, error.reason(), *error.span());
     }
