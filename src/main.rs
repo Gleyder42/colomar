@@ -5,7 +5,6 @@ use compiler::{Compiler, CompilerOutput};
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
-
 fn main() {
     let mut compiler = Compiler::new(PathBuf::from("docs/tutorials/example/test"));
     let CompilerOutput {

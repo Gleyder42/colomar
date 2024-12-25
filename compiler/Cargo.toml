@@ -20,6 +20,7 @@ lazy_static = "1.4.0" # compiler
 colomar_macros = { path = "../colomar_macros" } # compiler
 # Use to force depdendencies to use 0.8.11
 ahash = "0.8.11"
+notify = "6.1.1"
 
 [dev-dependencies]
 serde_yaml = "0.9.21"

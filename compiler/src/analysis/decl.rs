@@ -9,16 +9,6 @@ use super::super::cst::{Actions, TypeRoot};
 use super::super::{cir, cst, Ident, QueryTrisult, SVMultiMap, StructId, TextId};
 
 use super::super::span::Spanned;
-use crate::cir::{CalledType, GenericTypeBoundMap};
-use crate::cst::{Def, Root};
-use crate::PartialQueryTrisult;
-use cir::DeclArgId;
-use cst::Cst;
-use hashlink::{LinkedHashMap, LinkedHashSet};
-use smallvec::SmallVec;
-use std::collections::HashMap;
-use std::rc::Rc;
-
 use super::arg;
 use super::call;
 use super::event;
@@ -29,6 +19,20 @@ use super::property;
 use super::r#enum as eenum;
 use super::r#struct as sstruct;
 use super::r#type as ttype;
+use crate::cir::{CalledType, GenericTypeBoundMap};
+use crate::cst::{Def, Path, Root};
+use crate::error::{LexerRich, ParserRich};
+use crate::language::lexer::{LexerErrors, LexerTokens};
+use crate::span::SpanSourceId;
+use crate::trisult::Trisult;
+use crate::PartialQueryTrisult;
+use cir::DeclArgId;
+use cst::Cst;
+use hashlink::{LinkedHashMap, LinkedHashSet};
+use smallvec::SmallVec;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 #[salsa::query_group(DeclDatabase)]
 pub trait DeclQuery: Interner {
@@ -36,11 +40,24 @@ pub trait DeclQuery: Interner {
     fn main_file_name(&self) -> cst::PathName;
 
     #[salsa::input]
-    fn secondary_files(&self) -> LinkedHashMap<cst::PathName, Cst>;
+    fn secondary_files(&self) -> LinkedHashMap<cst::PathName, (PathBuf, String)>;
 
     /// Impl [file::query_secondary_file]
     #[salsa::invoke(file::query_secondary_file)]
-    fn query_secondary_file(&self, path: cst::Path) -> QueryTrisult<Cst>;
+    fn query_secondary_file(&self, path: cst::Path) -> QueryTrisult<(PathBuf, String)>;
+
+    /// Impl [file::query_secondary_file_cst]
+    #[salsa::invoke(file::query_secondary_file_cst)]
+    fn query_secondary_file_cst(&self, path: cst::Path) -> QueryTrisult<Cst>;
+
+    /// Impl [file::lex_secondary_file]
+    #[salsa::invoke(file::lex_secondary_file)]
+    fn lex_secondary_file(&self, source_path: PathBuf, string: String)
+        -> QueryTrisult<LexerTokens>;
+
+    /// Impl [file::parse_secondary_file]
+    #[salsa::invoke(file::parse_secondary_file)]
+    fn parse_secondary_file(&self, tokens: LexerTokens) -> QueryTrisult<Cst>;
 
     /// Impl [file::query_main_file]
     #[salsa::invoke(file::query_main_file)]

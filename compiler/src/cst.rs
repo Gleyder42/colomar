@@ -6,6 +6,8 @@ use super::{
 };
 use crate::analysis::decl::DeclQuery;
 use smallvec::SmallVec;
+use std::path::PathBuf;
+use std::rc::Rc;
 
 pub type Condition = Expr;
 pub type Conditions = SmallVec<[Condition; CONDITIONS_LEN]>;

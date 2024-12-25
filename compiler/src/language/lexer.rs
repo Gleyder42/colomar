@@ -5,6 +5,7 @@ use chumsky::prelude::*;
 
 use crate::analysis::interner::Interner;
 use crate::InternedName;
+use chumsky::input::SpannedInput;
 use std::fmt::{Debug, Display, Formatter};
 use std::string::String;
 
@@ -81,6 +82,10 @@ impl Display for Token {
 }
 
 pub type LexerExtra<'a> = extra::Err<Rich<'a, char>>;
+
+pub type LexerErrors<'a> = Vec<Rich<'a, char>>;
+
+pub type LexerTokens = Vec<(Token, Span)>;
 
 pub fn lexer(
     span_source_id: SpanSourceId,

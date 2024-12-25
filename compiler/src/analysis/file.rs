@@ -5,10 +5,69 @@ use super::super::error::CompilerError;
 
 use super::super::trisult::{Errors, IntoTrisult};
 use super::super::{cst, QueryTrisult, SVMultiMap, SVMultiMapWrapper, StructId, TextId};
-use crate::error::PartialCompilerError;
-use crate::{tri, PartialQueryTrisult};
+use crate::error::{LexerRich, ParserRich, PartialCompilerError};
+use crate::language::lexer::LexerTokens;
+use crate::span::{CopyRange, Span, SpanSource, SpanSourceId};
+use crate::trisult::Trisult;
+use crate::{
+    into_owned, language, tri, trisult, ColomarTokenStream, ParseResultExt, PartialQueryTrisult,
+};
+use chumsky::input::Input;
+use chumsky::Parser;
 use smallvec::SmallVec;
 use std::collections::HashMap;
+use std::path::PathBuf;
+
+pub(super) fn lex_secondary_file(
+    db: &dyn DeclQuery,
+    source_path: PathBuf,
+    string: String,
+) -> QueryTrisult<LexerTokens> {
+    let span_source_id = db.intern_span_source(source_path);
+    use language::lexer::lexer as colomar_lexer;
+    colomar_lexer(span_source_id, db)
+        .parse(string.as_str())
+        .into_trisult()
+        .map_each_error(|error| {
+            CompilerError::LexerError(LexerRich(span_source_id, error.into_owned()))
+        })
+}
+
+pub(super) fn parse_secondary_file(
+    _db: &dyn DeclQuery,
+    tokens: LexerTokens,
+) -> QueryTrisult<cst::Cst> {
+    let span_source_id = if let Some((_, span)) = tokens.get(0) {
+        span.context
+    } else {
+        // TODO don't panic
+        panic!("No tokens provided");
+    };
+
+    let eoi = Span::new(
+        span_source_id,
+        CopyRange::from(tokens.len()..tokens.len() + 1),
+    );
+
+    use chumsky::input::Stream as ChumskyStream;
+    let token_stream: ColomarTokenStream =
+        ChumskyStream::from_iter(tokens.into_iter()).spanned(eoi);
+
+    use language::parser::parser as colomar_parser;
+    colomar_parser()
+        .parse(token_stream)
+        .into_trisult()
+        .map_each_error(|error| CompilerError::ParserError(ParserRich(span_source_id, error)))
+}
+
+pub(super) fn query_secondary_file_cst(
+    db: &dyn DeclQuery,
+    path: cst::Path,
+) -> QueryTrisult<cst::Cst> {
+    db.query_secondary_file(path)
+        .flat_map(|(span_source, content)| db.lex_secondary_file(span_source, content))
+        .flat_map(|tokens| db.parse_secondary_file(tokens))
+}
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum DefKey {
@@ -121,7 +180,7 @@ pub(super) fn query_file(
     include_only_public: bool,
 ) -> QueryTrisult<cst::Cst> {
     let mut errors = Errors::default();
-    let mut ast: cst::Cst = tri!(db.query_secondary_file(path), errors);
+    let mut ast: cst::Cst = tri!(db.query_secondary_file_cst(path), errors);
 
     let import_indices: Vec<_> = ast
         .0
@@ -157,7 +216,10 @@ pub(super) fn query_file(
     errors.value(ast)
 }
 
-pub(super) fn query_secondary_file(db: &dyn DeclQuery, path: cst::Path) -> QueryTrisult<cst::Cst> {
+pub(super) fn query_secondary_file(
+    db: &dyn DeclQuery,
+    path: cst::Path,
+) -> QueryTrisult<(PathBuf, String)> {
     db.secondary_files()
         .remove(&path.name)
         .trisult_ok_or(CompilerError::CannotFindFile(path))

@@ -1,11 +1,17 @@
 use super::cir::{AValue, CalledType, CalledTypes, DeclArgId, TypeDesc};
 use super::cst::Path;
-use super::span::Span;
+use super::span::{CopyRange, Span, SpanSourceId};
 use super::trisult::{NonEmptyVec, Trisult};
 use super::wst::partial::SaturateError;
 use super::{trisult, workshop, Ident, OwnedRich, PartialQueryTrisult, QueryTrisult, Text, TextId};
+use crate::language::lexer::Token;
+use crate::workshop::lexer::ParserError;
+use chumsky::error::Rich;
+use chumsky::span::SimpleSpan;
 use either::Either;
+use salsa::InternKey;
 use std::borrow::Cow;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -97,6 +103,8 @@ impl ErrorCause {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompilerError {
+    LexerError(LexerRich),
+    ParserError(ParserRich),
     NotImplemented(Cow<'static, str>, Span),
     DuplicateIdent {
         first: Ident,
@@ -131,7 +139,6 @@ pub enum CompilerError {
         Vec<OwnedRich<char, Span>>,
         ErrorCause,
     ),
-
     WstParserError(
         PathBuf,
         Text,
@@ -145,6 +152,29 @@ pub enum CompilerError {
     CannotFindStruct(TextId, ErrorCause),
     CannotFindFile(Path),
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LexerRich(pub SpanSourceId, pub Rich<'static, char>);
+
+fn hash_rich(state: &mut impl Hasher, intern_id: u32, start: usize, end: usize) {
+    state.write_u32(intern_id);
+    state.write_usize(start);
+    state.write_usize(end);
+}
+
+impl Hash for LexerRich {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_rich(
+            state,
+            self.0.as_intern_id().as_u32(),
+            self.1.span().start,
+            self.1.span().end,
+        );
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ParserRich(pub SpanSourceId, pub Rich<'static, Token, Span>);
 
 impl CompilerError {
     pub fn main_span(&self) -> Option<Span> {
@@ -168,6 +198,10 @@ impl CompilerError {
             CompilerError::CannotEvalAsConst => todo!(),
             CompilerError::WrongTypeInBinaryExpr(left, _) => Some(left.span()),
             CompilerError::CannotFindFile(path) => Some(path.span),
+            CompilerError::LexerError(rich) => {
+                Some(Span::new(rich.0, CopyRange::from(*rich.1.span())))
+            }
+            CompilerError::ParserError(rich) => Some(rich.1.span().clone()),
         }
     }
 
@@ -192,6 +226,8 @@ impl CompilerError {
             CompilerError::WrongTypeInBinaryExpr(..) => 19,
             CompilerError::CannotFindFile(..) => 20,
             CompilerError::CannotFindStruct(..) => 21,
+            CompilerError::LexerError(..) => 22,
+            CompilerError::ParserError(..) => 23,
         }
     }
 }

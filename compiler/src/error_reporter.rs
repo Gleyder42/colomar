@@ -137,6 +137,8 @@ pub fn new_print_errors(
                     cause,
                 );
             }
+            CompilerError::LexerError(_) => todo!(),
+            CompilerError::ParserError(_) => todo!(),
         };
 
         params

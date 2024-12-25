@@ -65,7 +65,7 @@ impl FileFetcher {
     fn read_watched_directories(&self) -> io::Result<Vec<PathBuf>> {
         let mut file = Vec::new();
 
-        let mut visit_dir_entry = |dir_entry: &DirEntry| {
+        let mut visit_dir_entry = |dir_entry: DirEntry| {
             file.push(dir_entry.path());
             Ok(())
         };
@@ -128,6 +128,14 @@ impl<'a> ariadne::Cache<SpanSourceId> for SourceCache<'a> {
         if span_source == span::FAKE_SPAN_SOURCE_NAME.as_os_str() {
             Ok(&EMPTY_SOURCE)
         } else {
+            /*
+             * Directly using path_to_cached_file_map is not a bug!.
+             * We do not want to reload the cached files
+             *
+             * The pipeline is:
+             * Read files --> Transpile --> Report Errors
+             * We want to have the same cached file content in 'Read files' and 'Report Errors' stage.
+             */
             self.source_cache
                 .path_to_cached_file_map
                 .get(&span_source)
@@ -186,7 +194,7 @@ impl Default for EmptyLookupSource {
 
 pub fn visit_dirs(
     dir: &Path,
-    visit_dir: &mut dyn FnMut(&DirEntry) -> io::Result<()>,
+    visit_dir: &mut dyn FnMut(DirEntry) -> io::Result<()>,
 ) -> io::Result<()> {
     if dir.is_dir() {
         for entry in fs::read_dir(dir)? {
@@ -195,7 +203,7 @@ pub fn visit_dirs(
             if path.is_dir() {
                 visit_dirs(&path, visit_dir)?;
             } else {
-                visit_dir(&entry)?;
+                visit_dir(entry)?;
             }
         }
     }

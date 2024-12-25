@@ -740,6 +740,7 @@ impl<T> NonEmptyVec<T> {
 impl<T> FromIterator<T> for NonEmptyVec<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let vec: Vec<_> = iter.into_iter().collect(); // TODO can we avoid allocation here?
+                                                      // TODO
         if vec.is_empty() {
             panic!("Cannot collect an empty iterator into NonEmptyVec");
         }

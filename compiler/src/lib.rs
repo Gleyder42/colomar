@@ -12,11 +12,12 @@ use crate::loader::WorkshopScriptLoader;
 use crate::printer::PrinterQuery;
 use crate::source_cache::{FileFetcher, SourceCache};
 use crate::span::{CopyRange, SpanInterner, SpanSourceId, StringInterner};
+use crate::trisult::IntoTrisult;
 use chumsky::error::Rich;
-use chumsky::input::Input;
 use chumsky::input::Stream as ChumskyStream;
+use chumsky::input::{Input, SpannedInput};
 use chumsky::span::SimpleSpan;
-use chumsky::Parser;
+use chumsky::{ParseResult, Parser};
 use error::CompilerError;
 use hashlink::LinkedHashMap;
 use salsa::Durability;
@@ -26,9 +27,12 @@ use span::StringId;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 use std::io::Cursor;
+use std::ops::Range;
 use std::path::PathBuf;
+use std::rc::Rc;
+use std::vec::IntoIter;
 use trisult::Trisult;
 
 pub mod analysis;
@@ -82,12 +86,36 @@ macro_rules! parser_alias {
     };
 }
 
+impl<T, E> From<ParseResult<T, E>> for Trisult<T, E> {
+    fn from(value: ParseResult<T, E>) -> Self {
+        match value.into_output_errors() {
+            (Some(output), errors) if !errors.is_empty() => Trisult::Par(output, errors.try_into().unwrap()),
+            (Some(output), _errors) /* errors are empty */ => Trisult::Ok(output),
+            (None, errors) if !errors.is_empty() => Trisult::Err(errors.try_into().unwrap()),
+            (None, _errors) /* errors are empty */ => panic!("A parse result with no output will always have at least one error")
+        }
+    }
+}
+
 pub struct Compiler {
     dummy_values: DummyReportValues,
     database: CompilerDatabase,
     source_cache: FileFetcher,
     main_file: PathBuf,
     src_dir: PathBuf,
+}
+
+pub type ColomarTokenStream =
+    SpannedInput<Token, Span, chumsky::input::Stream<IntoIter<(Token, Span)>>>;
+
+pub trait ParseResultExt<T, E> {
+    fn into_trisult(self) -> Trisult<T, E>;
+}
+
+impl<T, E> ParseResultExt<T, E> for ParseResult<T, E> {
+    fn into_trisult(self) -> Trisult<T, E> {
+        self.into()
+    }
 }
 
 struct CompilerParseResult<T> {
@@ -170,51 +198,36 @@ impl Compiler {
     /// - The left (or first) buffer contains data to be printed to [std::io::stdout()]
     /// - The right (or second) buffer contains data to be printed to [std::io::stderr()]
     pub fn compile(&mut self) -> CompilerOutput {
-        let parse_result = parse(&mut self.source_cache, &self.database);
-
-        let secondary_files: LinkedHashMap<cst::PathName, cst::Cst> = parse_result
-            .cst
+        let secondary_files: LinkedHashMap<cst::PathName, (PathBuf, String)> = self
+            .source_cache
+            .update_files()
+            .expect("Cannot read source files")
             .into_iter()
-            .map(|(path, cst)| {
-                let path = create_path_from_path_buf(&self.database, &self.src_dir, &path);
-                (path, cst.unwrap_or(cst::Cst::new()))
+            .map(|(path_buf, cached_file)| {
+                let path_name = create_path_from_path_buf(&self.database, &self.src_dir, &path_buf);
+                let source = cached_file.source.chars().collect::<String>();
+                (path_name, (path_buf.clone(), source))
             })
             .collect();
 
-        println!(
-            "Following paths were imported: {}",
-            secondary_files
-                .keys()
-                .map(|it| it.name(&self.database))
-                .intersperse(",".to_string())
-                .collect::<String>()
-        );
+        let secondary_file_keys = secondary_files
+            .keys()
+            .map(|it| it.name(&self.database))
+            .intersperse(",".to_string())
+            .collect::<String>();
 
-        println!("Src dir: {}", self.src_dir.display());
-        println!("Main file: {}", self.main_file.display());
         self.database.set_secondary_files(secondary_files);
 
-        let mut cache = SourceCache {
+        println!("Following paths were imported: {}", secondary_file_keys);
+        println!("Src dir: {}", self.src_dir.display());
+        println!("Main file: {}", self.main_file.display());
+
+        let cache = SourceCache {
             source_cache: &mut self.source_cache,
             interner: &self.database,
             src_dir: &self.src_dir,
         };
         let mut stderr = Cursor::new(Vec::new());
-
-        error_reporter::write_error(
-            parse_result.parser_errors,
-            &mut cache,
-            &self.database,
-            |_, error| *error.span(),
-            &mut stderr,
-        );
-        error_reporter::write_error(
-            parse_result.lexer_errors,
-            &mut cache,
-            &self.database,
-            |id, error| (id, error.span().into_range()),
-            &mut stderr,
-        );
 
         let workshop_output = self.database.query_workshop_output();
         match workshop_output {
@@ -245,50 +258,6 @@ impl Compiler {
 pub struct CompilerOutput {
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
-}
-
-fn parse<'a>(
-    source_cache: &'a mut FileFetcher,
-    interner: &'a CompilerDatabase,
-) -> CompilerParseResult<cst::Cst> {
-    let files = source_cache.update_files().unwrap();
-
-    let mut parse_result = CompilerParseResult::new();
-    for (path, file) in files.iter() {
-        let span_source_id = interner.intern_span_source(path.clone());
-
-        use language::lexer::lexer as colomar_lexer;
-
-        let string = file.source.chars().collect::<String>();
-        let (output, lexer_errors) = colomar_lexer(span_source_id, interner)
-            .parse(string.as_str())
-            .into_output_errors();
-
-        parse_result
-            .lexer_errors
-            .push((span_source_id, into_owned(lexer_errors)));
-
-        if let Some(tokens) = output {
-            use language::parser::parser as colomar_parser;
-
-            let eoi = Span::new(
-                span_source_id,
-                CopyRange::from(tokens.len()..tokens.len() + 1),
-            );
-            let stream = ChumskyStream::from_iter(tokens.into_iter()).spanned(eoi);
-            let (output, parser_errors) = colomar_parser().parse(stream).into_output_errors();
-
-            parse_result
-                .parser_errors
-                .push((span_source_id, into_owned(parser_errors)));
-
-            parse_result.cst.push((path.clone(), output));
-        } else {
-            parse_result.cst.push((path.clone(), None));
-        }
-    }
-
-    parse_result
 }
 
 pub trait InternedName {
