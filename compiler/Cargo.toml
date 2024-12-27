@@ -21,6 +21,7 @@ colomar_macros = { path = "../colomar_macros" } # compiler
 # Use to force depdendencies to use 0.8.11
 ahash = "0.8.11"
 notify = "6.1.1"
+log = "0.4.17"
 
 [dev-dependencies]
 serde_yaml = "0.9.21"

@@ -338,7 +338,7 @@ fn report_not_implemented_error(params: &mut Params, name: Cow<str>, span: Span)
 const COMPILER_ERROR: ReportKind =
     ReportKind::Custom("Internal Compiler Error", Color::RGB(219, 13, 17));
 
-pub struct DummyReportValues(Span, EmptyLookupSource);
+pub struct DummyReportValues(Span);
 
 impl DummyReportValues {
     pub fn new(db: &dyn SpanInterner) -> Self {
@@ -346,7 +346,7 @@ impl DummyReportValues {
             offset: CopyRange { start: 0, end: 0 },
             context: db.intern_span_source(PathBuf::from("DummySpanSource")),
         };
-        DummyReportValues(dummy_span, EmptyLookupSource::default())
+        DummyReportValues(dummy_span)
     }
 }
 

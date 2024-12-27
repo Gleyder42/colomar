@@ -20,11 +20,9 @@ use super::r#enum as eenum;
 use super::r#struct as sstruct;
 use super::r#type as ttype;
 use crate::cir::{CalledType, GenericTypeBoundMap};
-use crate::cst::{Def, Path, Root};
-use crate::error::{LexerRich, ParserRich};
-use crate::language::lexer::{LexerErrors, LexerTokens};
+use crate::cst::{Def, Root};
+use crate::language::lexer::LexerTokens;
 use crate::span::SpanSourceId;
-use crate::trisult::Trisult;
 use crate::PartialQueryTrisult;
 use cir::DeclArgId;
 use cst::Cst;
@@ -52,12 +50,19 @@ pub trait DeclQuery: Interner {
 
     /// Impl [file::lex_secondary_file]
     #[salsa::invoke(file::lex_secondary_file)]
-    fn lex_secondary_file(&self, source_path: PathBuf, string: String)
-        -> QueryTrisult<LexerTokens>;
+    fn lex_secondary_file(
+        &self,
+        source_path: PathBuf,
+        string: String,
+    ) -> QueryTrisult<(SpanSourceId, LexerTokens)>;
 
     /// Impl [file::parse_secondary_file]
     #[salsa::invoke(file::parse_secondary_file)]
-    fn parse_secondary_file(&self, tokens: LexerTokens) -> QueryTrisult<Cst>;
+    fn parse_secondary_file(
+        &self,
+        span_source_id: SpanSourceId,
+        tokens: LexerTokens,
+    ) -> QueryTrisult<Cst>;
 
     /// Impl [file::query_main_file]
     #[salsa::invoke(file::query_main_file)]

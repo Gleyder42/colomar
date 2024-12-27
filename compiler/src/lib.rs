@@ -5,20 +5,17 @@
 use crate::analysis::decl::DeclQuery;
 use crate::analysis::interner::Interner;
 use crate::database::CompilerDatabase;
-use crate::error::PartialCompilerError;
+use crate::error::{CompilerError, PartialCompilerError};
 use crate::error_reporter::{new_print_errors, DummyReportValues};
 use crate::language::lexer::Token;
 use crate::loader::WorkshopScriptLoader;
 use crate::printer::PrinterQuery;
 use crate::source_cache::{FileFetcher, SourceCache};
-use crate::span::{CopyRange, SpanInterner, SpanSourceId, StringInterner};
-use crate::trisult::IntoTrisult;
+use crate::span::StringInterner;
 use chumsky::error::Rich;
-use chumsky::input::Stream as ChumskyStream;
-use chumsky::input::{Input, SpannedInput};
+use chumsky::input::SpannedInput;
 use chumsky::span::SimpleSpan;
-use chumsky::{ParseResult, Parser};
-use error::CompilerError;
+use chumsky::ParseResult;
 use hashlink::LinkedHashMap;
 use salsa::Durability;
 use smallvec::SmallVec;
@@ -27,11 +24,9 @@ use span::StringId;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::io::Cursor;
-use std::ops::Range;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::vec::IntoIter;
 use trisult::Trisult;
 
@@ -118,22 +113,6 @@ impl<T, E> ParseResultExt<T, E> for ParseResult<T, E> {
     }
 }
 
-struct CompilerParseResult<T> {
-    pub cst: Vec<(PathBuf, Option<T>)>,
-    pub lexer_errors: Vec<(SpanSourceId, Vec<Rich<'static, char>>)>,
-    pub parser_errors: Vec<(SpanSourceId, Vec<Rich<'static, Token, Span>>)>,
-}
-
-impl<T> CompilerParseResult<T> {
-    pub fn new() -> CompilerParseResult<T> {
-        CompilerParseResult {
-            parser_errors: Vec::new(),
-            lexer_errors: Vec::new(),
-            cst: Vec::new(),
-        }
-    }
-}
-
 pub fn create_path_from_path_buf(
     interner: &dyn StringInterner,
     prefix: &PathBuf,
@@ -205,8 +184,7 @@ impl Compiler {
             .into_iter()
             .map(|(path_buf, cached_file)| {
                 let path_name = create_path_from_path_buf(&self.database, &self.src_dir, &path_buf);
-                let source = cached_file.source.chars().collect::<String>();
-                (path_name, (path_buf.clone(), source))
+                (path_name, (path_buf.clone(), cached_file.content.clone()))
             })
             .collect();
 

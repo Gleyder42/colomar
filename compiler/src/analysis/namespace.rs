@@ -4,13 +4,12 @@ use super::super::cir::{
     EnumConstant, EnumConstantId, EnumDeclId, EnumDef, EventDeclId, FunctionDecl, PropertyDecl,
     RValue, StructDeclId, TypeDesc,
 };
-use super::super::error::CompilerError;
 use super::super::trisult::Trisult;
 use super::super::{flatten, Ident, QueryTrisult, StructId, TextId};
 use crate::{cir, cst, tri, trisult, PartialQueryTrisult};
 
 use super::super::cst::{FunctionDecls, PropertyDecls};
-use crate::error::PartialCompilerError;
+use crate::error::{CompilerError, PartialCompilerError};
 use crate::trisult::{Errors, IntoTrisult};
 use colomar_macros::Interned;
 use hashlink::LinkedHashMap;

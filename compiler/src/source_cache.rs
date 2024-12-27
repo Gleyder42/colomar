@@ -17,6 +17,7 @@ pub struct CachedFile {
     pub source_context: Option<String>,
     /// Contains the content of the file ready to be used by ariadne.
     pub source: Source,
+    pub content: String,
     /// Stores the timestamp when the content was last read from the file stored on the filesystem.
     pub last_update: SystemTime,
 }
@@ -25,6 +26,7 @@ impl CachedFile {
     /// Creates a cached file from a string
     pub fn from_content(content: String, last_update: SystemTime) -> Self {
         CachedFile {
+            content: content.clone(),
             source_context: None,
             source: Source::from(content),
             last_update,

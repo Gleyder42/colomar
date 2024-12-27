@@ -785,8 +785,8 @@ impl<T> TryFrom<Vec<T>> for NonEmptyVec<T> {
 }
 
 impl<T> NonEmptyVec<T> {
-    pub fn new(element: T) -> NonEmptyVec<T> {
-        NonEmptyVec(NonEmptyVecRepr::Inline(element))
+    pub fn new(element: impl Into<T>) -> NonEmptyVec<T> {
+        NonEmptyVec(NonEmptyVecRepr::Inline(element.into()))
     }
 }
 

@@ -1,17 +1,13 @@
 use super::super::analysis::decl::DeclQuery;
 use super::super::cir::{EnumDeclId, EventDeclId};
 use super::super::cst::{Def, EventDef, Root, StructDef, TypeRoot, Visibility};
-use super::super::error::CompilerError;
 
 use super::super::trisult::{Errors, IntoTrisult};
 use super::super::{cst, QueryTrisult, SVMultiMap, SVMultiMapWrapper, StructId, TextId};
-use crate::error::{LexerRich, ParserRich, PartialCompilerError};
+use crate::error::{CompilerError, LexerRich, ParserRich, PartialCompilerError};
 use crate::language::lexer::LexerTokens;
-use crate::span::{CopyRange, Span, SpanSource, SpanSourceId};
-use crate::trisult::Trisult;
-use crate::{
-    into_owned, language, tri, trisult, ColomarTokenStream, ParseResultExt, PartialQueryTrisult,
-};
+use crate::span::{CopyRange, Span, SpanSourceId};
+use crate::{language, tri, ColomarTokenStream, ParseResultExt, PartialQueryTrisult};
 use chumsky::input::Input;
 use chumsky::Parser;
 use smallvec::SmallVec;
@@ -22,7 +18,7 @@ pub(super) fn lex_secondary_file(
     db: &dyn DeclQuery,
     source_path: PathBuf,
     string: String,
-) -> QueryTrisult<LexerTokens> {
+) -> QueryTrisult<(SpanSourceId, LexerTokens)> {
     let span_source_id = db.intern_span_source(source_path);
     use language::lexer::lexer as colomar_lexer;
     colomar_lexer(span_source_id, db)
@@ -31,23 +27,24 @@ pub(super) fn lex_secondary_file(
         .map_each_error(|error| {
             CompilerError::LexerError(LexerRich(span_source_id, error.into_owned()))
         })
+        .map(|tokens| {
+            //test(db, &tokens);
+
+            (span_source_id, tokens)
+        })
 }
 
 pub(super) fn parse_secondary_file(
     _db: &dyn DeclQuery,
+    span_source_id: SpanSourceId,
     tokens: LexerTokens,
 ) -> QueryTrisult<cst::Cst> {
-    let span_source_id = if let Some((_, span)) = tokens.get(0) {
-        span.context
-    } else {
-        // TODO don't panic
-        panic!("No tokens provided");
-    };
-
     let eoi = Span::new(
         span_source_id,
         CopyRange::from(tokens.len()..tokens.len() + 1),
     );
+
+    //test(_db, &tokens);
 
     use chumsky::input::Stream as ChumskyStream;
     let token_stream: ColomarTokenStream =
@@ -66,7 +63,7 @@ pub(super) fn query_secondary_file_cst(
 ) -> QueryTrisult<cst::Cst> {
     db.query_secondary_file(path)
         .flat_map(|(span_source, content)| db.lex_secondary_file(span_source, content))
-        .flat_map(|tokens| db.parse_secondary_file(tokens))
+        .flat_map(|(span_source_id, tokens)| db.parse_secondary_file(span_source_id, tokens))
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]

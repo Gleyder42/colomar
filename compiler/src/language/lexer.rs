@@ -5,7 +5,6 @@ use chumsky::prelude::*;
 
 use crate::analysis::interner::Interner;
 use crate::InternedName;
-use chumsky::input::SpannedInput;
 use std::fmt::{Debug, Display, Formatter};
 use std::string::String;
 

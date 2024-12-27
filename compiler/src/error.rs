@@ -5,11 +5,8 @@ use super::trisult::{NonEmptyVec, Trisult};
 use super::wst::partial::SaturateError;
 use super::{trisult, workshop, Ident, OwnedRich, PartialQueryTrisult, QueryTrisult, Text, TextId};
 use crate::language::lexer::Token;
-use crate::workshop::lexer::ParserError;
 use chumsky::error::Rich;
-use chumsky::span::SimpleSpan;
 use either::Either;
-use salsa::InternKey;
 use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
@@ -156,20 +153,16 @@ pub enum CompilerError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LexerRich(pub SpanSourceId, pub Rich<'static, char>);
 
-fn hash_rich(state: &mut impl Hasher, intern_id: u32, start: usize, end: usize) {
-    state.write_u32(intern_id);
-    state.write_usize(start);
-    state.write_usize(end);
-}
-
+// Hash trait is implemented manually (no using the #[derive(Hash)],
+// because chumsky::span::SimpleSpan does not implement Hash, and
+// we cannot implement a foreign trait (std Hash) for a foreign type (chumsky::span::SimpleSpan).
+// Therefore, we have to implement the Hash trait manually.
 impl Hash for LexerRich {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        hash_rich(
-            state,
-            self.0.as_intern_id().as_u32(),
-            self.1.span().start,
-            self.1.span().end,
-        );
+        self.0.hash(state);
+        self.1.reason().hash(state);
+        state.write_usize(self.1.span().start);
+        state.write_usize(self.1.span().end);
     }
 }
 
