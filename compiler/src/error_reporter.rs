@@ -12,7 +12,8 @@ use either::Either;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt::Debug;
-use std::io::Cursor;
+use std::io;
+use std::io::{Cursor, Write};
 use std::path::PathBuf;
 
 type Report<'a> = ReportBuilder<'a, Span>;
@@ -137,8 +138,36 @@ pub fn new_print_errors(
                     cause,
                 );
             }
-            CompilerError::LexerError(_) => todo!(),
-            CompilerError::ParserError(_) => todo!(),
+            CompilerError::LexerError(error) => {
+                let mut stderr = Cursor::new(Vec::new());
+
+                write_error(
+                    error.0,
+                    error.1,
+                    &mut cache,
+                    params.db,
+                    |id, error| (id, error.span().into_range()),
+                    &mut stderr,
+                );
+
+                io::stderr().write_all(stderr.get_ref()).unwrap();
+                return;
+            }
+            CompilerError::ParserError(error) => {
+                let mut stderr = Cursor::new(Vec::new());
+
+                write_error(
+                    error.0,
+                    error.1,
+                    &mut cache,
+                    params.db,
+                    |_, error| *error.span(),
+                    &mut stderr,
+                );
+
+                io::stderr().write_all(stderr.get_ref()).unwrap();
+                return;
+            }
         };
 
         params
@@ -429,7 +458,8 @@ pub fn to_report<'a, T: Debug + InternedName, S: ariadne::Span + Clone>(
 }
 
 pub fn write_error<T, S, U>(
-    errors: Vec<(SpanSourceId, Vec<OwnedRich<T, U>>)>,
+    span_source_id: SpanSourceId,
+    error: OwnedRich<T, U>,
     cache: &mut SourceCache,
     interner: &dyn Interner,
     span_func: impl for<'a> Fn(SpanSourceId, &'a OwnedRich<T, U>) -> S,
@@ -438,16 +468,11 @@ pub fn write_error<T, S, U>(
     T: Debug + InternedName,
     S: ariadne::Span<SourceId = SpanSourceId> + Clone,
 {
-    for (span_source_id, errors) in errors {
-        for error in errors {
-            let span = span_func(span_source_id, &error);
-            let mut report =
-                ariadne::Report::build(ReportKind::Error, span_source_id, span.start());
-            to_report::<_, S>(interner, &mut report, error.reason(), span);
-            report
-                .finish()
-                .write(&mut *cache, &mut *out_stderr)
-                .expect("Writing to a cursor should not fail")
-        }
-    }
+    let span = span_func(span_source_id, &error);
+    let mut report = ariadne::Report::build(ReportKind::Error, span_source_id, span.start());
+    to_report::<_, S>(interner, &mut report, error.reason(), span);
+    report
+        .finish()
+        .write(&mut *cache, &mut *out_stderr)
+        .expect("Writing to a cursor should not fail")
 }

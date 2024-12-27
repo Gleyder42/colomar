@@ -32,7 +32,7 @@ rule "Init" OngoingEachPlayer() {
     cond player.g.contains(1);
 
     player.g = array.new(1, 2, 3, 4);
-    player.g.add("Hello");
+    player.g.add(5);
 
     player.currentAimSpeed = 100;
     player.currentMoveSpeed = 100;
