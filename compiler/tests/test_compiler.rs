@@ -9,7 +9,7 @@ fn file(name: impl AsRef<Path>) -> PathBuf {
 
 fn setup(name: impl AsRef<Path>) -> String {
     let path = file(name);
-    let mut compiler = Compiler::new(path);
+    let mut compiler = Compiler::new(path, None);
 
     let CompilerOutput { mut stdout, stderr } = compiler.compile();
     std::io::stdout().write_all(&mut stdout).unwrap();

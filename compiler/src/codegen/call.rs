@@ -10,8 +10,10 @@ use super::super::wst::Ident;
 use super::super::{cir, compiler_todo, wst, Op, QueryTrisult};
 use crate::cir::VirtualTypeKind;
 use crate::error::ErrorCause;
+use crate::error_reporter::print_cannot_find_primitive_decl;
 use crate::trisult;
 use cir::{CalledArgs, FunctionDecl};
+use log::debug;
 use std::collections::{HashMap, HashSet};
 
 type ReplacementMap = HashMap<Placeholder, wst::Call>;
@@ -28,7 +30,13 @@ pub(super) fn query_wst_call(
             |acc| acc.unwrap().wst.unwrap(),
             |acc, current| {
                 db.query_wst_call_by_avalue(acc, assigner.clone(), current.clone())
-                    .map(|call| Some(Caller::new(call, current)))
+                    .map(|wst_call| {
+                        Some(Caller {
+                            wst: wst_call,
+                            cir: current,
+                            context: caller.as_ref().and_then(|caller| caller.context.clone()),
+                        })
+                    })
             },
         )
     };
@@ -205,8 +213,13 @@ fn query_wst_call_by_function_call(
     db.query_wst_call_from_args(func_decl.args, called_args)
         .into_iter()
         .map(|arg| {
-            db.query_wst_call(caller.clone(), cir::Action::from(arg.value))
-                .map(|call| (arg.name, arg.is_vararg, call))
+            db.query_wst_call(
+                caller
+                    .clone()
+                    .and_then(|caller| caller.context_to_current()),
+                cir::Action::from(arg.value),
+            )
+            .map(|call| (arg.name, arg.is_vararg, call))
         })
         .collect::<QueryTrisult<Vec<_>>>()
         .and(wscript_function)
@@ -230,10 +243,12 @@ fn query_wst_call_by_function_call(
                 replacement_map.insert(Placeholder::from(name.value.name(db)), call);
             }
 
-            wscript_function
+            let trisult = wscript_function
                 .saturate(&replacement_map)
                 .map_err(|error| CompilerError::PlaceholderError(error, ErrorCause::Span(span)))
-                .into()
+                .into();
+
+            trisult
         })
         .inner_into_some()
 }
@@ -335,6 +350,13 @@ fn process_wscript(
         }
         TypeDesc::Struct(struct_id) => {
             let struct_decl: cir::StructDecl = db.lookup_intern_struct_decl(struct_id);
+
+            println!(
+                "{:?} {:?}",
+                struct_decl.name.value.name(db),
+                property_decl.name.value.name(db)
+            );
+
             db.query_wscript_struct_property_impl(
                 struct_decl.name.value.name(db),
                 property_decl.name.value.name(db),

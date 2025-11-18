@@ -1,0 +1,14 @@
+import std;
+
+// A simple rule starts with the 'rule' keyword, following
+rule "Send Hello World when Jumping" OngoingEachPlayer() {
+    cond player.isJumping;
+
+    player.sendSmallMessage("Hello World");
+}
+
+rule "Hello World" OngoingEachPlayer(Team.Team1, Hero.Ana) {
+    cond player.isJumping;
+
+    player.sendSmallMessage("Hello World");
+}

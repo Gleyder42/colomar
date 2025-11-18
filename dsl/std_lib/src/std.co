@@ -1,0 +1,33 @@
+import events;
+
+pub native struct bool { }
+pub native struct string { }
+pub native struct num { }
+
+pub partial native struct Player {
+
+    native getvar isReloading: bool;
+    native setvar damageDealt: num;
+    native getvar eyePos: vector;
+    native getvar isInAir: bool;
+    native setvar aimSpeed: num;
+    native setvar moveSpeed: num;
+    native getvar isJumping: bool;
+
+    native fn sendSmallMessage(message: string | num);
+
+    native fn heal(amount: num, player: Player);
+}
+
+pub native struct vector {
+
+    native var x: num;
+    native var y: num;
+    native var z: num;
+
+    native fn new(x: num, y: num, z: num);
+}
+
+pub native enum Hero {
+    Ana, Zarya, Cassidy, Sombra, Orisa, Reinhardt
+}

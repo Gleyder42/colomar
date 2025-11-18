@@ -8,6 +8,7 @@ pub type Span = Range<usize>;
 
 pub mod partial {
     use super::super::{wst, Op};
+    use hashlink::LinkedHashMap;
     use smol_str::SmolStr;
     use std::collections::HashMap;
 
@@ -24,11 +25,12 @@ pub mod partial {
     impl<T: Fn(Placeholder) -> Result<wst::Call, SaturateError> + Clone> Replacer for T {}
 
     #[derive(Clone, Debug, Hash, Eq, PartialEq)]
-    pub struct SaturateError(Placeholder, SaturateErrorReason);
+    pub struct SaturateError(pub Placeholder, pub SaturateErrorReason);
 
     #[derive(Clone, Debug, Hash, Eq, PartialEq)]
     pub enum SaturateErrorReason {
-        WasPartial,
+        WasPartial(LinkedHashMap<Placeholder, wst::Call>),
+        CannotCompleteSincePartial,
         CannotFindReplace,
     }
 
@@ -52,7 +54,8 @@ pub mod partial {
         /// If you have a replace map, use [Call::saturate] or [Call::saturate_with] instead.
         pub fn complete(self) -> Result<wst::Call, SaturateError> {
             self.saturate_with(|placeholder| {
-                let error = SaturateError(placeholder, SaturateErrorReason::WasPartial);
+                let error =
+                    SaturateError(placeholder, SaturateErrorReason::CannotCompleteSincePartial);
                 Err(error)
             })
         }
@@ -64,7 +67,15 @@ pub mod partial {
             self.saturate_with(|placeholder| {
                 replace_call_map
                     .get(&placeholder)
-                    .ok_or(SaturateError(placeholder, SaturateErrorReason::WasPartial))
+                    .ok_or_else(|| {
+                        //todo!("HIER");
+                        SaturateError(
+                            placeholder,
+                            SaturateErrorReason::WasPartial(LinkedHashMap::from_iter(
+                                replace_call_map.clone(),
+                            )),
+                        )
+                    })
                     .cloned()
             })
         }

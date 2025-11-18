@@ -1,0 +1,14 @@
+import std;
+
+Player {
+     var jumpCounter: num;
+     var isCool: bool;
+}
+
+rule "Jump Counter" OngoingEachPlayer() {
+    cond player.isCool;
+
+    player.jumpCounter += 1;
+    player.sendSmallMessage(player.jumpCounter);
+}
+

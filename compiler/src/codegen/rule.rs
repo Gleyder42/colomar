@@ -7,49 +7,54 @@ use crate::error::ErrorCause;
 use std::collections::{HashMap, VecDeque};
 
 pub(super) fn query_wst_rule(db: &dyn Codegen, rule: cir::Rule) -> QueryTrisult<wst::Rule> {
-    let event_decl: cir::EventDecl = db.lookup_intern_event_decl(rule.event);
-    let args = db.query_event_def_by_id(rule.event).flat_map(|event_def| {
-        db.query_wst_call_from_args(event_def.args, rule.args)
-            .into_iter()
-            .map(|arg| {
-                db.query_wst_call(None, cir::Action::from(arg.value))
-                    .map(|call| (arg.name, call))
-            })
-            .collect::<QueryTrisult<Vec<_>>>()
-            .flat_map(|args| {
-                let arg_map: HashMap<_, _> = args
-                    .into_iter()
-                    // TODO Verify that .name(db) is correct here
-                    .map(|(ident, call)| (ident.value.name(db), call))
-                    .collect();
+    let event_decl: cir::EventDecl = db.lookup_intern_event_decl(rule.event_id);
+    let args = db
+        .query_event_def_by_id(rule.event_id)
+        .flat_map(|event_def| {
+            db.query_wst_call_from_args(event_def.args, rule.args)
+                .into_iter()
+                .map(|arg| {
+                    db.query_wst_call(None, cir::Action::from(arg.value))
+                        .map(|call| (arg.name, call))
+                })
+                .collect::<QueryTrisult<Vec<_>>>()
+                .flat_map(|args| {
+                    let arg_map: HashMap<_, _> = args
+                        .into_iter()
+                        // TODO Verify that .name(db) is correct here
+                        .map(|(ident, call)| (ident.value.name(db), call))
+                        .collect();
 
-                db.query_wscript_event_impl(event_decl.name.value.name(db))
-                    .complete_with_span(event_decl.span)
-                    .flat_map(|event| {
-                        event
-                            .value
-                            .args
-                            .into_iter()
-                            .map(|arg_name| {
-                                arg_map.get(arg_name.as_str()).cloned().trisult_ok_or(
-                                    CompilerError::CannotFindNativeDef(
-                                        arg_name,
-                                        ErrorCause::Span(event_decl.name.span),
-                                    ),
-                                )
-                            })
-                            .collect::<QueryTrisult<VecDeque<wst::Call>>>()
-                    })
-            })
-    });
+                    db.query_wscript_event_impl(event_decl.name.value.name(db))
+                        .complete_with_span(event_decl.span)
+                        .flat_map(|event| {
+                            event
+                                .value
+                                .args
+                                .into_iter()
+                                .map(|arg_name| {
+                                    arg_map.get(arg_name.as_str()).cloned().trisult_ok_or(
+                                        CompilerError::CannotFindNativeDef(
+                                            arg_name,
+                                            ErrorCause::Span(event_decl.name.span),
+                                        ),
+                                    )
+                                })
+                                .collect::<QueryTrisult<VecDeque<wst::Call>>>()
+                        })
+                })
+        });
 
     let query_event_wst_call = |chain: Vec<cir::Action>| -> QueryTrisult<Vec<wst::Call>> {
         chain
             .into_iter()
             .map(|action| {
+                let caller_context = cir::AValue::RValue(rule.event_id.into(), action.ghost_span());
+
                 let caller = Caller {
                     wst: None,
-                    cir: cir::AValue::RValue(rule.event.into(), action.ghost_span()),
+                    cir: caller_context.clone(),
+                    context: Some(caller_context),
                 };
                 db.query_wst_call(Some(caller), action)
             })

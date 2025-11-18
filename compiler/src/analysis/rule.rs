@@ -105,7 +105,7 @@ pub(super) fn query_rule_decl(db: &dyn DefQuery, rule: cst::Rule) -> QueryTrisul
         .and_with(|((event_decl_id, _), _)| db.query_rule_actions(*event_decl_id, rule.actions))
         .map(|(((event_decl_id, args), conditions), actions)| cir::Rule {
             title: rule.name.value,
-            event: event_decl_id,
+            event_id: event_decl_id,
             args,
             conditions,
             actions,

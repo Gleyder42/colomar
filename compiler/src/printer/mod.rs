@@ -26,12 +26,16 @@ fn query_workshop_output(db: &dyn PrinterQuery) -> QueryTrisult<String> {
             .map(|rules| rules.join("\n"));
 
         let variables = db.query_player_variables().map(|player_variables| {
-            let player_variables = join_to_string(player_variables, 10);
+            if !player_variables.is_empty() {
+                let player_variables = join_to_string(player_variables, 10, '\0');
 
-            format!(
-                include_str!("player_variables.txt"),
-                player_variables = player_variables
-            )
+                format!(
+                    include_str!("player_variables.txt"),
+                    player_variables = player_variables
+                )
+            } else {
+                "".to_string()
+            }
         });
 
         rules
@@ -48,8 +52,8 @@ fn query_wst_rule_to_string(db: &dyn PrinterQuery, rule: wst::Rule) -> String {
             include_str!("workshop_global_rule_template.txt"),
             rule = rule.title.name(db),
             event = rule.event.name,
-            conditions = join_to_string(rule.conditions, SPACES),
-            actions = join_to_string(rule.actions, SPACES)
+            conditions = join_to_string(rule.conditions, SPACES, ';'),
+            actions = join_to_string(rule.actions, SPACES, ';')
         )
     } else {
         format!(
@@ -58,20 +62,26 @@ fn query_wst_rule_to_string(db: &dyn PrinterQuery, rule: wst::Rule) -> String {
             event = rule.event.name,
             team = rule.event.team.unwrap(),
             hero_slot = rule.event.hero_slot.unwrap(),
-            conditions = join_to_string(rule.conditions, SPACES),
-            actions = join_to_string(rule.actions, SPACES)
+            conditions = join_to_string(rule.conditions, SPACES, ';'),
+            actions = join_to_string(rule.actions, SPACES, ';')
         )
     }
 }
 
-fn join_to_string<T: ToString>(iter: impl IntoIterator<Item = T>, spaces: u8) -> String {
+fn join_to_string<T: ToString>(
+    iter: impl IntoIterator<Item = T>,
+    spaces: u8,
+    delimiter: char,
+) -> String {
     let spaces: String = (0..spaces).into_iter().map(|_| ' ').collect();
 
     iter.into_iter()
         .map(|it| {
             let mut output = spaces.clone();
             output.push_str(&it.to_string());
-            output.push(';');
+            if delimiter != '\0' {
+                output.push(delimiter);
+            }
             output
         })
         .collect::<Vec<_>>()

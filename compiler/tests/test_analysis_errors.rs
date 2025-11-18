@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use test_common::assert_patterns;
 
 fn test_template(name: &str, assert: impl Fn(&str)) {
-    let mut compiler = Compiler::new(PathBuf::from("../resources/test/errors"));
+    let mut compiler = Compiler::new(PathBuf::from("../resources/test/errors"), None);
     compiler.set_main_name(&format!("{name}.co"));
     let CompilerOutput { stdout, stderr } = compiler.compile();
 

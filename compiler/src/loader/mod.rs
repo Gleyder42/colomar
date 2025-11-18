@@ -202,6 +202,7 @@ fn query_wscript_impl(
     let mut errors = Errors::new();
     // wscript_map contains mappings from functions defined in colomar and their workshop counterpart.
     let mut wscript_map = tri!(query(), errors);
+
     let wscript: Trisult<_, _> = wscript_map
         .value
         .remove(selection.as_str())

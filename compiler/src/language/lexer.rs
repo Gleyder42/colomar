@@ -126,7 +126,12 @@ pub fn lexer(
 
     let token = choice((ident, num, string, ctrl));
 
+    let comment = just("//")
+        .then(any().and_is(just('\n').not()).repeated())
+        .padded();
+
     token
+        .padded_by(comment.repeated())
         .padded()
         .map_with_span(move |tok, span| {
             (

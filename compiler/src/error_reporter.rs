@@ -6,6 +6,7 @@ use super::{Ident, InternedName, OwnedRich, Text, TextId};
 use crate::analysis::interner::Interner;
 use crate::cst::Path;
 use crate::source_cache::{EmptyLookupSource, SourceCache};
+use crate::wst::partial::{SaturateError, SaturateErrorReason};
 use ariadne::{Color, Fmt, Label, ReportBuilder, ReportKind};
 use chumsky::error::{RichPattern, RichReason};
 use either::Either;
@@ -79,8 +80,8 @@ pub fn new_print_errors(
             CompilerError::CannotFindNativeDef(def, cause) => {
                 report_cannot_find_native_def_error(&mut params, def, cause);
             }
-            CompilerError::PlaceholderError(_, _) => {
-                todo!()
+            CompilerError::PlaceholderError(error, cause) => {
+                report_placeholder_error(&mut params, error, cause);
             }
             CompilerError::MissingArg {
                 call_site,
@@ -176,6 +177,18 @@ pub fn new_print_errors(
             .write(&mut cache, &mut *output)
             .expect(PRINTING_ERROR_MESSAGE);
     }
+}
+
+fn report_placeholder_error(
+    params: &mut Params,
+    SaturateError(placeholder, reason): SaturateError,
+    cause: ErrorCause,
+) {
+    params.report.set_message(format!(
+        "An error occurred while replacing a placeholder {placeholder:?}, {reason:?}",
+    ));
+
+    add_cause(params, cause)
 }
 
 fn report_missing_arg_error(params: &mut Params, span: Span, decl_arg_id: DeclArgId) {

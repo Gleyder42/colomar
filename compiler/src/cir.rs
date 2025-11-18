@@ -380,7 +380,7 @@ pub type Actions = Vec<Action>;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Rule {
     pub title: TextId,
-    pub event: EventDeclId,
+    pub event_id: EventDeclId,
     pub args: CalledArgs,
     pub conditions: Predicates,
     pub actions: Actions,

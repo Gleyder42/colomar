@@ -1,0 +1,6 @@
+name = "Ongoing - EachPlayer"
+
+args = ["team", "heroSlot"]
+
+[context]
+player = "Event Player"

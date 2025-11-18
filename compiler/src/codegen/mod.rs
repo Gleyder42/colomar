@@ -53,15 +53,26 @@ pub trait Codegen: WorkshopScriptLoader + AnalysisInterner + DefQuery {
     fn query_player_variables(&self) -> QueryTrisult<Vec<Variable>>;
 }
 
+/// The Caller describes information about the current call.
+///
+/// Example
+/// `player.sendSmallMessage(player.isJumping)`
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]
 pub struct Caller {
-    wst: Option<wst::Call>,
-    cir: cir::AValue,
+    pub context: Option<cir::AValue>,
+    pub wst: Option<wst::Call>,
+    pub cir: cir::AValue,
 }
 
 impl Caller {
-    pub fn new(wst: Option<wst::Call>, cir: cir::AValue) -> Caller {
-        Caller { wst, cir }
+    fn context_to_current(mut self) -> Option<Caller> {
+        if let Some(context) = self.context {
+            self.cir = context;
+            self.context = None;
+            Some(self)
+        } else {
+            None
+        }
     }
 }
 

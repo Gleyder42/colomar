@@ -70,6 +70,14 @@ impl<T, E> Trisult<T, E> {
         }
     }
 
+    pub fn has_errors(&self) -> bool {
+        match self {
+            Trisult::Ok(_) => false,
+            Trisult::Par(_, _) => true,
+            Trisult::Err(_) => true,
+        }
+    }
+
     pub fn inner_into_some(self) -> Trisult<Option<T>, E> {
         self.map(|value| Some(value))
     }

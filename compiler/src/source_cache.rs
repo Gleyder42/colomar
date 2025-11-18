@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs::DirEntry;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::time::SystemTime;
 use std::{fs, io};
 
@@ -20,16 +21,23 @@ pub struct CachedFile {
     pub content: String,
     /// Stores the timestamp when the content was last read from the file stored on the filesystem.
     pub last_update: SystemTime,
+
+    pub prefix: Option<Rc<Path>>,
 }
 
 impl CachedFile {
     /// Creates a cached file from a string
-    pub fn from_content(content: String, last_update: SystemTime) -> Self {
+    pub fn from_content(
+        content: String,
+        prefix: Option<Rc<Path>>,
+        last_update: SystemTime,
+    ) -> Self {
         CachedFile {
             content: content.clone(),
             source_context: None,
             source: Source::from(content),
             last_update,
+            prefix,
         }
     }
 }
@@ -42,10 +50,15 @@ pub struct FileFetcher {
     path_to_cached_file_map: HashMap<PathBuf, CachedFile>,
 }
 
+pub struct WatchedFile {
+    prefix: Rc<Path>,
+    path: PathBuf,
+}
+
 impl FileFetcher {
-    pub fn new(watched_directory: PathBuf) -> FileFetcher {
+    pub fn new(watched_directories: Vec<PathBuf>) -> FileFetcher {
         Self {
-            watched_directories: vec![watched_directory],
+            watched_directories,
             path_to_cached_file_map: HashMap::new(),
         }
     }
@@ -53,7 +66,8 @@ impl FileFetcher {
     /// Inserts a new file to be cached.
     /// Overwrite a previously cached file.
     pub fn insert_file(&mut self, path: PathBuf, context: String, content: &str) {
-        let mut cached_file = CachedFile::from_content(content.to_string(), SystemTime::now());
+        let mut cached_file =
+            CachedFile::from_content(content.to_string(), None, SystemTime::now());
         cached_file.source_context = Some(context);
 
         match self.path_to_cached_file_map.get_mut(&path) {
@@ -64,15 +78,20 @@ impl FileFetcher {
         }
     }
 
-    fn read_watched_directories(&self) -> io::Result<Vec<PathBuf>> {
+    fn read_watched_directories(&self) -> io::Result<Vec<WatchedFile>> {
         let mut file = Vec::new();
 
-        let mut visit_dir_entry = |dir_entry: DirEntry| {
-            file.push(dir_entry.path());
-            Ok(())
-        };
-
         for watched_directory in &self.watched_directories {
+            let prefix: Rc<Path> = watched_directory.clone().into_boxed_path().into();
+
+            let mut visit_dir_entry = |dir_entry: DirEntry| {
+                file.push(WatchedFile {
+                    path: dir_entry.path(),
+                    prefix: prefix.clone(), // Clone the prefix here, to make the closure FnMut.
+                });
+                Ok(())
+            };
+
             visit_dirs(watched_directory, &mut visit_dir_entry)?;
         }
 
@@ -84,7 +103,7 @@ impl FileFetcher {
     /// on the filesystem.
     pub fn update_files(&mut self) -> io::Result<&HashMap<PathBuf, CachedFile>> {
         let paths = self.read_watched_directories()?;
-        for path in paths {
+        for WatchedFile { path, prefix } in paths {
             // Stores the timestamp when the actual file was last modified
             let last_modified = path.metadata()?.modified()?;
 
@@ -96,8 +115,10 @@ impl FileFetcher {
                 }
                 None => {
                     let content = fs::read_to_string(&path)?;
-                    self.path_to_cached_file_map
-                        .insert(path, CachedFile::from_content(content, SystemTime::now()));
+                    self.path_to_cached_file_map.insert(
+                        path,
+                        CachedFile::from_content(content, Some(prefix), SystemTime::now()),
+                    );
                 }
                 Some(_) => { /* Do nothing if the file has not been modified since last update*/ }
             }
@@ -243,7 +264,7 @@ mod tests {
     fn test_read_files_first_time() -> io::Result<()> {
         let (_temp_dir, src_dir, files) = setup()?;
         println!("{:?}", fs::read_dir(&src_dir)?);
-        let mut cache = FileFetcher::new(src_dir);
+        let mut cache = FileFetcher::new(vec![src_dir]);
 
         let updated = cache.update_files()?;
 
@@ -267,7 +288,7 @@ mod tests {
     #[test]
     fn test_update_content_after_file_changed() -> io::Result<()> {
         let (_temp_dir, src_dir, files) = setup()?;
-        let mut cache = FileFetcher::new(src_dir);
+        let mut cache = FileFetcher::new(vec![src_dir]);
 
         let _ = cache.update_files()?;
         let expected = "The first file has changed";
@@ -289,7 +310,7 @@ mod tests {
     #[test]
     fn test_newer_read_will_update_timestamp() -> io::Result<()> {
         let (_temp_dir, src_dir, _) = setup()?;
-        let mut cache = FileFetcher::new(src_dir);
+        let mut cache = FileFetcher::new(vec![src_dir]);
 
         let _ = cache.update_files()?;
         // Let the test sleep for a short durations, so the System time changes

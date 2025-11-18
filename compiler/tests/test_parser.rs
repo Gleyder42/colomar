@@ -223,7 +223,6 @@ fn test_parser_result<'src, Ex, Ac, F>(
         .collect::<Vec<_>>()
         .join("\n");
 
-    println!("{}", error_messages);
     if should_panic {
         if results.iter().any(|it| it.is_ok()) {
             panic!("There were some successful tests, but were expected to fail");

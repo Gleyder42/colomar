@@ -1,9 +1,11 @@
 #![feature(map_try_insert)]
 #![feature(iter_intersperse)]
 #![feature(trait_upcasting)]
+extern crate core;
 
 use crate::analysis::decl::DeclQuery;
 use crate::analysis::interner::Interner;
+use crate::cst::PathName;
 use crate::database::CompilerDatabase;
 use crate::error::{CompilerError, PartialCompilerError};
 use crate::error_reporter::{new_print_errors, DummyReportValues};
@@ -26,7 +28,9 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::Hash;
 use std::io::Cursor;
-use std::path::PathBuf;
+use std::iter::once;
+use std::path::{Component, Path, PathBuf};
+use std::rc::Rc;
 use std::vec::IntoIter;
 use trisult::Trisult;
 
@@ -98,6 +102,7 @@ pub struct Compiler {
     source_cache: FileFetcher,
     main_file: PathBuf,
     src_dir: PathBuf,
+    prefix_map: HashMap<PathBuf, String>,
 }
 
 pub type ColomarTokenStream =
@@ -115,23 +120,41 @@ impl<T, E> ParseResultExt<T, E> for ParseResult<T, E> {
 
 pub fn create_path_from_path_buf(
     interner: &dyn StringInterner,
-    prefix: &PathBuf,
-    path: &PathBuf,
+    lib_prefix: Option<String>,
+    prefix: &Path,
+    path: &Path,
 ) -> cst::PathName {
-    let segments: Vec<_> = path
+    let components = path
         .strip_prefix(prefix)
-        .expect("Only valid prefixes should be used")
-        .components()
-        .map(|component| {
-            let string = component.as_os_str().to_string_lossy().to_string();
-            let string = string
-                .split(".")
-                .next()
-                .map(|it| it.to_owned())
-                .unwrap_or(String::default());
-            interner.intern_string(string)
+        .unwrap_or_else(|_| {
+            panic!(
+                "prefix {:} must not fail {:}",
+                prefix.display(),
+                path.display()
+            )
         })
-        .collect();
+        .components();
+
+    let map_component = |component: Component| {
+        let string = component.as_os_str().to_string_lossy().to_string();
+        let string = string
+            .split(".")
+            .next()
+            .map(|it| it.to_owned())
+            .unwrap_or(String::default());
+        interner.intern_string(string)
+    };
+
+    let segments: Vec<TextId> = match lib_prefix {
+        Some(lib_prefix) => components
+            .rev()
+            .map(map_component)
+            .chain(once(interner.intern_string(lib_prefix)))
+            .rev()
+            .collect(),
+        None => components.map(map_component).collect(),
+    };
+
     cst::PathName { segments }
 }
 
@@ -140,23 +163,38 @@ const NATIVE_DIR_NAME: &str = "native";
 const MAIN_FILE_NAME: &str = "main.co";
 
 impl Compiler {
-    pub fn new(project_dir: PathBuf) -> Compiler {
+    pub fn new(project_dir: PathBuf, std_lib_path: Option<PathBuf>) -> Compiler {
         let src_dir = project_dir.join(SRC_DIR_NAME);
+        let mut prefix_map = HashMap::new();
+
+        let watched_directories = if let Some(std_lib_path) = std_lib_path.clone() {
+            prefix_map.insert(std_lib_path.clone(), "std".to_owned());
+            vec![src_dir.clone(), std_lib_path.join(SRC_DIR_NAME)]
+        } else {
+            vec![src_dir.clone()]
+        };
 
         let database = CompilerDatabase::default();
         let dummy_values = DummyReportValues::new(&database);
         let mut compiler = Compiler {
             database,
-            source_cache: FileFetcher::new(src_dir.clone()),
+            source_cache: FileFetcher::new(watched_directories),
             main_file: PathBuf::new(),
             src_dir,
             dummy_values,
+            prefix_map,
         };
 
         compiler.set_main_name(MAIN_FILE_NAME);
 
         let impl_path = project_dir.join(NATIVE_DIR_NAME);
-        let elements = loader::read_impls(&impl_path);
+
+        let mut elements = loader::read_impls(&impl_path);
+
+        if let Some(std_lib_path) = std_lib_path {
+            let std_impl_path = std_lib_path.join(NATIVE_DIR_NAME);
+            elements.append(&mut loader::read_impls(&std_impl_path));
+        }
 
         compiler.database.set_input_wscript_impls(elements);
 
@@ -166,7 +204,7 @@ impl Compiler {
     pub fn set_main_name(&mut self, name: &str) {
         self.main_file = self.src_dir.join(name);
         self.database.set_main_file_name_with_durability(
-            create_path_from_path_buf(&self.database, &self.src_dir, &self.main_file),
+            create_path_from_path_buf(&self.database, None, &self.src_dir, &self.main_file),
             Durability::HIGH,
         );
     }
@@ -181,11 +219,40 @@ impl Compiler {
             .source_cache
             .update_files()
             .expect("Cannot read source files")
-            .into_iter()
-            .map(|(path_buf, cached_file)| {
-                let path_name = create_path_from_path_buf(&self.database, &self.src_dir, &path_buf);
-                (path_name, (path_buf.clone(), cached_file.content.clone()))
-            })
+            .iter()
+            .map(
+                |(path_buf, cached_file)| match cached_file.prefix.as_ref() {
+                    None => {
+                        let path_name = create_path_from_path_buf(
+                            &self.database,
+                            None,
+                            self.src_dir.as_path(),
+                            &path_buf,
+                        );
+                        (path_name, (path_buf.clone(), cached_file.content.clone()))
+                    }
+                    Some(file_prefix) => match self.prefix_map.get(file_prefix.as_ref()) {
+                        None => {
+                            let path_name = create_path_from_path_buf(
+                                &self.database,
+                                None,
+                                file_prefix.as_ref(),
+                                &path_buf,
+                            );
+                            (path_name, (path_buf.clone(), cached_file.content.clone()))
+                        }
+                        Some(prefix) => {
+                            let path_name = create_path_from_path_buf(
+                                &self.database,
+                                Some(prefix.clone()),
+                                file_prefix.join("src").as_path(),
+                                &path_buf,
+                            );
+                            (path_name, (path_buf.clone(), cached_file.content.clone()))
+                        }
+                    },
+                },
+            )
             .collect();
 
         let secondary_file_keys = secondary_files
