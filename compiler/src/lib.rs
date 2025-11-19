@@ -378,9 +378,9 @@ pub fn flatten<LR, L, R, const LN: usize, const RN: usize>(
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct Ident {
-    pub value: TextId,
-    pub span: Span,
+pub struct Ident<'db> {
+    pub value: StringId<'db>,
+    pub span: Span<'db>,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
