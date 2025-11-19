@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 chumsky = { version = "1.0.0-alpha.4" } # compiler
-salsa = "0.17.0-pre.2" # compiler
+salsa = "0.24.0" # compiler
 smol_str = "0.2.0" # compiler
 either = "1.8.1" # base
 ariadne = "0.3.0" # reporting, compiler

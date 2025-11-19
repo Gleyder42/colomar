@@ -12,4 +12,4 @@ proc-macro2 = "1.0.70"
 syn = "2.0.39"
 
 [dev-dependencies]
-salsa = "0.17.0-pre.2" # Analysis and compiler
+salsa = "0.24.0" # Analysis and compiler
