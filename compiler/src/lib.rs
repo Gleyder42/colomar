@@ -40,6 +40,9 @@ pub mod cir;
 pub mod codegen;
 pub mod cst;
 pub mod database;
+
+// Re-export the Db trait for use throughout the codebase
+pub use database::Db;
 pub mod error;
 pub mod error_reporter;
 pub mod language;
