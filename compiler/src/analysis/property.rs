@@ -16,7 +16,7 @@ pub(super) fn query_property(
             instance,
             is_native: property_decl.is_native,
             name: property_decl.name,
-            desc: property_decl.use_restriction,
+            use_restriction: property_decl.use_restriction,
             r#type,
         })
 }

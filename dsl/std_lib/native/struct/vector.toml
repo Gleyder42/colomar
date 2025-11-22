@@ -5,3 +5,4 @@ z = "Z Component Of($caller$)"
 
 [functions]
 new = "Vector($x$, $y$, $z$)"
+distanceBetween = "Distance Between($caller$, $rhs$)"

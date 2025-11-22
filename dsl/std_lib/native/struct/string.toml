@@ -1,0 +1,5 @@
+[properties]
+length = "String Length($caller$)"
+
+[functions]
+contains = "String Contains($caller$, $content$)"

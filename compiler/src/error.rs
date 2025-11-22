@@ -3,7 +3,10 @@ use super::cst::Path;
 use super::span::{CopyRange, Span, SpanSourceId};
 use super::trisult::{NonEmptyVec, Trisult};
 use super::wst::partial::SaturateError;
-use super::{trisult, workshop, Ident, OwnedRich, PartialQueryTrisult, QueryTrisult, Text, TextId};
+use super::{
+    trisult, workshop, Ident, OwnedRich, PartialQueryTrisult, QueryTrisult, Text, TextId,
+    UseRestriction,
+};
 use crate::language::lexer::Token;
 use chumsky::error::Rich;
 use either::Either;
@@ -143,6 +146,12 @@ pub enum CompilerError {
         Vec<OwnedRich<workshop::lexer::Token, Span>>,
         ErrorCause,
     ),
+    PropertyUseViolation {
+        name: Ident,
+        actual: UseRestriction,
+        expected: UseRestriction,
+        span: Span,
+    },
     CannotFindPrimitiveDecl(TextId, ErrorCause),
     CannotFindNativeDef(String, ErrorCause),
     PlaceholderError(SaturateError, ErrorCause),
@@ -191,6 +200,7 @@ impl CompilerError {
             CompilerError::CannotEvalAsConst => todo!(),
             CompilerError::WrongTypeInBinaryExpr(left, _) => Some(left.span()),
             CompilerError::CannotFindFile(path) => Some(path.span),
+            CompilerError::PropertyUseViolation { span, .. } => Some(*span),
             CompilerError::LexerError(rich) => {
                 Some(Span::new(rich.0, CopyRange::from(*rich.1.span())))
             }
@@ -219,8 +229,9 @@ impl CompilerError {
             CompilerError::WrongTypeInBinaryExpr(..) => 19,
             CompilerError::CannotFindFile(..) => 20,
             CompilerError::CannotFindStruct(..) => 21,
-            CompilerError::LexerError(..) => 22,
-            CompilerError::ParserError(..) => 23,
+            CompilerError::PropertyUseViolation { .. } => 22,
+            CompilerError::LexerError(..) => 100,
+            CompilerError::ParserError(..) => 200,
         }
     }
 }

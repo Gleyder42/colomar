@@ -157,6 +157,7 @@ pub trait DeclQuery: Interner {
         &self,
         lhs: cir::AValue,
         rhs: cir::AValue,
+        must_be_bool: bool,
     ) -> QueryTrisult<cir::AValue>;
     /// Impl [call::query_expr]
     #[salsa::invoke(call::query_expr)]

@@ -196,6 +196,7 @@ impl Compiler {
             elements.append(&mut loader::read_impls(&std_impl_path));
         }
 
+        println!("{:?}", elements);
         compiler.database.set_input_wscript_impls(elements);
 
         compiler
@@ -395,6 +396,7 @@ pub enum UseRestriction {
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Op {
     And,
+    Or,
     Equals,
     NotEquals,
 }
@@ -405,6 +407,7 @@ impl Display for Op {
             Op::Equals => write!(f, "=="),
             Op::NotEquals => write!(f, "!="),
             Op::And => write!(f, "&&"),
+            Op::Or => write!(f, "||"),
         }
     }
 }
@@ -439,6 +442,7 @@ pub enum Expr<T> {
     Neg(Box<Expr<T>>),
     And(Box<Expr<T>>, Box<Expr<T>>),
     Or(Box<Expr<T>>, Box<Expr<T>>),
+    Equal(Box<Expr<T>>, Box<Expr<T>>),
 }
 
 impl<T> Expr<T> {
@@ -447,6 +451,7 @@ impl<T> Expr<T> {
             Expr::Chain(_) => None,
             Expr::Neg(_) => None,
             Expr::And(lhs, _) | Expr::Or(lhs, _) => Some(lhs.as_ref()),
+            Expr::Equal(lhs, _) => Some(lhs.as_ref()),
         }
     }
 
@@ -455,6 +460,7 @@ impl<T> Expr<T> {
             Expr::Chain(_) => None,
             Expr::Neg(_) => None,
             Expr::And(_, rhs) | Expr::Or(_, rhs) => Some(rhs.as_ref()),
+            Expr::Equal(_, rhs) => Some(rhs.as_ref()),
         }
     }
 }

@@ -1,0 +1,39 @@
+
+rule("Hello World")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		Team 1;
+		Ana;
+	}
+
+	conditions
+	{
+                Is Jumping(Event Player) == True;
+	}
+
+	actions
+	{
+                Small Message(Event Player, Custom String("Hello World"));
+	}
+}
+rule("Send Hello World when Jumping")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		All;
+		All;
+	}
+
+	conditions
+	{
+                Is Jumping(Event Player) == True;
+	}
+
+	actions
+	{
+                Small Message(Event Player, Custom String("Hello World"));
+	}
+}

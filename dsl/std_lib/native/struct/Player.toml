@@ -6,6 +6,8 @@ moveSpeed = "Set Move Speed($caller$, $value$)"
 eyePos = "Eye Position($caller$)"
 isInAir = "Is In Air($caller$)"
 isJumping = "Is Jumping($caller$)"
+position = "Position Of($caller$)"
 
 [functions]
 sendSmallMessage = "Small Message($caller$, $message$)"
+dealDamage = "Damage($caller$, $damage$)"

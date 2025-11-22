@@ -285,7 +285,15 @@ pub fn expression<'src>() -> impl PParser<'src, Expr> {
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
         );
 
-        or
+        let equal = or.clone().foldl(
+            dup_op!('=')
+                .to(Expr::Equal as fn(_, _) -> _)
+                .then(or)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+
+        equal
     })
 }
 

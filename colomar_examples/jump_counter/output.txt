@@ -1,0 +1,45 @@
+variables {
+    player:
+          0: jumpCounter
+          1: isCool
+}
+rule("Jump Counter")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		All;
+		All;
+	}
+
+	conditions
+	{
+                (Event Player.isCool && Is Jumping(Event Player)) == True;
+	}
+
+	actions
+	{
+                Modify Player Variable(Event Player, jumpCounter, Add, 1);
+                Small Message(Event Player, Event Player.jumpCounter);
+	}
+}
+rule("Is cool?")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		All;
+		All;
+	}
+
+	conditions
+	{
+                Is Reloading(Event Player) == True;
+	}
+
+	actions
+	{
+                Set Player Variable(Event Player, isCool, True);
+                Small Message(Event Player, Custom String("You are cool now!"));
+	}
+}

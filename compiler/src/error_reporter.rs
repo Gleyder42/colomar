@@ -1,8 +1,8 @@
-use super::cir::{CalledType, CalledTypes, DeclArgId, TypeDesc};
+use super::cir::{AValueChain, CalledType, CalledTypes, DeclArgId, TypeDesc};
 use super::database::CompilerDatabase;
 use super::error::{CompilerError, ErrorCause};
 use super::span::{CopyRange, Span, SpanInterner, SpanSourceId, FAKE_SPAN_SOURCE_NAME};
-use super::{Ident, InternedName, OwnedRich, Text, TextId};
+use super::{Ident, InternedName, OwnedRich, Text, TextId, UseRestriction};
 use crate::analysis::interner::Interner;
 use crate::cst::Path;
 use crate::source_cache::{EmptyLookupSource, SourceCache};
@@ -169,6 +169,14 @@ pub fn new_print_errors(
                 io::stderr().write_all(stderr.get_ref()).unwrap();
                 return;
             }
+            CompilerError::PropertyUseViolation {
+                name,
+                actual,
+                expected,
+                span,
+            } => {
+                report_property_use_violation(&mut params, name, actual, expected, span);
+            }
         };
 
         params
@@ -278,6 +286,25 @@ fn add_cause(params: &mut Params, error_cause: ErrorCause) {
             .report
             .set_note(format!("This error occurred while {}", message)),
     }
+}
+
+fn report_property_use_violation(
+    params: &mut Params,
+    ident: Ident,
+    actual: UseRestriction,
+    expected: UseRestriction,
+    span: Span,
+) {
+    params.report.set_message(format!(
+        "Cannot use property {} as {actual:?}, only {expected:?} is valid",
+        ident.value.name(params.db).fg(ind::UNKNOWN)
+    ));
+
+    params.report.add_label(
+        Label::new(span)
+            .with_message("Cannot be use here")
+            .with_color(ind::UNKNOWN),
+    );
 }
 
 fn report_cannot_find_file(params: &mut Params, path: Path) {

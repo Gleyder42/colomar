@@ -1,0 +1,13 @@
+import std;
+
+Player {
+    var myString: string;
+}
+
+rule "Send Hello World when Jumping" OngoingEachPlayer() {
+    cond player.isJumping;
+
+    player.myString = "Hello World";
+    player.sendSmallMessage(player.myString.length);
+    player.sendSmallMessage(player.myString.contains("Hello"));
+}

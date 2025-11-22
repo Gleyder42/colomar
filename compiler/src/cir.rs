@@ -80,7 +80,7 @@ pub struct PropertyDecl {
     pub instance: Option<TypeDesc>,
     pub is_native: SpannedBool,
     pub name: Ident,
-    pub desc: Spanned<UseRestriction>,
+    pub use_restriction: Spanned<UseRestriction>,
     pub r#type: Type,
 }
 
@@ -433,12 +433,12 @@ impl Expr {
             // TODO Use correct span here
             Expr::Neg(neg) => neg.span(),
             // TODO Use correct span here
-            Expr::And(_lhs, rhs) | Expr::Or(_lhs, rhs) => rhs.span(),
+            Expr::And(_lhs, rhs) | Expr::Or(_lhs, rhs) | Expr::Equal(_lhs, rhs) => rhs.span(),
         }
     }
 }
 
-/// Represents a value which is known at runtime time or compile time and it refers
+/// Represents a value which is known at runtime time or compile time, and it refers
 /// to some other code
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum RValue {

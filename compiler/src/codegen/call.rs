@@ -10,10 +10,9 @@ use super::super::wst::Ident;
 use super::super::{cir, compiler_todo, wst, Op, QueryTrisult};
 use crate::cir::VirtualTypeKind;
 use crate::error::ErrorCause;
-use crate::error_reporter::print_cannot_find_primitive_decl;
-use crate::trisult;
+use crate::trisult::err;
+use crate::{trisult, UseRestriction};
 use cir::{CalledArgs, FunctionDecl};
-use log::debug;
 use std::collections::{HashMap, HashSet};
 
 type ReplacementMap = HashMap<Placeholder, wst::Call>;
@@ -70,6 +69,34 @@ pub(super) fn query_wst_call(
                     let and = lhs.and(rhs).map(|(lhs, rhs)| wst::Condition {
                         right: Box::new(rhs),
                         op: Op::And,
+                        left: Box::new(lhs),
+                    });
+
+                    and.map(wst::Call::from)
+                }
+                cir::Expr::Or(lhs, rhs) => {
+                    // Recursive call
+                    let lhs = db.query_wst_call(caller.clone(), cir::Action::Expr(*lhs));
+                    // Recursive call
+                    let rhs = db.query_wst_call(caller.clone(), cir::Action::Expr(*rhs));
+
+                    let and = lhs.and(rhs).map(|(lhs, rhs)| wst::Condition {
+                        right: Box::new(rhs),
+                        op: Op::Or,
+                        left: Box::new(lhs),
+                    });
+
+                    and.map(wst::Call::from)
+                }
+                cir::Expr::Equal(lhs, rhs) => {
+                    // Recursive call
+                    let lhs = db.query_wst_call(caller.clone(), cir::Action::Expr(*lhs));
+                    // Recursive call
+                    let rhs = db.query_wst_call(caller.clone(), cir::Action::Expr(*rhs));
+
+                    let and = lhs.and(rhs).map(|(lhs, rhs)| wst::Condition {
+                        right: Box::new(rhs),
+                        op: Op::Equals,
                         left: Box::new(lhs),
                     });
 
@@ -142,12 +169,37 @@ fn query_wst_call_by_rvalue(
         RValue::Property(property_id) => {
             let property = db.lookup_intern_property_decl(property_id);
 
+            println!("{:?} ???", property);
+
             match (&property.is_native, caller, assigner) {
-                (Some(_native), Some(caller), _) => {
-                    query_wst_call_by_wscript_impl(db, replacement_map, property, caller)
-                }
                 (None, Some(_caller), Some(assigner)) => {
                     query_wst_call_by_assignment(db, replacement_map, property, assigner)
+                }
+                (Some(_native), Some(caller), assigner) => {
+                    let use_restriction = property.use_restriction.value.clone();
+
+                    if assigner.is_some()
+                        && !(use_restriction == UseRestriction::Val
+                            || use_restriction == UseRestriction::SetVar)
+                    {
+                        return err(CompilerError::PropertyUseViolation {
+                            name: property.name,
+                            actual: use_restriction,
+                            expected: UseRestriction::SetVar,
+                            span,
+                        });
+                    }
+
+                    if assigner.is_none() && use_restriction == UseRestriction::SetVar {
+                        return err(CompilerError::PropertyUseViolation {
+                            name: property.name,
+                            actual: use_restriction,
+                            expected: UseRestriction::GetVar,
+                            span,
+                        });
+                    }
+
+                    query_wst_call_by_wscript_impl(db, replacement_map, property, caller)
                 }
                 (None, Some(caller), None) => query_const_eval(db, caller.wst.unwrap())
                     .map(|caller_name| {

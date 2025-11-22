@@ -1,22 +1,29 @@
 import events;
 
 pub native struct bool { }
-pub native struct string { }
+pub native struct string {
+
+    native getvar length: num;
+
+    native fn contains(content: string) -> bool;
+}
 pub native struct num { }
 
 pub partial native struct Player {
 
     native getvar isReloading: bool;
-    native setvar damageDealt: num;
     native getvar eyePos: vector;
     native getvar isInAir: bool;
     native setvar aimSpeed: num;
     native setvar moveSpeed: num;
     native getvar isJumping: bool;
+    native getvar position: vector;
 
-    native fn sendSmallMessage(message: string | num);
+    native fn sendSmallMessage(message: string | num | bool);
 
     native fn heal(amount: num, player: Player);
+
+    native fn dealDamage(damage: num);
 }
 
 pub native struct vector {
@@ -24,6 +31,8 @@ pub native struct vector {
     native var x: num;
     native var y: num;
     native var z: num;
+
+    native fn distanceBetween(rhs: vector);
 
     native fn new(x: num, y: num, z: num);
 }

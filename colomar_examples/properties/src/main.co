@@ -1,0 +1,36 @@
+import std;
+
+Player {
+    var lastPos: vector;
+}
+
+rule "Store location" OngoingEachPlayer() {
+    cond player.isReloading;
+
+    player.lastPos = player.position;
+}
+
+rule "Check location" OngoingEachPlayer() {
+    cond player.lastPos.x == player.lastPos.y;
+
+    player.sendSmallMessage("Match");
+}
+
+rule "Variables that you can only get" OngoingEachPlayer() {
+    // Valid
+    cond player.isReloading;
+
+    // isReloading can only be read from, not be set to.
+    // Uncomment below to force an exception
+    // player.isReloading = true;
+}
+
+rule "Variables that you can only set" OngoingEachPlayer() {
+    // moveSpeed can only be set to, not read from
+    // Uncomment below to force an exception
+    //cond player.moveSpeed == 100;
+
+    // Valid
+    player.moveSpeed = 100;
+}
+

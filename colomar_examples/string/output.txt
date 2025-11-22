@@ -1,0 +1,25 @@
+variables {
+    player:
+          0: myString
+}
+rule("Send Hello World when Jumping")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		All;
+		All;
+	}
+
+	conditions
+	{
+                Is Jumping(Event Player) == True;
+	}
+
+	actions
+	{
+                Set Player Variable(Event Player, myString, Custom String("Hello World"));
+                Small Message(Event Player, String Length(Event Player.myString));
+                Small Message(Event Player, String Contains(Event Player.myString, Custom String("Hello")));
+	}
+}

@@ -282,6 +282,7 @@ fn assert_call_chain(
                         }
                     }
                 }
+                Call::Bool(actual, _) => todo!("Boolean checks are not implemented")
             }
         })
 }

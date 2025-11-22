@@ -1,6 +1,5 @@
 import std;
 
-// A simple rule starts with the 'rule' keyword, following
 rule "Send Hello World when Jumping" OngoingEachPlayer() {
     cond player.isJumping;
 

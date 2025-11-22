@@ -1,0 +1,80 @@
+variables {
+    player:
+          0: lastPos
+}
+rule("Variables that you can only set")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		All;
+		All;
+	}
+
+	conditions
+	{
+
+	}
+
+	actions
+	{
+                Set Move Speed(Event Player, 100);
+	}
+}
+rule("Store location")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		All;
+		All;
+	}
+
+	conditions
+	{
+                Is Reloading(Event Player) == True;
+	}
+
+	actions
+	{
+                Set Player Variable(Event Player, lastPos, Position Of(Event Player));
+	}
+}
+rule("Check location")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		All;
+		All;
+	}
+
+	conditions
+	{
+                (X Component Of(Event Player.lastPos) == Y Component Of(Event Player.lastPos)) == True;
+	}
+
+	actions
+	{
+                Small Message(Event Player, Custom String("Match"));
+	}
+}
+rule("Variables that you can only get")
+{
+	event
+	{
+		Ongoing - EachPlayer;
+		All;
+		All;
+	}
+
+	conditions
+	{
+                Is Reloading(Event Player) == True;
+	}
+
+	actions
+	{
+
+	}
+}

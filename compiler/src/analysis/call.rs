@@ -20,9 +20,9 @@ pub(super) fn query_expr(
 ) -> QueryTrisult<cir::Expr> {
     type Lhs = Box<cst::Expr>;
     type Rhs = Lhs;
-    let binary_op = |lhs: Lhs, rhs: Rhs, expr: fn(_, _) -> _| {
-        let lhs = db.query_expr(inital_nameholders.clone(), enforce_bool, *lhs);
-        let rhs = db.query_expr(inital_nameholders.clone(), enforce_bool, *rhs);
+    let binary_op = |lhs: Lhs, rhs: Rhs, op_force_bool: bool, expr: fn(_, _) -> _| {
+        let lhs = db.query_expr(inital_nameholders.clone(), op_force_bool, *lhs);
+        let rhs = db.query_expr(inital_nameholders.clone(), op_force_bool, *rhs);
         lhs.and(rhs).flat_map(|(lhs, rhs)| {
             let expr: cir::Expr = expr(Box::new(lhs), Box::new(rhs));
             // We can safely unwrap here, because we know the created expression will have lhs and rhs
@@ -30,7 +30,7 @@ pub(super) fn query_expr(
             let rhs = db.checked_return_avalue(expr.rhs().cloned().unwrap());
 
             lhs.and(rhs)
-                .flat_map(|(lhs, rhs)| db.check_equal_return_avalue(lhs, rhs))
+                .flat_map(|(lhs, rhs)| db.check_equal_return_avalue(lhs, rhs, op_force_bool))
                 .map(|_| expr)
         })
     };
@@ -59,8 +59,9 @@ pub(super) fn query_expr(
         cst::Expr::Neg(neg) => db
             .query_expr(inital_nameholders, enforce_bool, *neg)
             .map(|expr| cir::Expr::Neg(Box::new(expr))),
-        cst::Expr::And(lhs, rhs) => binary_op(lhs, rhs, cir::Expr::And),
-        cst::Expr::Or(lhs, rhs) => binary_op(lhs, rhs, cir::Expr::Or),
+        cst::Expr::And(lhs, rhs) => binary_op(lhs, rhs, true, cir::Expr::And),
+        cst::Expr::Or(lhs, rhs) => binary_op(lhs, rhs, true, cir::Expr::Or),
+        cst::Expr::Equal(lhs, rhs) => binary_op(lhs, rhs, false, cir::Expr::Equal),
     }
 }
 
@@ -76,7 +77,14 @@ pub(super) fn checked_return_avalue(
             let rhs = db.checked_return_avalue(*rhs);
 
             lhs.and(rhs)
-                .flat_map(|(lhs, rhs)| db.check_equal_return_avalue(lhs, rhs))
+                .flat_map(|(lhs, rhs)| db.check_equal_return_avalue(lhs, rhs, true))
+        }
+        cir::Expr::Equal(lhs, rhs) => {
+            let lhs = db.checked_return_avalue(*lhs);
+            let rhs = db.checked_return_avalue(*rhs);
+
+            lhs.and(rhs)
+                .flat_map(|(lhs, rhs)| db.check_equal_return_avalue(lhs, rhs, false))
         }
     }
 }
@@ -85,6 +93,7 @@ pub(super) fn check_equal_return_avalue(
     db: &dyn DeclQuery,
     lhs: cir::AValue,
     rhs: cir::AValue,
+    must_be_bool: bool,
 ) -> QueryTrisult<cir::AValue> {
     db.query_bool_type()
         .complete_with_span(lhs.span().combine(rhs.span()))
@@ -92,9 +101,20 @@ pub(super) fn check_equal_return_avalue(
             let both_sides_same_type = lhs
                 .return_called_type(db)
                 .has_same_return_type(&rhs.return_called_type(db));
-            let type_is_bool = rhs.return_called_type(db).has_same_return_type(&bool_id);
 
-            if both_sides_same_type && type_is_bool {
+            if must_be_bool {
+                let type_is_bool = rhs.return_called_type(db).has_same_return_type(&bool_id);
+
+                if both_sides_same_type && type_is_bool {
+                    QueryTrisult::Ok(rhs)
+                } else {
+                    // TODO Add info
+                    QueryTrisult::Par(
+                        rhs.clone(),
+                        NonEmptyVec::new(CompilerError::WrongTypeInBinaryExpr(lhs, rhs)),
+                    )
+                }
+            } else if both_sides_same_type {
                 QueryTrisult::Ok(rhs)
             } else {
                 // TODO Add info
