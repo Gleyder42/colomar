@@ -40,6 +40,9 @@ pub mod cir;
 pub mod codegen;
 pub mod cst;
 pub mod database;
+
+// Re-export the Db trait for use throughout the codebase
+pub use database::Db;
 pub mod error;
 pub mod error_reporter;
 pub mod language;
@@ -376,9 +379,9 @@ pub fn flatten<LR, L, R, const LN: usize, const RN: usize>(
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct Ident {
-    pub value: TextId,
-    pub span: Span,
+pub struct Ident<'db> {
+    pub value: StringId<'db>,
+    pub span: Span<'db>,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

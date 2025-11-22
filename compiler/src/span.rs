@@ -1,6 +1,3 @@
-use super::Text;
-use crate::analysis::interner::Interner;
-use crate::impl_intern_key;
 use chumsky::span::SimpleSpan;
 use lazy_static::lazy_static;
 use std::fmt::Debug;
@@ -10,7 +7,6 @@ use std::path::PathBuf;
 pub type OffsetNumber = u32;
 pub type Offset = CopyRange;
 pub type SpanSource = PathBuf;
-pub type SpannedBool = Option<Spanned<()>>;
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct CopyRange {
@@ -58,8 +54,8 @@ impl From<Range<OffsetNumber>> for CopyRange {
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub struct Span {
-    pub context: SpanSourceId,
+pub struct Span<'db> {
+    pub context: SpanSourceId<'db>,
     pub offset: Offset,
 }
 
@@ -67,8 +63,8 @@ lazy_static! {
     pub static ref FAKE_SPAN_SOURCE_NAME: PathBuf = PathBuf::from("FakeSpanSource");
 }
 
-impl Span {
-    pub fn combine(self, other: Span) -> Span {
+impl<'db> Span<'db> {
+    pub fn combine(self, other: Span<'db>) -> Span<'db> {
         assert_eq!(
             self.context, other.context,
             "When combining {:?} with {:?}, both must have the same span but had {:?} and {:?}",
@@ -84,16 +80,23 @@ impl Span {
         }
     }
 
-    pub fn fake_span(db: &dyn SpanInterner) -> Span {
+    pub fn fake_span(db: &'db dyn crate::Db) -> Span<'db> {
         Span {
-            context: db.intern_span_source(FAKE_SPAN_SOURCE_NAME.clone()),
+            context: SpanSourceId::new(db, FAKE_SPAN_SOURCE_NAME.clone()),
             offset: CopyRange { start: 0, end: 1 },
+        }
+    }
+    
+    pub fn new(source: SpanSourceId<'db>, location: Offset) -> Self {
+        Span {
+            context: source,
+            offset: location,
         }
     }
 }
 
-impl ariadne::Span for Span {
-    type SourceId = SpanSourceId;
+impl<'db> ariadne::Span for Span<'db> {
+    type SourceId = SpanSourceId<'db>;
 
     fn source(&self) -> &Self::SourceId {
         &self.context
@@ -108,34 +111,25 @@ impl ariadne::Span for Span {
     }
 }
 
-impl Span {
-    pub fn new(source: SpanSourceId, location: Offset) -> Self {
-        Span {
-            context: source,
-            offset: location,
-        }
+// Interned string type for salsa 0.24
+#[salsa::interned]
+pub struct StringId<'db> {
+    #[return_ref]
+    pub text: String,
+}
+
+impl StringId<'_> {
+    pub fn name<'db>(self, db: &'db dyn crate::Db) -> &'db str {
+        self.text(db)
     }
 }
 
-#[salsa::query_group(SpanInternerDatabase)]
-pub trait SpanInterner {
-    #[salsa::interned]
-    fn intern_span_source(&self, span_source: SpanSource) -> SpanSourceId;
+// Interned span source type for salsa 0.24
+#[salsa::interned]
+pub struct SpanSourceId<'db> {
+    #[return_ref]
+    pub source: SpanSource,
 }
-
-#[salsa::query_group(StringInternerDatabase)]
-pub trait StringInterner {
-    #[salsa::interned]
-    fn intern_string(&self, string: String) -> StringId;
-}
-
-impl StringId {
-    pub fn name(&self, interner: &dyn Interner) -> Text {
-        interner.lookup_intern_string(*self)
-    }
-}
-
-impl_intern_key!(StringId);
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct FatSpan {
@@ -144,32 +138,32 @@ pub struct FatSpan {
 }
 
 impl FatSpan {
-    pub fn from_span(db: &dyn SpanInterner, span: Span) -> FatSpan {
+    pub fn from_span<'db>(db: &'db dyn crate::Db, span: Span<'db>) -> FatSpan {
         FatSpan {
             location: span.offset,
-            source: db.lookup_intern_span_source(span.context),
+            source: span.context.source(db).clone(),
         }
     }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub struct Spanned<T> {
+pub struct Spanned<'db, T> {
     pub value: T,
-    pub span: Span,
+    pub span: Span<'db>,
 }
 
-impl<T> Spanned<T> {
-    pub fn new(value: T, span: Span) -> Self {
+impl<'db, T> Spanned<'db, T> {
+    pub fn new(value: T, span: Span<'db>) -> Self {
         Spanned { value, span }
     }
 
-    pub fn ignore_value(option: Option<T>, span: Span) -> SpannedBool {
+    pub fn ignore_value(option: Option<T>, span: Span<'db>) -> Option<Spanned<'db, ()>> {
         option.map(|_| Spanned::new((), span))
     }
 }
 
-impl<T: Default> Spanned<T> {
-    pub fn default_inner(span: Span) -> Spanned<T> {
+impl<'db, T: Default> Spanned<'db, T> {
+    pub fn default_inner(span: Span<'db>) -> Spanned<'db, T> {
         Spanned {
             value: T::default(),
             span,
@@ -177,8 +171,8 @@ impl<T: Default> Spanned<T> {
     }
 }
 
-impl<T> Spanned<T> {
-    pub fn inner_into<U: From<T>>(self) -> Spanned<U> {
+impl<'db, T> Spanned<'db, T> {
+    pub fn inner_into<U: From<T>>(self) -> Spanned<'db, U> {
         Spanned {
             value: self.value.into(),
             span: self.span,
@@ -226,8 +220,8 @@ impl chumsky::span::Span for CopyRange {
     }
 }
 
-impl chumsky::span::Span for Span {
-    type Context = SpanSourceId;
+impl<'db> chumsky::span::Span for Span<'db> {
+    type Context = SpanSourceId<'db>;
     type Offset = OffsetNumber;
 
     fn new(context: Self::Context, range: Range<Self::Offset>) -> Self {
@@ -250,7 +244,7 @@ impl chumsky::span::Span for Span {
     }
 }
 
-impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
+impl<'db, T, I: IntoIterator<Item = T>> IntoIterator for Spanned<'db, I> {
     type Item = T;
     type IntoIter = <I as IntoIterator>::IntoIter;
 
@@ -258,5 +252,3 @@ impl<T, I: IntoIterator<Item = T>> IntoIterator for Spanned<I> {
         self.value.into_iter()
     }
 }
-
-impl_intern_key!(SpanSourceId);
