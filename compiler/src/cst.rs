@@ -367,6 +367,7 @@ impl From<Box<Call>> for CallChain {
             Call::String(_, ref span) => *span,
             Call::Number(_, ref span) => *span,
             Call::IdentArgs { ref span, .. } => *span,
+            Call::Bool(_, ref span) => *span,
         };
         Spanned {
             value: vec![value],
@@ -406,6 +407,7 @@ pub enum Call {
     /// - "Hello World"
     /// - "Greetings"
     String(TextId, Span),
+    Bool(bool, Span),
     /// A number literal
     /// ## Example
     /// - 12

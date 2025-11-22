@@ -522,6 +522,7 @@ impl AValue {
 pub enum CValue {
     String(TextId, StructDeclId, Span),
     Number(TextId, StructDeclId, Span),
+    Bool(bool, StructDeclId, Span),
 }
 
 impl CValue {
@@ -529,12 +530,15 @@ impl CValue {
         match self {
             CValue::String(_, id, _) => *id,
             CValue::Number(_, id, _) => *id,
+            CValue::Bool(_, id, _) => *id,
         }
     }
 
     pub fn span(&self) -> Span {
         match self {
-            CValue::String(_, _, span) | CValue::Number(_, _, span) => *span,
+            CValue::String(_, _, span) | CValue::Number(_, _, span) | CValue::Bool(_, _, span) => {
+                *span
+            }
         }
     }
 
@@ -542,6 +546,7 @@ impl CValue {
         match self {
             CValue::String(_, struct_decl_id, _) => TypeDesc::Struct(*struct_decl_id),
             CValue::Number(_, struct_decl_id, _) => TypeDesc::Struct(*struct_decl_id),
+            CValue::Bool(_, struct_decl_id, _) => TypeDesc::Struct(*struct_decl_id),
         }
     }
 }

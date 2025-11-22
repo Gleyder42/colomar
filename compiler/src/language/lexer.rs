@@ -30,6 +30,7 @@ pub enum Token {
     Vararg,
     Ident(StringId),
     String(StringId),
+    Bool(bool),
     Num(StringId),
     Ctrl(char),
 }
@@ -72,6 +73,7 @@ impl Display for Token {
             Token::Static => write!(f, "static"),
             Token::Vararg => write!(f, "vararg"),
             Token::Import => write!(f, "import"),
+            Token::Bool(bool) => write!(f, "{bool:?}"),
             Token::Ident(string) => write!(f, "{string:?}"),
             Token::String(string) => write!(f, "{string:?}"),
             Token::Num(string) => write!(f, "{string:?}"),
@@ -121,6 +123,8 @@ pub fn lexer(
         "import" => Token::Import,
         "vararg" => Token::Vararg,
         "static" => Token::Static,
+        "true" => Token::Bool(true),
+        "false" => Token::Bool(false),
         _ => Token::Ident(string_interner.intern_string(ident.to_owned())),
     });
 

@@ -1,4 +1,4 @@
-  use super::super::cst::*;
+use super::super::cst::*;
 use super::super::language::lexer::Token;
 use super::super::{AssignMod, Ident, UseRestriction};
 use chumsky::input::{SpannedInput, Stream};
@@ -430,6 +430,7 @@ pub fn chain<'src: 'a, 'a>() -> IdentChainParserResult<'src, 'a> {
         .map_with_span(CallArgs::new);
 
     let literal = select! {
+        Token::Bool(bool) = span => Box::new(Call::Bool(bool, span)),
         Token::String(string) = span => Box::new(Call::String(string, span)),
         Token::Num(number) = span => Box::new(Call::Number(number, span)),
     };

@@ -207,6 +207,16 @@ pub(super) fn query_call_chain(
                             cir::AValue::CValue(CValue::Number(ident, number_struct_id, span)),
                         )
                     }),
+                cst::Call::Bool(bool, span) => {
+                    db.query_bool_type()
+                        .complete_with_span(span)
+                        .map(|bool_struct_id| {
+                            (
+                                smallvec![Nameholder::Empty],
+                                cir::AValue::CValue(CValue::Bool(bool, bool_struct_id, span)),
+                            )
+                        })
+                }
             }
             .map(|(acc, avalue)| {
                 avalues.push(avalue);

@@ -189,6 +189,10 @@ fn query_wst_call_by_cvalue(db: &dyn Codegen, cvalue: CValue) -> QueryTrisult<Op
 
             QueryTrisult::Ok(call).inner_into_some()
         }
+        CValue::Bool(boolean, ..) => {
+            let call = wst::Call::Boolean(boolean);
+            QueryTrisult::Ok(call).inner_into_some()
+        }
     }
 }
 

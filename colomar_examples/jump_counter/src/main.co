@@ -5,8 +5,15 @@ Player {
      var isCool: bool;
 }
 
+rule "Is cool?" OngoingEachPlayer() {
+    cond player.isReloading;
+
+    player.isCool = true;
+    player.sendSmallMessage("You are cool now!");
+}
+
 rule "Jump Counter" OngoingEachPlayer() {
-    cond player.isCool;
+    cond player.isCool && player.isJumping;
 
     player.jumpCounter += 1;
     player.sendSmallMessage(player.jumpCounter);
